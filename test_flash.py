@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch.profiler import profile, record_function, ProfilerActivity
-import flash_attn_turing
+import flash_attn_turing_test
 import argparse
 
 torch.set_printoptions(precision=8)
@@ -20,7 +20,7 @@ def get_error(batch_size=1, seqlen=16, nheads=1, headdim=128):
     value_torch = value.permute(0, 2, 1, 3).contiguous().clone()
 
 
-    output = flash_attn_turing.flash_fwd_v17(query, key, value,
+    output = flash_attn_turing_test.flash_fwd_v17(query, key, value,
                                            batch_size, seqlen, nheads, headdim)
 
     # (batch_size, nheads, seqlen, headdim)
