@@ -3,7 +3,7 @@ from torch.utils.cpp_extension import CUDAExtension, BuildExtension
 import os
 
 if 'MODAL_IMAGE_ID' in os.environ:
-    cutlass_include_dirs = ["/root/cuda/flash_attn_turing/cutlass/include", "/root/cuda/flash_attn_turing/cutlass/tools/util/include"]
+    cutlass_include_dirs = ["/root/flash-attention-turing/cutlass/include", "/root/flash-attention-turing/cutlass/tools/util/include"]
 elif 'COLAB_GPU' in os.environ:
     cutlass_include_dirs = ["/content/cuda/flash_attn_turing/cutlass/include", "/content/cuda/flash_attn_turing/cutlass/tools/util/include"]
 elif 'GOOGLE_CLOUD_PROJECT' in os.environ:
