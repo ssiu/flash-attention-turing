@@ -27,10 +27,10 @@ nvcc_flags = ["-std=c++17",
               "-lineinfo"]
 
 setup(
-    name="flash_attn_turing",
+    name="flash_attn_turing_test",
     ext_modules=[
         CUDAExtension(
-            name="flash_attn_turing",
+            name="flash_attn_turing_test",
             sources=["flash_attn_turing.cpp",
                      #"flash_fwd_v0.cu",
                      #"flash_fwd_v1.cu",
