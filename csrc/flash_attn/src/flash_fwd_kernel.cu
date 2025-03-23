@@ -432,11 +432,11 @@ torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
 
     TiledMMA mma_S = make_tiled_mma(SM75_16x8x8_F32F16F16F32_TN{},
                                         Layout<Shape<_8, _1, _1>>{},
-                                        Tile<_128,_64,_8>{}); // (Q_TILE_SIZE, KV_TILE_SIZE, 8)
+                                        Tile<_128,_8,_8>{}); // (Q_TILE_SIZE, KV_TILE_SIZE, 8)
 
     TiledMMA mma_O = make_tiled_mma(SM75_16x8x8_F32F16F16F32_TN{},
                                         Layout<Shape<_8, _1, _1>>{},
-                                        Tile<_128,_128,_8>{}); // (Q_TILE_SIZE, HEAD_SIZE, 8)
+                                        Tile<_128,_8,_8>{}); // (Q_TILE_SIZE, HEAD_SIZE, 8)
 
 
     torch::Tensor o = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
