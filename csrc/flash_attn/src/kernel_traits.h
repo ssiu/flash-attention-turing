@@ -40,18 +40,9 @@ struct Flash_fwd_kernel_traits : public Base {
     using SmemCopyAtomK = typename Base::SmemCopyAtomK;
     using SmemCopyAtomV = typename Base::SmemCopyAtomV;
 
-
-    // The number of threads.
-    static constexpr int kNWarps = kNWarps_;
-    static constexpr int kNThreads = kNWarps * 32;
-
     static constexpr int kBlockM = kBlockM_;
     static constexpr int kBlockN = kBlockN_;
     static constexpr int kHeadDim = kHeadDim_;
-    static_assert(kHeadDim % 32 == 0);
-    static constexpr int kBlockKSmem = kHeadDim % 64 == 0 ? 64 : 32;
-    static constexpr int kBlockKGmem = kHeadDim % 128 == 0 ? 128 : (kHeadDim % 64 == 0 ? 64 : 32);
-    static constexpr int kSwizzle = kBlockKSmem == 32 ? 2 : 3;
 
     using TiledMma = TiledMMA<
         typename Base::MMA_Atom_Arch,
@@ -108,10 +99,5 @@ struct Flash_fwd_kernel_traits : public Base {
                             GmemLayoutAtomO{},
                             Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
 
-
-//    using GmemTiledCopyO = decltype(
-//        make_tiled_copy(Copy_Atom<AutoVectorizingCopyWithAssumedAlignment<128>, Element>{},
-//                        GmemLayoutAtom{},
-//                        Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per store
 
 };

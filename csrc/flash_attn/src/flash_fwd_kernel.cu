@@ -359,77 +359,9 @@ void flash_fwd_kernel(
 torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
                                 int batch_size, int seq_len, int num_heads, int head_dim)
 {
-
     constexpr int kBlockM = 128;
     constexpr int kBlockN = 64;
     constexpr int kHeadDim = 128;
-
-    auto sQ_layout_atom = composition(Swizzle<3, 3, 3>{},
-                                 Layout<Shape<_16,_64>,
-                                 Stride<_64, _1>>{});
-
-    auto sK_layout_atom = composition(Swizzle<3, 3, 3>{},
-                               Layout<Shape<_16,_64>,
-                               Stride<_64, _1>>{});
-
-    auto sV_layout_atom = composition(Swizzle<3, 3, 3>{},
-                             Layout<Shape<_64,_16>,
-                             Stride<_1, _64>>{});
-
-    auto sO_layout_atom = composition(Swizzle<3, 3, 3>{},
-                                 Layout<Shape<_16,_64>,
-                                 Stride<_64, _1>>{});
-
-
-    auto sQ_layout = tile_to_shape(sQ_layout_atom,
-                           make_shape(Int<kBlockM>{}, Int<kHeadDim>{}));
-
-
-
-    auto sK_layout = tile_to_shape(sK_layout_atom,
-                           make_shape(Int<kBlockN>{}, Int<kHeadDim>{}));
-
-
-    auto sV_layout = tile_to_shape(sV_layout_atom,
-                            make_shape(Int<kHeadDim>{}, Int<kBlockN>{}));
-
-    auto sO_layout = tile_to_shape(sO_layout_atom,
-                           make_shape(Int<kBlockM>{}, Int<kHeadDim>{}));
-
-
-
-    auto sS_layout = make_layout(make_shape (Int<kBlockM>{}, Int<kBlockN>{}),
-                        make_stride(Int<kBlockN>{}, Int<1>{}));
-
-
-
-
-    TiledCopy copy_Q = make_tiled_copy(Copy_Atom<AutoVectorizingCopy, half_t>{},
-                                Layout<Shape<_32,_8>, Stride<_8,_1>>{},
-                                Layout<Shape< _1,_8>>{});
-
-    TiledCopy copy_K = make_tiled_copy(Copy_Atom<AutoVectorizingCopy, half_t>{},
-                                Layout<Shape<_32,_8>, Stride<_8,_1>>{},
-                                Layout<Shape< _1,_8>>{});
-
-    // 64 threads loading a 128 x 32 tile
-    TiledCopy copy_V = make_tiled_copy(Copy_Atom<AutoVectorizingCopy, half_t>{},
-                                Layout<Shape<_8,_32>, Stride<_1,_8>>{},
-                                Layout<Shape< _8,_1>>{});
-
-    TiledCopy copy_O = make_tiled_copy(Copy_Atom<AutoVectorizingCopy, half_t>{},
-                                Layout<Shape<_32,_8>, Stride<_8,_1>>{},
-                                Layout<Shape< _1,_8>>{});
-
-
-    TiledMMA mma_S = make_tiled_mma(SM75_16x8x8_F32F16F16F32_TN{},
-                                        Layout<Shape<_8, _1, _1>>{},
-                                        Tile<_128,_64,_8>{}); // (kBlockM, kBlockN, 8)
-
-    TiledMMA mma_O = make_tiled_mma(SM75_16x8x8_F32F16F16F32_TN{},
-                                        Layout<Shape<_8, _1, _1>>{},
-                                        Tile<_128,_128,_8>{}); // (kBlockM, kHeadDim, 8)
-
 
     torch::Tensor o = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
 
@@ -445,7 +377,7 @@ torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
 
 
 
-    auto kernel = flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 8>>;
+    auto kernel = flash_fwd_kernel<Flash_fwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
     cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
 
 
