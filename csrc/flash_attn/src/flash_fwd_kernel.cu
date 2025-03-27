@@ -14,44 +14,39 @@
 #include <cutlass/numeric_conversion.h>
 #include <cutlass/numeric_types.h>
 
+#include "kernel_traits.h"
+
 using namespace cute;
 
 
-#define HEAD_SIZE 128
-#define Q_TILE_SIZE 128
-#define KV_TILE_SIZE 64
 
-
-
-template <class SmemLayoutQ, class TiledCopyQ, class TiledMmaS,
-          class SmemLayoutK, class TiledCopyK, class TiledMmaO,
-          class SmemLayoutV, class TiledCopyV,
-          class SmemLayoutS,
-          class SmemLayoutO, class TiledCopyO>
+template <typename Kernel_traits>
 __global__ __launch_bounds__(256)
 void flash_fwd_kernel(
-    half_t const* q, SmemLayoutQ sQ_layout, TiledCopyQ copy_Q, TiledMmaS mma_S,
-    half_t const* k, SmemLayoutK sK_layout, TiledCopyK copy_K, TiledMmaO mma_O,
-    half_t const* v, SmemLayoutV sV_layout, TiledCopyV copy_V,
-                     SmemLayoutS sS_layout,
-    half_t* o,       SmemLayoutO sO_layout, TiledCopyO copy_O,
+    half_t const* q,
+    half_t const* k,
+    half_t const* v,
+    half_t* o,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {
 
+    constexpr int kBlockM = Kernel_traits::kBlockM;
+    constexpr int kBlockN = Kernel_traits::kBlockN;
+    constexpr int kHeadDim = Kernel_traits::kHeadDim;
 
     Tensor mQ = make_tensor(make_gmem_ptr(q),
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gQ = local_tile(mQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<Q_TILE_SIZE>, Int<HEAD_SIZE>>{},
+    Tensor gQ = local_tile(mQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
     Tensor mK = make_tensor(make_gmem_ptr(k),
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<KV_TILE_SIZE>, Int<HEAD_SIZE>>{},
+    Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
     // this is a (seq_len, head_dim) column major matrix, so its V^T in row major
@@ -59,28 +54,24 @@ void flash_fwd_kernel(
                             make_shape(batch_size, head_dim, num_heads, seq_len),
                             make_stride(seq_len * num_heads * head_dim, Int<1>{}, head_dim, num_heads * head_dim));
 
-    Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<HEAD_SIZE>, Int<KV_TILE_SIZE>>{},
+    Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
                            make_coord(0, _));
 
     Tensor mO = make_tensor(make_gmem_ptr(o),
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gO = local_tile(mO(blockIdx.x, _, blockIdx.y, _), Shape<Int<Q_TILE_SIZE>, Int<HEAD_SIZE>>{},
+    Tensor gO = local_tile(mO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
 
     extern __shared__ char smem_[];
 
 
-    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), sQ_layout);
-    Tensor sK = make_tensor(sQ.data() + Q_TILE_SIZE*HEAD_SIZE, sK_layout);
-    Tensor sV = make_tensor(sK.data(), sV_layout);
-    Tensor sP = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), sS_layout);
-
-    Tensor sS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), sS_layout);
-    Tensor sO = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), sO_layout);
-    Tensor sO_float = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), sO_layout);
+    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayoutQ{});
+    Tensor sK = make_tensor(sQ.data() + kBlockM*kHeadDim, typename Kernel_traits::SmemLayoutK{});
+    Tensor sV = make_tensor(sK.data(), typename Kernel_traits::SmemLayoutV{});
+    Tensor sO = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayoutQ{});
 
 
     int thread_id = threadIdx.x;
@@ -115,64 +106,63 @@ void flash_fwd_kernel(
     else if (lane_id < 28) lane_id_to_read_from = 24;  // Lanes 24 - 27
     else                   lane_id_to_read_from = 28;  // Lanes 28 - 31
 
-
     // gmem -> smem for Q, K, V
-    ThrCopy thr_copy_Q = copy_Q.get_slice(threadIdx.x);
-    Tensor tQgQ = thr_copy_Q.partition_S(gQ);
-    Tensor tQsQ = thr_copy_Q.partition_D(sQ);
+    typename Kernel_traits::GmemTiledCopyQK gmem_tiled_copy_QK;
+    typename Kernel_traits::GmemTiledCopyV gmem_tiled_copy_V;
+    typename Kernel_traits::GmemTiledCopyO gmem_tiled_copy_O;
 
+    ThrCopy thr_copy_QK = gmem_tiled_copy_QK.get_slice(threadIdx.x);
+    Tensor tQgQ = thr_copy_QK.partition_S(gQ);
+    Tensor tQsQ = thr_copy_QK.partition_D(sQ);
 
-    ThrCopy thr_copy_K = copy_K.get_slice(threadIdx.x);
-    Tensor tKgK = thr_copy_K.partition_S(gK);
-    Tensor tKsK = thr_copy_K.partition_D(sK);
+    Tensor tKgK = thr_copy_QK.partition_S(gK);
+    Tensor tKsK = thr_copy_QK.partition_D(sK);
     Tensor tKrK = make_fragment_like(tKsK);
 
-    ThrCopy thr_copy_V = copy_V.get_slice(threadIdx.x);
+
+    ThrCopy thr_copy_V = gmem_tiled_copy_V.get_slice(threadIdx.x);
     Tensor tVgV = thr_copy_V.partition_S(gV);
     Tensor tVsV = thr_copy_V.partition_D(sV);
     Tensor tVrV = make_fragment_like(tVsV);
 
     // smem -> gmem for O
-    ThrCopy thr_copy_O = copy_O.get_slice(threadIdx.x);
+    ThrCopy thr_copy_O = gmem_tiled_copy_O.get_slice(threadIdx.x);
     Tensor tOsO_copy = thr_copy_O.partition_S(sO);
     Tensor tOgO_copy = thr_copy_O.partition_D(gO);
 
+
+    typename Kernel_traits::TiledMma tiled_mma;
+
     // mma for S = QK^T
-    ThrMMA thr_mma_S = mma_S.get_slice(threadIdx.x);
+    ThrMMA thr_mma_S = tiled_mma.get_slice(threadIdx.x);
     Tensor tSsQ = thr_mma_S.partition_A(sQ);
     Tensor tSsK = thr_mma_S.partition_B(sK);
-    Tensor tSsS = thr_mma_S.partition_C(sS);
 
     Tensor tSrQ = thr_mma_S.make_fragment_A(tSsQ);
     Tensor tSrK = thr_mma_S.make_fragment_B(tSsK);
-    Tensor tSrS = thr_mma_S.make_fragment_C(tSsS);
+    Tensor tSrS_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kBlockN>>{});
 
 
     // mma for O = PV
-    ThrMMA thr_mma_O = mma_O.get_slice(threadIdx.x);
-    Tensor tOsP = thr_mma_O.partition_A(sP);
+    ThrMMA thr_mma_O = tiled_mma.get_slice(threadIdx.x);
     Tensor tOsV = thr_mma_O.partition_B(sV);
-
-    Tensor tOrP = thr_mma_O.make_fragment_A(tOsP);
     Tensor tOrV = thr_mma_O.make_fragment_B(tOsV);
-
-    // tOsO_float is not used, only used to construct the register tensor
-    Tensor tOsO_float = thr_mma_O.partition_C(sO_float);
-    Tensor tOrO_float = thr_mma_O.make_fragment_C(tOsO_float);
-
+    Tensor tOrO_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kHeadDim>>{});
     Tensor tOsO = thr_mma_O.partition_C(sO);
+
+
     //  each warp only process 16 rows
-    auto s2r_tiled_copy_Q = make_tiled_copy_A(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, mma_S);
+    auto s2r_tiled_copy_Q = make_tiled_copy_A(typename Kernel_traits::SmemCopyAtomQ{}, tiled_mma);
     auto s2r_thr_copy_Q = s2r_tiled_copy_Q.get_slice(threadIdx.x);
     auto tSsQ_copy_view = s2r_thr_copy_Q.partition_S(sQ);
     auto tSrQ_copy_view = s2r_thr_copy_Q.retile_D(tSrQ);
 
-    auto s2r_tiled_copy_K = make_tiled_copy_B(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, mma_S);
+    auto s2r_tiled_copy_K = make_tiled_copy_B(typename Kernel_traits::SmemCopyAtomK{}, tiled_mma);
     auto s2r_thr_copy_K = s2r_tiled_copy_K.get_slice(threadIdx.x);
     auto tSsK_copy_view = s2r_thr_copy_K.partition_S(sK);
     auto tSrK_copy_view = s2r_thr_copy_K.retile_D(tSrK);
 
-    auto s2r_tiled_copy_V = make_tiled_copy_B(Copy_Atom<SM75_U16x8_LDSM_T, half_t>{}, mma_O);
+    auto s2r_tiled_copy_V = make_tiled_copy_B(typename Kernel_traits::SmemCopyAtomV{}, tiled_mma);
     auto s2r_thr_copy_V = s2r_tiled_copy_V.get_slice(threadIdx.x);
     auto tOsV_copy_view = s2r_thr_copy_V.partition_S(sV);
     auto tOrV_copy_view = s2r_thr_copy_V.retile_D(tOrV);
@@ -182,8 +172,8 @@ void flash_fwd_kernel(
     auto PV_BLOCK_MAX = size<2>(tOsV);
     // prologue
 
-    copy(copy_Q, tQgQ, tQsQ);
-    copy(copy_K, tKgK(_,_,_,0), tKrK);
+    copy(gmem_tiled_copy_QK, tQgQ, tQsQ);
+    copy(gmem_tiled_copy_QK, tKgK(_,_,_,0), tKrK);
 
 
     clear(tOrO_float);
@@ -193,14 +183,14 @@ void flash_fwd_kernel(
     for (int kv_tile = 0; kv_tile < KV_TILE_MAX; ++kv_tile) {
 
 
-        copy(copy_K, tKrK, tKsK);
+        copy(gmem_tiled_copy_QK, tKrK, tKsK);
 
         __syncthreads();
 
-        clear(tSrS);
+        clear(tSrS_float);
 
         if (kv_tile + 1 < KV_TILE_MAX) {
-            copy(copy_K, tKgK(_,_,_,kv_tile + 1), tKrK);
+            copy(gmem_tiled_copy_QK, tKgK(_,_,_,kv_tile + 1), tKrK);
         }
 
 
@@ -208,16 +198,16 @@ void flash_fwd_kernel(
             copy(s2r_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
             copy(s2r_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
 
-            gemm(mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS);
+            gemm(tiled_mma, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
 
         }
 
         __syncthreads();
-        copy(copy_V, tVgV(_,_,_,kv_tile), tVsV);
+        copy(gmem_tiled_copy_V, tVgV(_,_,_,kv_tile), tVsV);
         __syncthreads();
 
-        for (int i=0;i< tSrS.size();i ++ ) {
-            tSrS[i] *= 1.0f / sqrtf(HEAD_SIZE);
+        for (int i=0;i< tSrS_float.size();i ++ ) {
+            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
 
 
@@ -230,8 +220,8 @@ void flash_fwd_kernel(
         // intra-thread reduction
 
         for (int i=0; i< 2; i++) {
-            for (int j=0; j < tSrS(make_coord(_,i),_,_).size(); j++) {
-                rM[i] = fmaxf(rM[i], tSrS(make_coord(_,i),_,_)[j]);
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                rM[i] = fmaxf(rM[i], tSrS_float(make_coord(_,i),_,_)[j]);
             }
         }
 
@@ -253,8 +243,8 @@ void flash_fwd_kernel(
 
         // compute P = softmax(S)
         for (int i =0; i<2; i++) {
-            for (int j=0; j < tSrS(make_coord(_,i),_,_).size(); j++) {
-                tSrS(make_coord(_,i),_,_)[j] = expf(tSrS(make_coord(_,i),_,_)[j] - rM[i]);
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
             }
         }
 
@@ -271,8 +261,8 @@ void flash_fwd_kernel(
         // thread reduction
 
         for (int i =0; i<2; i++) {
-            for (int j=0; j < tSrS(make_coord(_,i),_,_).size(); j++) {
-                rD[i] += tSrS(make_coord(_,i),_,_)[j];
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
             }
         }
 
@@ -299,12 +289,12 @@ void flash_fwd_kernel(
 
 
 
-        constexpr int num_element = decltype(size(tSrS))::value;
+        constexpr int num_element = decltype(size(tSrS_float))::value;
 
         cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS.data()));
+        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
 
-        Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS.layout());
+        Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
 
 
 
@@ -324,7 +314,7 @@ void flash_fwd_kernel(
 
             copy(s2r_tiled_copy_V, tOsV_copy_view(_,_,pv_block), tOrV_copy_view(_,_,pv_block));
 
-            gemm(mma_O, tOrP(_,_,pv_block), tOrV(_,_,pv_block), tOrO_float);
+            gemm(tiled_mma, tOrP(_,_,pv_block), tOrV(_,_,pv_block), tOrO_float);
 
         }
 
@@ -360,7 +350,7 @@ void flash_fwd_kernel(
 
     __syncthreads();
 
-    copy(copy_O, tOsO_copy, tOgO_copy);
+    copy(gmem_tiled_copy_O, tOsO_copy, tOgO_copy);
 
 }
 
@@ -370,6 +360,9 @@ torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
                                 int batch_size, int seq_len, int num_heads, int head_dim)
 {
 
+    constexpr int kBlockM = 128;
+    constexpr int kBlockN = 64;
+    constexpr int kHeadDim = 128;
 
     auto sQ_layout_atom = composition(Swizzle<3, 3, 3>{},
                                  Layout<Shape<_16,_64>,
@@ -389,25 +382,24 @@ torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
 
 
     auto sQ_layout = tile_to_shape(sQ_layout_atom,
-                           make_shape(Int<Q_TILE_SIZE>{}, Int<HEAD_SIZE>{}));
+                           make_shape(Int<kBlockM>{}, Int<kHeadDim>{}));
 
 
 
     auto sK_layout = tile_to_shape(sK_layout_atom,
-                           make_shape(Int<KV_TILE_SIZE>{}, Int<HEAD_SIZE>{}));
+                           make_shape(Int<kBlockN>{}, Int<kHeadDim>{}));
 
 
     auto sV_layout = tile_to_shape(sV_layout_atom,
-                            make_shape(Int<HEAD_SIZE>{}, Int<KV_TILE_SIZE>{}));
+                            make_shape(Int<kHeadDim>{}, Int<kBlockN>{}));
 
     auto sO_layout = tile_to_shape(sO_layout_atom,
-                           make_shape(Int<Q_TILE_SIZE>{}, Int<HEAD_SIZE>{}));
+                           make_shape(Int<kBlockM>{}, Int<kHeadDim>{}));
 
 
 
-    auto sS_layout = make_layout(make_shape (Int<Q_TILE_SIZE>{}, Int<KV_TILE_SIZE>{}),
-                        make_stride(Int<KV_TILE_SIZE>{}, Int<1>{}));
-
+    auto sS_layout = make_layout(make_shape (Int<kBlockM>{}, Int<kBlockN>{}),
+                        make_stride(Int<kBlockN>{}, Int<1>{}));
 
 
 
@@ -432,11 +424,11 @@ torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
 
     TiledMMA mma_S = make_tiled_mma(SM75_16x8x8_F32F16F16F32_TN{},
                                         Layout<Shape<_8, _1, _1>>{},
-                                        Tile<_128,_64,_8>{}); // (Q_TILE_SIZE, KV_TILE_SIZE, 8)
+                                        Tile<_128,_64,_8>{}); // (kBlockM, kBlockN, 8)
 
     TiledMMA mma_O = make_tiled_mma(SM75_16x8x8_F32F16F16F32_TN{},
                                         Layout<Shape<_8, _1, _1>>{},
-                                        Tile<_128,_128,_8>{}); // (Q_TILE_SIZE, HEAD_SIZE, 8)
+                                        Tile<_128,_128,_8>{}); // (kBlockM, kHeadDim, 8)
 
 
     torch::Tensor o = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
@@ -447,25 +439,21 @@ torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
     half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
 
 
-    dim3 dimGrid(batch_size, num_heads, seq_len / Q_TILE_SIZE);
+    dim3 dimGrid(batch_size, num_heads, seq_len / kBlockM);
     dim3 dimBlock(256);
     int maxbytes = 65536;
 
 
-    auto kernel = flash_fwd_kernel<decltype(sQ_layout), decltype(copy_Q), decltype(mma_S),
-                                      decltype(sK_layout), decltype(copy_K), decltype(mma_O),
-                                      decltype(sV_layout), decltype(copy_V),
-                                      decltype(sS_layout),
-                                      decltype(sO_layout), decltype(copy_O)>;
 
+    auto kernel = flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 8>>;
     cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    flash_fwd_kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr, sQ_layout, copy_Q, mma_S,
-                                                         k_ptr, sK_layout, copy_K, mma_O,
-                                                         v_ptr, sV_layout, copy_V,
-                                                                sS_layout,
-                                                         o_ptr, sO_layout, copy_O,
-                                                         batch_size, seq_len, num_heads, head_dim);
 
+
+    kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
+                                             k_ptr,
+                                             v_ptr,
+                                             o_ptr,
+                                             batch_size, seq_len, num_heads, head_dim);
     return o;
 
 }
