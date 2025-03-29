@@ -38,8 +38,8 @@ def main():
     with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
     # with sdpa_kernel(backends=[SDPBackend.EFFICIENT_ATTENTION]):
     #     output =  F.scaled_dot_product_attention(query, key, value)
-    output = F.scaled_dot_product_attention(Q, K, V)
-    output.backward(dO)
+        output = F.scaled_dot_product_attention(Q, K, V)
+        output.backward(dO)
 
     print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
 
