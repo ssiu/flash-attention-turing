@@ -340,8 +340,8 @@ void flash_fwd_kernel(
     }
     // end of KV loop
 
-    warp_id = threadIdx.x / 32;
-    thread_row = warp_id * 16 + thread_id / 4;
+    int warp_id = threadIdx.x / 32;
+    int thread_row = warp_id * 16 + thread_id / 4;
     gL[thread_row] = rM[0] + logf(rL[0]);
     gL[thread_row + 8] = rM[1] + logf(rL[1]);
 
@@ -370,8 +370,10 @@ void flash_fwd_kernel(
 
 
 std::vector<torch::Tensor>
-flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
-                                int batch_size, int seq_len, int num_heads, int head_dim)
+flash_fwd(torch::Tensor q,
+            torch::Tensor k,
+            torch::Tensor v,
+            int batch_size, int seq_len, int num_heads, int head_dim)
 {
     constexpr int kBlockM = 128;
     constexpr int kBlockN = 64;
