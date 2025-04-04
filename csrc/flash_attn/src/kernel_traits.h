@@ -101,3 +101,63 @@ struct Flash_fwd_kernel_traits : public Base {
 
 
 };
+
+//template<int kHeadDim_, int kBlockM_, int kBlockN_, int kNWarps_, typename elem_type=cutlass::half_t,
+//         typename Base=Flash_kernel_traits<kHeadDim_, kBlockM_, kBlockN_, kNWarps_, elem_type> >
+//struct Flash_bwd_kernel_traits : public Base {
+//
+//    using Element = typename Base::Element;
+//    using ElementAccum = typename Base::ElementAccum;
+//    //using index_t = typename Base::index_t;
+//    using SmemCopyAtomQ = typename Base::SmemCopyAtomQ;
+//    using SmemCopyAtomK = typename Base::SmemCopyAtomK;
+//    using SmemCopyAtomV = typename Base::SmemCopyAtomV;
+//
+//    static constexpr int kBlockM = kBlockM_;
+//    static constexpr int kBlockN = kBlockN_;
+//    static constexpr int kHeadDim = kHeadDim_;
+//
+//    using TiledMma = TiledMMA<
+//        typename Base::MMA_Atom_Arch,
+//        Layout<Shape<_2,_1,_1>>,
+//        Tile<_32, _32, _8>>;
+//
+//    using SmemLayoutAtom = decltype(
+//                    Layout<Shape<_32, _32>,
+//                    Stride<_32, _1>>{});
+//
+//    using SmemLayoutAtomTranposed = decltype(
+//                    Layout<Shape<_32, _32>,
+//                    Stride<_1, _32>>{});
+//
+//    using SmemLayoutQ = decltype(tile_to_shape(
+//        SmemLayoutAtom{},
+//        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
+//
+//    using SmemLayoutQ_T = decltype(tile_to_shape(
+//        SmemLayoutAtom{},
+//        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
+//
+//    using SmemLayoutKV = decltype(tile_to_shape(
+//        SmemLayoutAtom{},
+//        Shape<Int<kBlockN>, Int<kHeadDim>>{}));
+//
+//
+//    using SmemLayoutSP = decltype(tile_to_shape(
+//        SmemLayoutAtom{},
+//        Shape<Int<kBlockM>, Int<kBlockN>>{}));
+//
+//
+//
+//
+//    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
+//
+//    using GmemLayoutAtom = Layout<Shape <_8, _8>, Stride<_8, _1>>;
+//
+//
+//    using GmemTiledCopy = decltype(
+//            make_tiled_copy(Copy_Atom<Gmem_copy_struct, Element>{},
+//                            GmemLayoutAtom{},
+//                            Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
+//
+//};
