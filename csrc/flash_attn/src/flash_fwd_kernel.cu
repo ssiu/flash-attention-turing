@@ -408,4 +408,4 @@ flash_fwd(torch::Tensor q,
                                             batch_size, seq_len, num_heads, head_dim);
     return {o, l};
 
-}s
+}
