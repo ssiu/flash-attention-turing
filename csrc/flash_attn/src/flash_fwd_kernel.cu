@@ -388,6 +388,9 @@ flash_fwd(torch::Tensor q,
 //     std::vector<int64_t> size = {batch_size, seq_len, head_dim};
 //     torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
 
+    TORCH_CHECK(o.is_cuda(), "Tensor o is not on CUDA");
+    TORCH_CHECK(test.is_cuda(), "Tensor test is not on CUDA");
+
     half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
     half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
