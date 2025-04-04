@@ -66,7 +66,7 @@ void flash_fwd_kernel(
                            make_coord(blockIdx.z, 0));
 
     // L = m + log l
-    Tensor mL = make_tensor(make_gmem_ptr(l_ptr),
+    Tensor mL = make_tensor(make_gmem_ptr(l),
                              make_shape(batch_size, seq_len, num_heads),
                              make_stride(seq_len * num_heads, Int<1>{}, seq_len ));
 
