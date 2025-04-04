@@ -27,6 +27,7 @@ void flash_fwd_kernel(
     half_t const* k,
     half_t const* v,
     half_t* o,
+    half_t* l,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {
@@ -63,6 +64,14 @@ void flash_fwd_kernel(
 
     Tensor gO = local_tile(mO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
+
+    // L = m + log l
+    Tensor mL = make_tensor(make_gmem_ptr(l_ptr),
+                             make_shape(batch_size, seq_len, num_heads),
+                             make_stride(seq_len * num_heads, Int<1>{}, seq_len ));
+
+    Tensor gL = local_tile(mL(blockIdx.x, _, blockIdx.y), Shape<Int<kBlockM>>{},
+                           make_coord(_));
 
 
     extern __shared__ char smem_[];
@@ -331,6 +340,11 @@ void flash_fwd_kernel(
     }
     // end of KV loop
 
+    warp_id = threadIdx.x / 32;
+    thread_row = warp_id * 16 + thread_id / 4;
+    gL[thread_row] = rM[0] + logf(rL[0]);
+    gL[thread_row + 8] = rM[1] + logf(rL[1]);
+
 
     for (int i =0; i<2; i++) {
         for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
@@ -355,8 +369,8 @@ void flash_fwd_kernel(
 }
 
 
-
-torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
+std::vector<torch::Tensor>
+flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
                                 int batch_size, int seq_len, int num_heads, int head_dim)
 {
     constexpr int kBlockM = 128;
@@ -365,11 +379,14 @@ torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
 
     torch::Tensor o = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
 
+    std::vector<int64_t> size = {batch_size, seq_len, head_dim};
+    torch::Tensor l = torch::empty(size, torch::kFloat);
+
     half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
     half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
     half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
-
+    float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
 
     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockM);
     dim3 dimBlock(256);
@@ -382,10 +399,11 @@ torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
 
 
     kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
-                                             k_ptr,
-                                             v_ptr,
-                                             o_ptr,
-                                             batch_size, seq_len, num_heads, head_dim);
-    return o;
+                                            k_ptr,
+                                            v_ptr,
+                                            o_ptr,
+                                            l_ptr,
+                                            batch_size, seq_len, num_heads, head_dim);
+    return {o, l};
 
-}
+}s
