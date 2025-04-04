@@ -370,7 +370,7 @@ void flash_fwd_kernel(
 }
 
 
-std::vector<torch::Tensor>
+std::vector<at::Tensor>
 flash_fwd(torch::Tensor q,
             torch::Tensor k,
             torch::Tensor v,
