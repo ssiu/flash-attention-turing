@@ -384,8 +384,8 @@ flash_fwd(torch::Tensor q,
     torch::Tensor o = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
     torch::Tensor test = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
 
-    std::vector<int64_t> size = {batch_size, seq_len, head_dim};
-    torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
+//     std::vector<int64_t> size = {batch_size, seq_len, head_dim};
+//     torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
 
     half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
@@ -399,16 +399,16 @@ flash_fwd(torch::Tensor q,
 
 
 
-    auto kernel = flash_fwd_kernel<Flash_fwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
-    cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-
-
-    kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
-                                            k_ptr,
-                                            v_ptr,
-                                            o_ptr,
-                                            l_ptr,
-                                            batch_size, seq_len, num_heads, head_dim);
+//     auto kernel = flash_fwd_kernel<Flash_fwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
+//     cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+//
+//
+//     kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
+//                                             k_ptr,
+//                                             v_ptr,
+//                                             o_ptr,
+//                                             l_ptr,
+//                                             batch_size, seq_len, num_heads, head_dim);
     return {o, test};
 
 }
