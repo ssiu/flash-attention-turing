@@ -391,7 +391,7 @@ flash_fwd(torch::Tensor q,
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
     half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
     half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
-    float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
+//     float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
 
     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockM);
     dim3 dimBlock(256);
