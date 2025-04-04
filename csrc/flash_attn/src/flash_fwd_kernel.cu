@@ -27,7 +27,7 @@ void flash_fwd_kernel(
     half_t const* k,
     half_t const* v,
     half_t* o,
-    half_t* l,
+    float* l,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {
