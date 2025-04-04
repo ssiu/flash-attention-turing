@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cassert>
 #include <float.h>
+#include <vector>
 #include <torch/extension.h>
 #include <cute/tensor.hpp>
 #include "cutlass/util/print_error.hpp"
@@ -379,7 +380,7 @@ flash_fwd(torch::Tensor q,
     constexpr int kBlockN = 64;
     constexpr int kHeadDim = 128;
 
-    auto device = q.device();
+//     auto device = q.device();
 
     torch::Tensor o = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
     torch::Tensor test = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
@@ -391,6 +392,7 @@ flash_fwd(torch::Tensor q,
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
     half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
     half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
+
 //     float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
 
     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockM);
