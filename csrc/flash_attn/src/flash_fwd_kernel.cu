@@ -379,10 +379,12 @@ flash_fwd(torch::Tensor q,
     constexpr int kBlockN = 64;
     constexpr int kHeadDim = 128;
 
+    auto device = q.device();
+
     torch::Tensor o = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
 
     std::vector<int64_t> size = {batch_size, seq_len, head_dim};
-    torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat).device(q.device()));
+    torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat).device(device));
 
     half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
