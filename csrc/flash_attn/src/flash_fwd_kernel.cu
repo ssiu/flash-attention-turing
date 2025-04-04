@@ -342,8 +342,8 @@ void flash_fwd_kernel(
 
     int warp_id = threadIdx.x / 32;
     int thread_row = warp_id * 16 + thread_id / 4;
-    gL[thread_row] = rM[0] + logf(rL[0]);
-    gL[thread_row + 8] = rM[1] + logf(rL[1]);
+//     gL[thread_row] = rM[0] + logf(rL[0]);
+//     gL[thread_row + 8] = rM[1] + logf(rL[1]);
 
 
     for (int i =0; i<2; i++) {
