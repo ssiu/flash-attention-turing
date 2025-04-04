@@ -369,8 +369,8 @@ void flash_fwd_kernel(
 }
 
 
-//std::vector<torch::Tensor>
-torch::Tensor flash_fwd(torch::Tensor q,
+std::vector<torch::Tensor>
+flash_fwd(torch::Tensor q,
             torch::Tensor k,
             torch::Tensor v,
             int batch_size, int seq_len, int num_heads, int head_dim)
@@ -382,6 +382,7 @@ torch::Tensor flash_fwd(torch::Tensor q,
     auto device = q.device();
 
     torch::Tensor o = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
+    torch::Tensor test = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
 
     std::vector<int64_t> size = {batch_size, seq_len, head_dim};
     torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
@@ -408,6 +409,6 @@ torch::Tensor flash_fwd(torch::Tensor q,
                                             o_ptr,
                                             l_ptr,
                                             batch_size, seq_len, num_heads, head_dim);
-    return o;
+    return {o, test};
 
 }
