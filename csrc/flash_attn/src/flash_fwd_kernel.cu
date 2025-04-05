@@ -382,8 +382,8 @@ flash_fwd(torch::Tensor q,
 
 //     auto device = q.device();
 
-    torch::Tensor o = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
-    torch::Tensor test = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
+    torch::Tensor o = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
+    torch::Tensor test = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
 
 //     std::vector<int64_t> size = {batch_size, seq_len, head_dim};
 //     torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
