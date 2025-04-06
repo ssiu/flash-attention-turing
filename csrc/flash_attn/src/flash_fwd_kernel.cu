@@ -370,8 +370,8 @@ using namespace cute;
 // }
 
 
-std::vector<torch::Tensor>
-flash_fwd(torch::Tensor q,
+//std::vector<torch::Tensor>
+torch::Tensor flash_fwd(torch::Tensor q,
             torch::Tensor k,
             torch::Tensor v,
             int batch_size, int seq_len, int num_heads, int head_dim)
@@ -415,5 +415,6 @@ flash_fwd(torch::Tensor q,
 //                                             l_ptr,
 //                                             batch_size, seq_len, num_heads, head_dim);
 //     return {o, test};
-    return {q, q};
+
+    return q;
 }

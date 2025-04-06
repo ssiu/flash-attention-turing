@@ -9,7 +9,9 @@ q = torch.randn(2,3, dtype=torch.float16).to("cuda")
 k = torch.randn(2,3, dtype=torch.float16).to("cuda")
 v = torch.randn(2,3, dtype=torch.float16).to("cuda")
 print("hi")
-a, b = flash_attn_func(q,k,v,1,1,1,1)
+# a, b = flash_attn_func(q,k,v,1,1,1,1)
+
+a = flash_attn_func(q,k,v,1,1,1,1)
 print(a)
-print(b)
+# print(b)
 
