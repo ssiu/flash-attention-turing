@@ -14,7 +14,7 @@
 // #include <cutlass/numeric_conversion.h>
 // #include <cutlass/numeric_types.h>
 
-#include "kernel_traits.h"
+//#include "kernel_traits.h"
 
 using namespace cute;
 
