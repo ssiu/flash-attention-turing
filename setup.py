@@ -1,8 +1,8 @@
-from setuptools import setup
-from torch.utils.cpp_extension import CUDAExtension, BuildExtension
-import os
-from pathlib import Path
-import subprocess
+# from setuptools import setup
+# from torch.utils.cpp_extension import CUDAExtension, BuildExtension
+# import os
+# from pathlib import Path
+# import subprocess
 
 # this_dir = os.path.dirname(os.path.abspath(__file__))
 #
@@ -37,11 +37,15 @@ import subprocess
 #     cmdclass={"build_ext": BuildExtension}
 # )
 
+from setuptools import setup
+from torch.utils.cpp_extension import CUDAExtension, BuildExtension
+
+#from cpp_extension.setup import nvcc_flags
+
 nvcc_flags = ["-std=c++17",
               "--expt-relaxed-constexpr",
               "-arch=sm_75",
-              "-O3",
-              "-lineinfo"]
+              "-O3"]
 
 setup(
     name="flash_attn_turing",
