@@ -12,6 +12,6 @@ print("hi")
 # a, b = flash_attn_func(q,k,v,1,1,1,1)
 
 a = flash_attn_func(q,k,v,1,1,1,1)
-print(type(a))
+print(a)
 # print(b)
 
