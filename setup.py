@@ -50,3 +50,4 @@ setup(
     ],
     install_requires=["torch"],
     cmdclass={"build_ext": BuildExtension}
+)
