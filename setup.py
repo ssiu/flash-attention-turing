@@ -37,6 +37,12 @@ import subprocess
 #     cmdclass={"build_ext": BuildExtension}
 # )
 
+nvcc_flags = ["-std=c++17",
+              "--expt-relaxed-constexpr",
+              "-arch=sm_75",
+              "-O3",
+              "-lineinfo"]
+
 setup(
     name="flash_attn_turing",
     ext_modules=[
