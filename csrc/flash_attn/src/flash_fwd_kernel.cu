@@ -369,7 +369,7 @@ using namespace cute;
 // }
 
 
-//std::vector<torch::Tensor>
+std::vector<torch::Tensor>
 flash_fwd(torch::Tensor q,
             torch::Tensor k,
             torch::Tensor v,
