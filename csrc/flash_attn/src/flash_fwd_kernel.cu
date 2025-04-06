@@ -384,7 +384,7 @@ flash_fwd(torch::Tensor q,
     torch::Tensor o = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
     torch::Tensor test = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
 
-    std::vector<int64_t> size = {batch_size, seq_len, head_dim};
+    std::vector<int64_t> size = {batch_size, seq_len, num_heads};
     torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
 
     TORCH_CHECK(o.is_cuda(), "Tensor o is not on CUDA");
@@ -413,5 +413,5 @@ flash_fwd(torch::Tensor q,
                                             o_ptr,
                                             l_ptr,
                                             batch_size, seq_len, num_heads, head_dim);
-    return {o, test};
+    return {o, l};
 }
