@@ -20,8 +20,9 @@ def get_error(batch_size=1, seq_len=16, num_heads=1, head_dim=128):
     value_torch = value.permute(0, 2, 1, 3).contiguous().clone()
 
 
-    output, test = flash_attn_func(query, key, value, batch_size, seq_len, num_heads, head_dim)
+    output, l = flash_attn_func(query, key, value, batch_size, seq_len, num_heads, head_dim)
 
+    print(l.shape)
     # (batch_size, num_heads, seq_len, head_dim)
     output_torch = F.scaled_dot_product_attention(query_torch, key_torch, value_torch)
 
