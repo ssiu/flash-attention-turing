@@ -3,7 +3,6 @@
 #include <cstdio>
 #include <cassert>
 #include <float.h>
-#include <vector>
 #include <torch/extension.h>
 #include <cute/tensor.hpp>
 #include "cutlass/util/print_error.hpp"
@@ -371,7 +370,7 @@ using namespace cute;
 
 
 //std::vector<torch::Tensor>
-torch::Tensor flash_fwd(torch::Tensor q,
+flash_fwd(torch::Tensor q,
             torch::Tensor k,
             torch::Tensor v,
             int batch_size, int seq_len, int num_heads, int head_dim)
@@ -416,5 +415,5 @@ torch::Tensor flash_fwd(torch::Tensor q,
 //                                             batch_size, seq_len, num_heads, head_dim);
 //     return {o, test};
 
-    return q;
+    return {q, q};
 }
