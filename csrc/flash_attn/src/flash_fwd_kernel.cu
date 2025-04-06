@@ -16,7 +16,7 @@
 
 //#include "kernel_traits.h"
 
-using namespace cute;
+//using namespace cute;
 
 
 
