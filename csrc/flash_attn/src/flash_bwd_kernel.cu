@@ -200,7 +200,6 @@ void compute_dq_dk_dv_kernel(
     int warp_id = threadIdx.x / 32;
     int thread_row = warp_id * 16 + thread_id / 4;
 
-    auto Q_TILE_MAX = size<3>(tQgQ);
 
     float rL[2];
     float rD[2];
@@ -251,6 +250,9 @@ void compute_dq_dk_dv_kernel(
     Tensor tdVsdO = thr_mma.partition_B(sdO);
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVsdV = thr_mma.partition_C(sdV);
+
+    auto Q_TILE_MAX = size<3>(tQgQ);
+
 
     // load K, V, dK, dV tiles
     copy(gmem_tiled_copy, tKgK, tKsK);
@@ -349,7 +351,7 @@ flash_bwd(torch::Tensor q,
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
     half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
     half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
-    float* l_ptr = reinterpret_cast<half_t*>(l.data_ptr());
+    float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
     half_t* do_ptr = reinterpret_cast<half_t*>(d_o.data_ptr());
 
     half_t* dq_ptr = reinterpret_cast<half_t*>(dq.data_ptr());
@@ -366,7 +368,7 @@ flash_bwd(torch::Tensor q,
 
 
     // compute dQ, dK, dV
-    auto kernel = compute_dq_dk_dv<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
+    auto kernel = compute_dq_dk_dv_kernel<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
     cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
 
 
