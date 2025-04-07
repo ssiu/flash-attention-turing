@@ -126,9 +126,9 @@ struct Flash_bwd_kernel_traits : public Base {
                     Layout<Shape<_32, _32>,
                     Stride<_32, _1>>{});
 
-//    using SmemLayoutAtomTranposed = decltype(
-//                    Layout<Shape<_32, _32>,
-//                    Stride<_1, _32>>{});
+    using SmemLayoutAtomTranposed = decltype(
+                    Layout<Shape<_32, _32>,
+                    Stride<_1, _32>>{});
 //
 //    using SmemLayoutQ = decltype(tile_to_shape(
 //        SmemLayoutAtom{},
