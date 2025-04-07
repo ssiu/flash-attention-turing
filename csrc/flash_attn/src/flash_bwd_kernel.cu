@@ -137,7 +137,7 @@ void compute_dq_dk_dv_kernel(
                              make_shape(batch_size, seq_len, num_heads, head_dim),
                              make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gdO = local_tile(mO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+    Tensor gdO = local_tile(mdO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
     // L = m + log l
@@ -196,9 +196,11 @@ void compute_dq_dk_dv_kernel(
     Tensor sPt = make_tensor(sdV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtomTranposed{});
 
 
-    thread_id = threadIdx.x;
-    warp_id = threadIdx.x / 32;
-    thread_row = warp_id * 16 + thread_id / 4;
+    int thread_id = threadIdx.x;
+    int warp_id = threadIdx.x / 32;
+    int thread_row = warp_id * 16 + thread_id / 4;
+
+    auto Q_TILE_MAX = size<3>(tQgQ);
 
     float rL[2];
     float rD[2];
@@ -233,12 +235,15 @@ void compute_dq_dk_dv_kernel(
     Tensor tVsdV = thr_copy.partition_D(sdV);
 
 
+    typename Kernel_traits::TiledMma tiled_mma;
 
     // S = QK^T
     ThrMMA thr_mma = tiled_mma.get_slice(threadIdx.x);
     Tensor tSsQ = thr_mma.partition_A(sQ);
     Tensor tSsK = thr_mma.partition_B(sK);
     Tensor tSrS_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kBlockN>>{});
+
+    Tensor tSsP = thr_mma.partition_A(sP);
 
 
     // dV += P^TdO
@@ -252,7 +257,7 @@ void compute_dq_dk_dv_kernel(
     copy(gmem_tiled_copy, tVgV, tVsV);
 
     // load rL, rD from gmem to rmem
-    for (i=0; i<2; i++) {
+    for (int i=0; i<2; i++) {
         rL[i] = gL[thread_row + 8 * i];
     }
 
@@ -344,7 +349,7 @@ flash_bwd(torch::Tensor q,
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
     half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
     half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
-    float* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
+    float* l_ptr = reinterpret_cast<half_t*>(l.data_ptr());
     half_t* do_ptr = reinterpret_cast<half_t*>(d_o.data_ptr());
 
     half_t* dq_ptr = reinterpret_cast<half_t*>(dq.data_ptr());
