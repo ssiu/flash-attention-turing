@@ -310,7 +310,7 @@ void compute_dq_dk_dv_kernel(
         copy(tSrP, tSsP);
 
         // compute dV += p^TdO
-        gemm(tiled_mma_dV, tdVsPt, tdVsdO, tdVrdV_float);
+        gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 
 
         // compute dP = dOV^T
