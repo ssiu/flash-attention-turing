@@ -369,7 +369,7 @@ void flash_fwd_kernel(
 
     __syncthreads();
 
-    //copy(gmem_tiled_copy_O, tOsO_copy, tOgO_copy);
+    copy(gmem_tiled_copy_O, tOsO_copy, tOgO_copy);
 
 }
 

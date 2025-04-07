@@ -335,7 +335,7 @@ void compute_dq_dk_dv_kernel(
     copy(tdVrdV, tdVsdV);
     // copy dV from smem to gmem
 //     copy(gmem_tiled_copy, tVsdV, tVgdV);
-    copy(tVsdV, tVgdV);
+    //copy(tVsdV, tVgdV);
 }
 
 
