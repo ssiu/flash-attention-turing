@@ -73,10 +73,10 @@ void flash_fwd_kernel(
     Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
                            make_coord(blockIdx.z));
 
-    if (thread0()){
-        print(gL);
-        printf("\n");
-    }
+//     if (thread0()){
+//         print(gL);
+//         printf("\n");
+//     }
 
 
     extern __shared__ char smem_[];

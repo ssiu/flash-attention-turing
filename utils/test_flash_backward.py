@@ -25,23 +25,38 @@ def main():
     num_heads=args.num_heads
     head_dim=args.head_dim
 
+    query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
 
-    #batch_size, num_heads, seq_len, head_dim = 4, 32, 4096, 128
-    Q = torch.rand(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
-    K = torch.rand(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
-    V = torch.rand(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
-    dO = torch.randn(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
-    Q.requires_grad = True
-    K.requires_grad = True
-    V.requires_grad = True
+    output, l = flash_attn_func(query, key, value, batch_size, seq_len, num_heads, head_dim)
 
-    with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-    # with sdpa_kernel(backends=[SDPBackend.EFFICIENT_ATTENTION]):
-    #     output =  F.scaled_dot_product_attention(query, key, value)
-        output = F.scaled_dot_product_attention(Q, K, V)
-        output.backward(dO)
+    d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
+    d_q, d_k, d_v = flash_attn_backward_func(query, key, value, l, d_output, batch_size, seq_len, num_heads, head_dim)
 
-    print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+    print(d_q.size)
+    print(d_k.size)
+    print(d_v.size)
+    #
+    # #batch_size, num_heads, seq_len, head_dim = 4, 32, 4096, 128
+    # Q = torch.rand(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
+    # K = torch.rand(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
+    # V = torch.rand(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
+    # dO = torch.randn(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
+    #
+    # Q.requires_grad = True
+    # K.requires_grad = True
+    # V.requires_grad = True
+    #
+    # with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+    # # with sdpa_kernel(backends=[SDPBackend.EFFICIENT_ATTENTION]):
+    # #     output =  F.scaled_dot_product_attention(query, key, value)
+    #     output = F.scaled_dot_product_attention(Q, K, V)
+    #     output.backward(dO)
+    #
+    # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+
+
 
 
 
