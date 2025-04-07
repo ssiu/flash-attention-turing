@@ -184,13 +184,13 @@ void compute_dq_dk_dv_kernel(
     extern __shared__ char smem_[];
 
 
-    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayoutAtom{});
-    Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
-    Tensor sV = make_tensor(sK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
-    Tensor sdO = make_tensor(sV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
-    Tensor sdQ = make_tensor(sdO.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
-    Tensor sdK = make_tensor(sdQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
-    Tensor sdV = make_tensor(sdK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
+    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayoutQ{});
+    Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
+    Tensor sV = make_tensor(sK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
+    Tensor sdO = make_tensor(sV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutQ{});
+    Tensor sdQ = make_tensor(sdO.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutQ{});
+    Tensor sdK = make_tensor(sdQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
+    Tensor sdV = make_tensor(sdK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
 
     Tensor sP = make_tensor(sdV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
     Tensor sPt = make_tensor(sdV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtomTranposed{});
@@ -248,7 +248,7 @@ void compute_dq_dk_dv_kernel(
     // dV += P^TdO
     Tensor tdVsPt = thr_mma.partition_A(sPt);
     Tensor tdVsdO = thr_mma.partition_B(sdO);
-    Tensor tdVrdV_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockN>, Int<kHeadDim>>{});
+    Tensor tdVrdV_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kHeadDim>>{});
     Tensor tdVsdV = thr_mma.partition_C(sdV);
 
     auto Q_TILE_MAX = size<3>(tQgQ);

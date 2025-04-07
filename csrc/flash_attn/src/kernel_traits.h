@@ -130,18 +130,18 @@ struct Flash_bwd_kernel_traits : public Base {
     using SmemLayoutAtomTranposed = decltype(
                     Layout<Shape<_32, _32>,
                     Stride<_1, _32>>{});
-//
-//    using SmemLayoutQ = decltype(tile_to_shape(
-//        SmemLayoutAtom{},
-//        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
-//
+
+    using SmemLayoutQ = decltype(tile_to_shape(
+        SmemLayoutAtom{},
+        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
+
 //    using SmemLayoutQ_T = decltype(tile_to_shape(
 //        SmemLayoutAtom{},
 //        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
 //
-//    using SmemLayoutKV = decltype(tile_to_shape(
-//        SmemLayoutAtom{},
-//        Shape<Int<kBlockN>, Int<kHeadDim>>{}));
+    using SmemLayoutKV = decltype(tile_to_shape(
+        SmemLayoutAtom{},
+        Shape<Int<kBlockN>, Int<kHeadDim>>{}));
 //
 //
 //    using SmemLayoutSP = decltype(tile_to_shape(
@@ -153,7 +153,7 @@ struct Flash_bwd_kernel_traits : public Base {
 
 //    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
 
-    using Gmem_copy_struct = DefaultCopy;
+    using Gmem_copy_struct = DefaultCopy{};
 
     using GmemLayoutAtom = Layout<Shape <_8, _8>, Stride<_8, _1>>;
 
