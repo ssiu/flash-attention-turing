@@ -183,6 +183,7 @@ void compute_dq_dk_dv_kernel(
                            make_coord(blockIdx.z, 0));
 
 
+
     extern __shared__ char smem_[];
 
 
@@ -371,7 +372,7 @@ flash_bwd(torch::Tensor q,
     //compute_dot_do_o
 
 
-    dim3 dimGrid(batch_size, num_heads, seq_len / kBlockM);
+    dim3 dimGrid(batch_size, num_heads, seq_len / kBlockN);
     dim3 dimBlock(64);
     int maxbytes = 65536;
 
