@@ -94,7 +94,7 @@ void compute_dq_dk_dv_kernel(
     half_t const* q_ptr,
     half_t const* k_ptr,
     half_t const* v_ptr,
-    half_t* l_ptr,
+    float* l_ptr,
     half_t* do_ptr,
 //     half_t* d_ptr, // dO \circ O
     half_t const* dq_ptr,
@@ -149,12 +149,12 @@ void compute_dq_dk_dv_kernel(
                            make_coord(_));
 
     // D = dO \circ O
-    Tensor mD = make_tensor(make_gmem_ptr(d_ptr),
-                             make_shape(batch_size, seq_len, num_heads),
-                             make_stride(seq_len * num_heads, Int<1>{}, seq_len ));
-
-    Tensor gD = local_tile(mD(blockIdx.x, _, blockIdx.y), Shape<Int<kBlockM>>{},
-                           make_coord(_));
+//     Tensor mD = make_tensor(make_gmem_ptr(d_ptr),
+//                              make_shape(batch_size, seq_len, num_heads),
+//                              make_stride(seq_len * num_heads, Int<1>{}, seq_len ));
+//
+//     Tensor gD = local_tile(mD(blockIdx.x, _, blockIdx.y), Shape<Int<kBlockM>>{},
+//                            make_coord(_));
 
     // dQ
     Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr),
