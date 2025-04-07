@@ -140,6 +140,8 @@ void compute_dq_dk_dv_kernel(
     Tensor gdO = local_tile(mdO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
+
+
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(l_ptr),
                              make_shape(batch_size, num_heads, seq_len),
@@ -188,12 +190,16 @@ void compute_dq_dk_dv_kernel(
     Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
     Tensor sV = make_tensor(sK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
     Tensor sdO = make_tensor(sV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutQ{});
+    Tensor sdOt = make_tensor(sV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutQTransposed{});
+
     Tensor sdQ = make_tensor(sdO.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutQ{});
     Tensor sdK = make_tensor(sdQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
     Tensor sdV = make_tensor(sdK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
 
     Tensor sP = make_tensor(sdV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
     Tensor sPt = make_tensor(sdV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtomTranposed{});
+
+
 
 
     int thread_id = threadIdx.x;
@@ -249,7 +255,7 @@ void compute_dq_dk_dv_kernel(
     ThrMMA thr_mma_dV = tiled_mma_dV.get_slice(threadIdx.x);
     // dV += P^TdO
     Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
-    Tensor tdVsdO = thr_mma_dV.partition_B(sdO);
+    Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
 

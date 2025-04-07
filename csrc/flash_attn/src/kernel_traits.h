@@ -140,6 +140,10 @@ struct Flash_bwd_kernel_traits : public Base {
         SmemLayoutAtom{},
         Shape<Int<kBlockM>, Int<kHeadDim>>{}));
 
+    using SmemLayoutQTransposed = decltype(tile_to_shape(
+        SmemLayoutAtom{},
+        Shape<Int<kHeadDim>, Int<kBlockM>>{}));
+
 //    using SmemLayoutQ_T = decltype(tile_to_shape(
 //        SmemLayoutAtom{},
 //        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
