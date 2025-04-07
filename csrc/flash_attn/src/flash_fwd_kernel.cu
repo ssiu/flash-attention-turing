@@ -67,12 +67,13 @@ void flash_fwd_kernel(
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(l),
-                             make_shape(batch_size, seq_len, num_heads),
-                             make_stride(seq_len * num_heads, Int<1>{}, seq_len ));
+                             make_shape(batch_size, num_heads, seq_len),
+                             make_stride(seq_len * num_heads, seq_len, Int<1>{}));
 
-    Tensor gL = local_tile(mL(blockIdx.x, _, blockIdx.y), Shape<Int<kBlockM>>{},
+    Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
                            make_coord(_));
 
+    print_tensor(gL);
 
     extern __shared__ char smem_[];
 
@@ -382,9 +383,8 @@ flash_fwd(torch::Tensor q,
     auto device = q.device();
 
     torch::Tensor o = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
-    torch::Tensor test = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
 
-    std::vector<int64_t> size = {batch_size, seq_len, num_heads};
+    std::vector<int64_t> size = {batch_size, num_heads, seq_len};
     torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
 
     TORCH_CHECK(o.is_cuda(), "Tensor o is not on CUDA");
