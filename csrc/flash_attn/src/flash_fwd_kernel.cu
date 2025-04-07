@@ -66,12 +66,12 @@ void flash_fwd_kernel(
                            make_coord(blockIdx.z, 0));
 
     // L = m + log l
-//     Tensor mL = make_tensor(make_gmem_ptr(l),
-//                              make_shape(batch_size, seq_len, num_heads),
-//                              make_stride(seq_len * num_heads, Int<1>{}, seq_len ));
-//
-//     Tensor gL = local_tile(mL(blockIdx.x, _, blockIdx.y), Shape<Int<kBlockM>>{},
-//                            make_coord(_));
+    Tensor mL = make_tensor(make_gmem_ptr(l),
+                             make_shape(batch_size, seq_len, num_heads),
+                             make_stride(seq_len * num_heads, Int<1>{}, seq_len ));
+
+    Tensor gL = local_tile(mL(blockIdx.x, _, blockIdx.y), Shape<Int<kBlockM>>{},
+                           make_coord(_));
 
 
     extern __shared__ char smem_[];
