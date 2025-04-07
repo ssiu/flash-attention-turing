@@ -250,7 +250,7 @@ void compute_dq_dk_dv_kernel(
     // dV += P^TdO
     Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
     Tensor tdVsdO = thr_mma_dV.partition_B(sdO);
-    Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockM>, Int<kHeadDim>>{});
+    Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
 
     auto Q_TILE_MAX = size<3>(tQgQ);
@@ -304,7 +304,7 @@ void compute_dq_dk_dv_kernel(
         copy(tSrP, tSsP);
 
         // compute dV += p^TdO
-        gemm(tiled_mma, tdVsPt, tdVsdO, tdVrdV_float);
+        gemm(tiled_mma_dV, tdVsPt, tdVsdO, tdVrdV_float);
 
 
         // compute dP = dOV^T
