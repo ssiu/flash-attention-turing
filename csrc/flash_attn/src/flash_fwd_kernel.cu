@@ -388,7 +388,6 @@ flash_fwd(torch::Tensor q,
     torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
 
     TORCH_CHECK(o.is_cuda(), "Tensor o is not on CUDA");
-    TORCH_CHECK(test.is_cuda(), "Tensor test is not on CUDA");
 
     half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
