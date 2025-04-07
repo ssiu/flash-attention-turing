@@ -323,7 +323,7 @@ void compute_dq_dk_dv_kernel(
     }
 
     // convert dV to fp16
-    constexpr int num_element = decltype(size(tSrS_float))::value;
+    constexpr int num_element = decltype(size(tdVrdV_float))::value;
 
     cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
     auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdVrdV_float.data()));
