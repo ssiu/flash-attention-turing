@@ -28,7 +28,7 @@ def main():
     query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    l = torch.randn(batch_size, num_heads, seq_len, dtype=torch.float16).to("cuda")
+    l = torch.randn(batch_size, num_heads, seq_len, dtype=torch.float).to("cuda")
 
     #output, l = flash_attn_func(query, key, value, batch_size, seq_len, num_heads, head_dim)
 
