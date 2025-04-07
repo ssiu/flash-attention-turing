@@ -184,13 +184,13 @@ void compute_dq_dk_dv_kernel(
     extern __shared__ char smem_[];
 
 
-    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayout{});
-    Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayout{});
-    Tensor sV = make_tensor(sK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayout{});
-    Tensor sdO = make_tensor(sV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayout{});
-    Tensor sdQ = make_tensor(sdO.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayout{});
-    Tensor sdK = make_tensor(sdQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayout{});
-    Tensor sdV = make_tensor(sdK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayout{});
+    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayoutAtom{});
+    Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
+    Tensor sV = make_tensor(sK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
+    Tensor sdO = make_tensor(sV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
+    Tensor sdQ = make_tensor(sdO.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
+    Tensor sdK = make_tensor(sdQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
+    Tensor sdV = make_tensor(sdK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
 
     Tensor sP = make_tensor(sdV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
     Tensor sPt = make_tensor(sdV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtomTranposed{});
