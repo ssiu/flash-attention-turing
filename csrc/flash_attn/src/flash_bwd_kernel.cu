@@ -237,8 +237,8 @@ void compute_dq_dk_dv_kernel(
     Tensor tKgdK = thr_copy.partition_S(gdK);
     Tensor tKsdK = thr_copy.partition_D(sdK);
 
-    Tensor tVgdV = thr_copy.partition_S(gdV);
-    Tensor tVsdV = thr_copy.partition_D(sdV);
+//     Tensor tVgdV = thr_copy.partition_S(gdV);
+//     Tensor tVsdV = thr_copy.partition_D(sdV);
 
 
     typename Kernel_traits::TiledMma tiled_mma;
@@ -258,7 +258,7 @@ void compute_dq_dk_dv_kernel(
     Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
     Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
-    Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
+//     Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
 
     auto Q_TILE_MAX = size<3>(tQgQ);
@@ -334,6 +334,13 @@ void compute_dq_dk_dv_kernel(
 
     // copy dV from rmem to smem
     //copy(tdVrdV, tdVsdV);
+
+//     TiledCopy copy_dV = make_tiled_copy(Copy_Atom<AutoVectorizingCopy, half_t>{},
+//                                 Layout<Shape<_8,_8>, Stride<_8,_1>>{},
+//                                 Layout<Shape< _1,_8>>{});
+
+
+
     copy(tdVrdV, tdVgdV);
     // copy dV from smem to gmem
 //     copy(gmem_tiled_copy, tVsdV, tVgdV);
