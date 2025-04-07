@@ -71,10 +71,11 @@ void flash_fwd_kernel(
                              make_stride(seq_len * num_heads, seq_len, Int<1>{}));
 
     Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
-                           make_coord(_));
+                           make_coord(blockIdx.z));
 
     if (thread0()){
         print(gL);
+        printf("\n");
     }
 
 
