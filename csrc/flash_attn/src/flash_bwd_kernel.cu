@@ -142,10 +142,10 @@ void compute_dq_dk_dv_kernel(
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(l_ptr),
-                             make_shape(batch_size, seq_len, num_heads),
-                             make_stride(seq_len * num_heads, Int<1>{}, seq_len ));
+                             make_shape(batch_size, num_heads, seq_len),
+                             make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
 
-    Tensor gL = local_tile(mL(blockIdx.x, _, blockIdx.y), Shape<Int<kBlockM>>{},
+    Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
                            make_coord(_));
 
     // D = dO \circ O
@@ -245,11 +245,13 @@ void compute_dq_dk_dv_kernel(
     Tensor tSsP = thr_mma.partition_A(sP);
 
 
+    typename Kernel_traits::TiledMma_dV tiled_mma_dV;
+    ThrMMA thr_mma_dV = tiled_mma_dV.get_slice(threadIdx.x);
     // dV += P^TdO
-    Tensor tdVsPt = thr_mma.partition_A(sPt);
-    Tensor tdVsdO = thr_mma.partition_B(sdO);
-    Tensor tdVrdV_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kHeadDim>>{});
-    Tensor tdVsdV = thr_mma.partition_C(sdV);
+    Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
+    Tensor tdVsdO = thr_mma_dV.partition_B(sdO);
+    Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockM>, Int<kHeadDim>>{});
+    Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
 
     auto Q_TILE_MAX = size<3>(tQgQ);
 

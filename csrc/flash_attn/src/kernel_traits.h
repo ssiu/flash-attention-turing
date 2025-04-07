@@ -123,6 +123,11 @@ struct Flash_bwd_kernel_traits : public Base {
         Layout<Shape<_2,_1,_1>>,
         Tile<_32, _32, _8>>;
 
+    using TiledMma_dV = TiledMMA<
+        typename Base::MMA_Atom_Arch,
+        Layout<Shape<_2,_1,_1>>,
+        Tile<_32, _32, _8>>;
+
     using SmemLayoutAtom = decltype(
                     Layout<Shape<_32, _32>,
                     Stride<_32, _1>>{});
