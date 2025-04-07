@@ -202,7 +202,7 @@ void compute_dq_dk_dv_kernel(
 
 
     float rL[2];
-    float rD[2];
+//     float rD[2];
 
     // gmem load
     typename Kernel_traits::GmemTiledCopy gmem_tiled_copy;

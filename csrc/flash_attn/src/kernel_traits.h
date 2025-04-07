@@ -75,7 +75,8 @@ struct Flash_fwd_kernel_traits : public Base {
         Shape<Int<kHeadDim>, Int<kBlockN>>{}));
 
 
-    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
+//    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
+    using Gmem_copy_struct = DefaultCopy;
 
     using GmemLayoutAtomQK = Layout<Shape <_32, _8>, Stride<_8, _1>>;
 
