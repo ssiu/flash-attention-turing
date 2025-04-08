@@ -126,6 +126,7 @@ void compute_dq_dk_dv_kernel_v0(
 
     // S = QK^T
     ThrMMA thr_mma = tiled_mma.get_slice(threadIdx.x);
+    Tensor tSgQ = thr_mma.partition_A(gQ);
     Tensor tSsQ = thr_mma.partition_A(sQ);
     Tensor tSsK = thr_mma.partition_B(sK);
     Tensor tSrS_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kBlockN>>{});
@@ -142,9 +143,7 @@ void compute_dq_dk_dv_kernel_v0(
 
     if (thread0()) {
         printf("test\n");
-        print(tQgQ);
-        print("\n");
-        print(tQsQ);
+        print(tSgQ);
         print("\n");
         print(tSsQ);
         print("\n");
