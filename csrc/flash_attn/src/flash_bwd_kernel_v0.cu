@@ -129,6 +129,74 @@ void compute_dq_dk_dv_kernel_v0(
     int warp_id = threadIdx.x / 32;
     int thread_row = warp_id * 16 + thread_id / 4;
 
+    float rL[2];
+//     float rD[2];
+
+    // gmem load
+    typename Kernel_traits::GmemTiledCopy gmem_tiled_copy;
+
+    ThrCopy thr_copy = gmem_tiled_copy.get_slice(threadIdx.x);
+
+    Tensor tQgQ = thr_copy.partition_S(gQ);
+    Tensor tQsQ = thr_copy.partition_D(sQ);
+
+    Tensor tKgK = thr_copy.partition_S(gK);
+    Tensor tKsK = thr_copy.partition_D(sK);
+
+    Tensor tVgV = thr_copy.partition_S(gV);
+    Tensor tVsV = thr_copy.partition_D(sV);
+
+    Tensor tdOgdO = thr_copy.partition_S(gdO);
+    Tensor tdOsdO = thr_copy.partition_D(sdO);
+
+
+
+    // gmem store
+    Tensor tQgdQ = thr_copy.partition_S(gdQ);
+    Tensor tQsdQ = thr_copy.partition_D(sdQ);
+
+    Tensor tKgdK = thr_copy.partition_S(gdK);
+    Tensor tKsdK = thr_copy.partition_D(sdK);
+
+//     Tensor tVgdV = thr_copy.partition_S(gdV);
+//     Tensor tVsdV = thr_copy.partition_D(sdV);
+
+
+    typename Kernel_traits::TiledMma tiled_mma;
+
+    // S = QK^T
+    ThrMMA thr_mma = tiled_mma.get_slice(threadIdx.x);
+    Tensor tSsQ = thr_mma.partition_A(sQ);
+    Tensor tSsK = thr_mma.partition_B(sK);
+    Tensor tSrS_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kBlockN>>{});
+
+    Tensor tSsP = thr_mma.partition_A(sP);
+
+
+    typename Kernel_traits::TiledMma_dV tiled_mma_dV;
+    ThrMMA thr_mma_dV = tiled_mma_dV.get_slice(threadIdx.x);
+    // dV += P^TdO
+    Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
+    Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
+    Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
+//     Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
+    Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
+
+    auto Q_TILE_MAX = size<3>(tQgQ);
+
+
+    // load K, V, dK, dV tiles
+    copy(gmem_tiled_copy, tKgK, tKsK);
+    copy(gmem_tiled_copy, tVgV, tVsV);
+
+    // load rL, rD from gmem to rmem
+    for (int i=0; i<2; i++) {
+        rL[i] = gL[thread_row + 8 * i];
+    }
+
+
+
+
 
     dq_ptr[0] = static_cast<half_t>(0.0f);
     dk_ptr[0] = static_cast<half_t>(0.0f);
