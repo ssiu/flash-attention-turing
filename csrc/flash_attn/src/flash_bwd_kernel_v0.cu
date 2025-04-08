@@ -118,8 +118,20 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor sdK = make_tensor(sdQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
     Tensor sdV = make_tensor(sdK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
 
-    Tensor sP = make_tensor(sdV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
-    Tensor sPt = make_tensor(sdV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtomTranposed{});
+    Tensor sP = make_tensor(sdV.data() + kBlockM * kBlockN, typename Kernel_traits::SmemLayoutAtom{});
+    Tensor sPt = make_tensor(sdV.data() + kBlockM * kBlockN, typename Kernel_traits::SmemLayoutAtomTranposed{});
+
+
+    typename Kernel_traits::TiledMma tiled_mma;
+
+    // S = QK^T
+    ThrMMA thr_mma = tiled_mma.get_slice(threadIdx.x);
+    Tensor tSsQ = thr_mma.partition_A(sQ);
+    Tensor tSsK = thr_mma.partition_B(sK);
+    Tensor tSrS_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kBlockN>>{});
+
+    Tensor tSsP = thr_mma.partition_A(sP);
+
 
     if (thread0()) {
         print(gQ);

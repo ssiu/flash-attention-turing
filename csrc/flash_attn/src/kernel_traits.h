@@ -136,21 +136,31 @@ struct Flash_bwd_kernel_traits : public Base {
                     Layout<Shape<_32, _32>,
                     Stride<_1, _32>>{});
 
-    using SmemLayoutQ = decltype(tile_to_shape(
-        SmemLayoutAtom{},
-        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
+//    using SmemLayoutQ = decltype(tile_to_shape(
+//        SmemLayoutAtom{},
+//        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
+//    using SmemLayoutQTransposed = decltype(tile_to_shape(
+//        SmemLayoutAtom{},
+//        Shape<Int<kHeadDim>, Int<kBlockM>>{}));
+    using SmemLayoutQ = decltype(
+                            Layout<Shape<_32, _128>,
+                            Stride<_128, _1>>{});
 
-    using SmemLayoutQTransposed = decltype(tile_to_shape(
-        SmemLayoutAtom{},
-        Shape<Int<kHeadDim>, Int<kBlockM>>{}));
+    using SmemLayoutQTransposed = decltype(
+                                      Layout<Shape<_128, _32>,
+                                      Stride<_1, _128>>{});
 
 //    using SmemLayoutQ_T = decltype(tile_to_shape(
 //        SmemLayoutAtom{},
 //        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
 //
-    using SmemLayoutKV = decltype(tile_to_shape(
-        SmemLayoutAtom{},
-        Shape<Int<kBlockN>, Int<kHeadDim>>{}));
+//    using SmemLayoutKV = decltype(tile_to_shape(
+//        SmemLayoutAtom{},
+//        Shape<Int<kBlockN>, Int<kHeadDim>>{}));
+
+        using SmemLayoutKV = decltype(
+               Layout<Shape<_32, _128>,
+               Stride<_128, _1>>{});
 //
 //
 //    using SmemLayoutSP = decltype(tile_to_shape(
