@@ -196,7 +196,78 @@ void compute_dq_dk_dv_kernel_v0(
 
 
 
+    CUTE_NO_UNROLL
+    for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
 
+        // load tiles
+        copy(gmem_tiled_copy, tQgQ(_,_,_,q_tile), tQsQ);
+        copy(gmem_tiled_copy, tdOgdO(_,_,_,q_tile), tdOsdO);
+
+        // compute S = QK^T
+
+        gemm(tiled_mma, tSsQ, tSsK, tSrS_float);
+
+        // rescale S
+        for (int i=0;i< tSrS_float.size();i ++ ) {
+            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+        }
+
+        // compute P = exp(S-l)
+
+        // P has size blockM x blockN, partitioned by mma_S
+        // gL has size (32), need to figure the L_i for each S_ij
+
+        for (int i=0; i<2; i++) {
+            for (int j=0; j< tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
+            }
+        }
+
+        //convert
+        constexpr int num_element = decltype(size(tSrS_float))::value;
+
+        cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
+
+        Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+
+
+        copy(tSrP, tSsP);
+
+        // compute dV += p^TdO
+        gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
+
+
+        // compute dP = dOV^T
+
+        // compute dS = P(dP - D)
+
+        // compute dQ += dSK
+
+        // compute dK += dS^TQ
+    }
+
+    // convert dV to fp16
+    constexpr int num_element = decltype(size(tdVrdV_float))::value;
+
+    cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+    auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdVrdV_float.data()));
+
+    Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
+
+    // copy dV from rmem to smem
+    //copy(tdVrdV, tdVsdV);
+
+//     TiledCopy copy_dV = make_tiled_copy(Copy_Atom<AutoVectorizingCopy, half_t>{},
+//                                 Layout<Shape<_8,_8>, Stride<_8,_1>>{},
+//                                 Layout<Shape< _1,_8>>{});
+
+
+    //print(tdVrdV);
+    copy(tdVrdV, tdVgdV);
+    // copy dV from smem to gmem
+//     copy(gmem_tiled_copy, tVsdV, tVgdV);
+    //copy(tVsdV, tVgdV);
 
     dq_ptr[0] = static_cast<half_t>(0.0f);
     dk_ptr[0] = static_cast<half_t>(0.0f);
