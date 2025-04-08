@@ -263,8 +263,9 @@ void compute_dq_dk_dv_kernel_v0(
 //                                 Layout<Shape< _1,_8>>{});
 
 
-    //print(tdVrdV);
-    copy(tdVrdV, tdVgdV);
+    print(tdVrdV);
+    print(tdVgdV);
+    //copy(tdVrdV, tdVgdV);
     // copy dV from smem to gmem
 //     copy(gmem_tiled_copy, tVsdV, tVgdV);
     //copy(tVsdV, tVgdV);
