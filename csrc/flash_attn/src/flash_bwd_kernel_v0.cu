@@ -122,6 +122,14 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor sP = make_tensor(sdV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtom{});
     Tensor sPt = make_tensor(sdV.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutAtomTranposed{});
 
+    if (thread0()) {
+        print(gQ);
+        print("\n");
+        print(sQ);
+        print("\n");
+    }
+
+
     dq_ptr[0] = static_cast<half_t>(0.0f);
     dk_ptr[0] = static_cast<half_t>(0.0f);
     dv_ptr[0] = static_cast<half_t>(0.0f);
