@@ -1,13 +1,13 @@
 #include <torch/extension.h>
 
-
-std::vector<torch::Tensor> flash_fwd(torch::Tensor q,
-                                     torch::Tensor k,
-                                     torch::Tensor v,
-                                     int batch_size,
-                                     int seq_len,
-                                     int num_heads,
-                                     int head_dim);
+//
+//std::vector<torch::Tensor> flash_fwd(torch::Tensor q,
+//                                     torch::Tensor k,
+//                                     torch::Tensor v,
+//                                     int batch_size,
+//                                     int seq_len,
+//                                     int num_heads,
+//                                     int head_dim);
 
 std::vector<torch::Tensor> flash_bwd_v0(torch::Tensor q,
                                      torch::Tensor k,
