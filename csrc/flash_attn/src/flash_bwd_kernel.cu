@@ -228,6 +228,12 @@ void compute_dq_dk_dv_kernel(
     Tensor tdOgdO = thr_copy.partition_S(gdO);
     Tensor tdOsdO = thr_copy.partition_D(sdO);
 
+    if (thread0()) {
+        print(tQgQ);
+        print("\n");
+        print(tQsQ);
+        print("\n");
+    }
 
 
     // gmem store

@@ -87,12 +87,12 @@ void flash_fwd_kernel(
     Tensor sV = make_tensor(sK.data(), typename Kernel_traits::SmemLayoutV{});
     Tensor sO = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayoutQ{});
 
-    if (thread0()) {
-        print(gQ);
-        print("\n");
-        print(sQ);
-        print("\n");
-    }
+//     if (thread0()) {
+//         print(gQ);
+//         print("\n");
+//         print(sQ);
+//         print("\n");
+//     }
 
     int thread_id = threadIdx.x;
     int lane_id = thread_id % 32;
