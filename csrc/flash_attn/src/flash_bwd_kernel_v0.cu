@@ -25,12 +25,12 @@ void compute_dq_dk_dv_kernel_v0(
     half_t const* q_ptr,
     half_t const* k_ptr,
     half_t const* v_ptr,
-    float* l_ptr,
-    half_t* do_ptr,
+    float* const* l_ptr,
+    half_t* const* do_ptr,
 //     half_t* d_ptr, // dO \circ O
-    half_t const* dq_ptr,
-    half_t const* dk_ptr,
-    half_t const* dv_ptr,
+    half_t dq_ptr,
+    half_t dk_ptr,
+    half_t dv_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {
