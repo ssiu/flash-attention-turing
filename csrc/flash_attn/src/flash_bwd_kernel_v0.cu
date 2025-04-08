@@ -25,8 +25,8 @@ void compute_dq_dk_dv_kernel_v0(
     half_t const* q_ptr,
     half_t const* k_ptr,
     half_t const* v_ptr,
-    float* const* l_ptr,
-    half_t* const* do_ptr,
+    float const* l_ptr,
+    half_t const* do_ptr,
 //     half_t* d_ptr, // dO \circ O
     half_t* dq_ptr,
     half_t* dk_ptr,
