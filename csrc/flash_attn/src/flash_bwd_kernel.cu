@@ -363,9 +363,9 @@ flash_bwd(torch::Tensor q,
     constexpr int kBlockN = 32;
     constexpr int kHeadDim = 128;
 
-    torch::Tensor dq = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
-    torch::Tensor dk = torch::empty(k.sizes(), k.options().dtype(torch::kFloat16));
-    torch::Tensor dv = torch::empty(v.sizes(), v.options().dtype(torch::kFloat16));
+    torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
+    torch::Tensor dk = torch::zeros(k.sizes(), k.options().dtype(torch::kFloat16));
+    torch::Tensor dv = torch::zeros(v.sizes(), v.options().dtype(torch::kFloat16));
 
     half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());

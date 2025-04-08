@@ -21,8 +21,8 @@ setup(
         CUDAExtension(
             name="flash_attn_turing",
             sources=["csrc/flash_attn/flash_api.cpp",
-                     "csrc/flash_attn/src/flash_fwd_kernel.cu",
-                     #"csrc/flash_attn/src/flash_bwd_kernel.cu"
+                     #"csrc/flash_attn/src/flash_fwd_kernel.cu",
+                     "csrc/flash_attn/src/flash_bwd_kernel_v0.cu"
                      ],
             #include_dirs=cutlass_include_dirs,
             include_dirs=[
