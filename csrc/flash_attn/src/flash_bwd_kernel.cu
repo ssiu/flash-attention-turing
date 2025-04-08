@@ -253,6 +253,7 @@ void compute_dq_dk_dv_kernel(
     Tensor tSsP = thr_mma.partition_A(sP);
 
     if (thread0()) {
+        printf("test\n");
         print(tQgQ);
         print("\n");
         print(tQsQ);
