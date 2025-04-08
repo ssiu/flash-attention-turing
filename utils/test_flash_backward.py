@@ -37,9 +37,9 @@ def main():
     d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
     d_q, d_k, d_v = flash_attn_backward_func(query, key, value, o, l, d_output, batch_size, seq_len, num_heads, head_dim)
 
-    print(d_q.size)
-    print(d_k.size)
-    print(d_v.size)
+    print(d_q.size())
+    print(d_k.size())
+    print(d_v.size())
     #
     # #batch_size, num_heads, seq_len, head_dim = 4, 32, 4096, 128
     # Q = torch.rand(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
