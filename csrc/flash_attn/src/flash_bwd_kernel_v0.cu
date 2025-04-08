@@ -136,7 +136,7 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor tSgK = thr_mma.partition_B(gK);
     Tensor tSsK = thr_mma.partition_B(sK);
     Tensor tSrS_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kBlockN>>{});
-    Tensor tSsP = thr_mma.partition_C(tiled_mma, Shape<Int<kBlockM>, Int<kBlockN>>{});
+    Tensor tSsP = thr_mma.partition_C(sP);
 
 
     // dV += P^TdO
