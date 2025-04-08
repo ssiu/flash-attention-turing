@@ -121,6 +121,11 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor sP = make_tensor(sdV.data() + kBlockM * kBlockN, typename Kernel_traits::SmemLayoutAtom{});
     Tensor sPt = make_tensor(sdV.data() + kBlockM * kBlockN, typename Kernel_traits::SmemLayoutAtomTranposed{});
 
+    int thread_id = threadIdx.x;
+    int warp_id = threadIdx.x / 32;
+    int thread_row = warp_id * 16 + thread_id / 4;
+
+    float rL[2];
 
 
     // S = QK^T
@@ -166,7 +171,7 @@ void compute_dq_dk_dv_kernel_v0(
 
 
     // load K, V, dK, dV tiles
-    copy(tSgK, tKsK);
+    copy(tSgK, tSsK);
 
     // load rL, rD from gmem to rmem
     for (int i=0; i<2; i++) {
