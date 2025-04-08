@@ -142,7 +142,7 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
 
-    auto Q_TILE_MAX = size<3>(tQgQ);
+    auto Q_TILE_MAX = size<3>(tSgQ);
 
     if (thread0()) {
         print(gQ);
