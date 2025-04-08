@@ -108,7 +108,6 @@ void compute_dq_dk_dv_kernel_v0(
 
     extern __shared__ char smem_[];
 
-
     Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayoutQ{});
     Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
     Tensor sV = make_tensor(sK.data() + kBlockN * kHeadDim, typename Kernel_traits::SmemLayoutKV{});
@@ -128,6 +127,20 @@ void compute_dq_dk_dv_kernel_v0(
         print(sQ);
         print("\n");
     }
+
+    if (thread0()) {
+        printf("test\n");
+        print(tQgQ);
+        print("\n");
+        print(tQsQ);
+        print("\n");
+        print(tSsQ);
+        print("\n");
+        print(tSrS_float);
+        print("\n");
+
+    }
+
 
 
     dq_ptr[0] = static_cast<half_t>(0.0f);
