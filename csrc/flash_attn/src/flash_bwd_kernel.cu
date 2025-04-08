@@ -228,12 +228,7 @@ void compute_dq_dk_dv_kernel(
     Tensor tdOgdO = thr_copy.partition_S(gdO);
     Tensor tdOsdO = thr_copy.partition_D(sdO);
 
-    if (thread0()) {
-        print(tQgQ);
-        print("\n");
-        print(tQsQ);
-        print("\n");
-    }
+
 
 
     // gmem store
@@ -256,6 +251,18 @@ void compute_dq_dk_dv_kernel(
     Tensor tSrS_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kBlockN>>{});
 
     Tensor tSsP = thr_mma.partition_A(sP);
+
+    if (thread0()) {
+        print(tQgQ);
+        print("\n");
+        print(tQsQ);
+        print("\n");
+        print(tSsQ);
+        print("\n");
+        print(tSrS_float);
+        print("\n");
+
+    }
 
 
     typename Kernel_traits::TiledMma_dV tiled_mma_dV;
