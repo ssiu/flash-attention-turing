@@ -122,34 +122,55 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor sPt = make_tensor(sdV.data() + kBlockM * kBlockN, typename Kernel_traits::SmemLayoutAtomTranposed{});
 
 
-    typename Kernel_traits::TiledMma tiled_mma;
 
     // S = QK^T
+    typename Kernel_traits::TiledMma tiled_mma;
     ThrMMA thr_mma = tiled_mma.get_slice(threadIdx.x);
     Tensor tSgQ = thr_mma.partition_A(gQ);
     Tensor tSsQ = thr_mma.partition_A(sQ);
+    Tensor tSgK = thr_mma.partition_B(gK);
     Tensor tSsK = thr_mma.partition_B(sK);
     Tensor tSrS_float = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kBlockN>>{});
+    Tensor tSsP = partition_C(tiled_mma, Shape<Int<kBlockM>, Int<kBlockN>>{});
 
-    Tensor tSsP = thr_mma.partition_A(sP);
 
+    // dV += P^TdO
+    typename Kernel_traits::TiledMma_dV tiled_mma_dV;
+    ThrMMA thr_mma_dV = tiled_mma_dV.get_slice(threadIdx.x);
+    Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
+    Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
+    Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
+    Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
+
+    auto Q_TILE_MAX = size<3>(tQgQ);
 
     if (thread0()) {
         print(gQ);
         print("\n");
         print(sQ);
         print("\n");
-    }
-
-    if (thread0()) {
-        printf("test\n");
         print(tSgQ);
         print("\n");
         print(tSsQ);
         print("\n");
-        print(tSrS_float);
+        print(gK);
         print("\n");
+        print(sK);
+        print("\n");
+        print(tSgK);
+        print("\n");
+        print(tSsK);
+        print("\n");
+    }
 
+
+
+    // load K, V, dK, dV tiles
+    copy(tSgK, tKsK);
+
+    // load rL, rD from gmem to rmem
+    for (int i=0; i<2; i++) {
+        rL[i] = gL[thread_row + 8 * i];
     }
 
 
