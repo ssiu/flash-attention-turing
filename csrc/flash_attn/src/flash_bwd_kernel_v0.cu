@@ -117,11 +117,11 @@ void compute_dq_dk_dv_kernel_v0(
 
     Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
     Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
-    Tensor sdO = make_tensor(sV.data() + kBlockN * kHeadDim, SmemLayoutQ{});
-    Tensor sdOt = make_tensor(sV.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});
+    Tensor sdO = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQ{});
+    Tensor sdOt = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});
 
-    Tensor sP = make_tensor(sdV.data() + kBlockM * kBlockN, SmemLayoutAtom{});
-    Tensor sPt = make_tensor(sdV.data() + kBlockM * kBlockN, SmemLayoutAtomTranposed{});
+    Tensor sP = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtom{});
+    Tensor sPt = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtomTranposed{});
 
     int thread_id = threadIdx.x;
     int warp_id = threadIdx.x / 32;
