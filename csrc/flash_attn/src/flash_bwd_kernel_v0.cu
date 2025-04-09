@@ -149,24 +149,7 @@ void compute_dq_dk_dv_kernel_v0(
 
     auto Q_TILE_MAX = size<3>(tSgQ);
 
-    if (thread0()) {
-        print(gQ);
-        print("\n");
-        print(sQ);
-        print("\n");
-        print(tSgQ);
-        print("\n");
-        print(tSsQ);
-        print("\n");
-        print(gK);
-        print("\n");
-        print(sK);
-        print("\n");
-        print(tSgK);
-        print("\n");
-        print(tSsK);
-        print("\n");
-    }
+
 
 
 
@@ -183,7 +166,7 @@ void compute_dq_dk_dv_kernel_v0(
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
         // load gQ to sQ
         copy(tSgQ(_,_,_, q_tile), tSsQ);
-
+        copy(tSgdO(_,_,_, q_tile), tSsdO);
         // compute S=QK^T
         gemm(tiled_mma, tSsQ, tSsK, tSrS_float);
 
@@ -219,6 +202,33 @@ void compute_dq_dk_dv_kernel_v0(
 
     }
 
+    if (thread0()) {
+       print(gQ);
+       print("\n");
+       print(sQ);
+       print("\n");
+       print(tSgQ);
+       print("\n");
+       print(tSsQ);
+       print("\n");
+       print(gK);
+       print("\n");
+       print(sK);
+       print("\n");
+       print(tSgK);
+       print("\n");
+       print(tSsK);
+       print("\n");
+       print(sP);
+       print("\n");
+       print(sPt);
+       print("\n");
+      print(sdO);
+      print("\n");
+      print(sdOt);
+      print("\n");
+    }
+
     constexpr int num_element = decltype(size(tdVrdV_float))::value;
 
     cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
@@ -227,11 +237,11 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
 
 
-    copy(tdVrdV, tdVgdV);
+    //copy(tdVrdV, tdVgdV);
 
-//     dq_ptr[0] = static_cast<half_t>(0.0f);
-//     dk_ptr[0] = static_cast<half_t>(0.0f);
-//     dv_ptr[0] = static_cast<half_t>(0.0f);
+    dq_ptr[0] = static_cast<half_t>(0.0f);
+    dk_ptr[0] = static_cast<half_t>(0.0f);
+    dv_ptr[0] = static_cast<half_t>(0.0f);
 }
 
 
