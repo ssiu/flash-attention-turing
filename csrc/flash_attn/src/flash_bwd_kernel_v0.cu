@@ -188,17 +188,17 @@ void compute_dq_dk_dv_kernel_v0(
             }
         }
 
-//         //convert P from fp32 to fp16
-//         constexpr int num_element = decltype(size(tSrS_float))::value;
+        //convert P from fp32 to fp16
+        constexpr int num_element = decltype(size(tSrS_float))::value;
+
+        cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
+
+        Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
 //
-//         cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-//         auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
+        copy(tSrP, tSsP);
 //
-//         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
-//
-//         copy(tSrP, tSsP);
-//
-//         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
+        gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 
 
     }
