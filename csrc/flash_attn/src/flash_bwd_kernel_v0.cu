@@ -146,6 +146,7 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor tdVgdOt = thr_mma_dV.partition_B(gdOt);
     Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
+    Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
 
     auto Q_TILE_MAX = size<3>(tSgQ);
@@ -213,7 +214,7 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
 
 
-    copy(tdVrdV, tdVgdV);
+    copy(tdVrdV, tdVsdV);
 
     dq_ptr[0] = static_cast<half_t>(0.0f);
     dk_ptr[0] = static_cast<half_t>(0.0f);
@@ -244,7 +245,13 @@ void compute_dq_dk_dv_kernel_v0(
         print("\n");
         print(sdOt);
         print("\n");
+        print(gdV);
+        print("\n");
+        print(sdV);
+        print("\n");
         print(tdVrdV);
+        print("\n");
+        print(tdVsdV);
         print("\n");
         print(tdVgdV);
         print("\n");
