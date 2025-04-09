@@ -64,12 +64,12 @@ void compute_dq_dk_dv_kernel_v0(
                            make_coord(blockIdx.z, 0));
 
     // dO
-    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr),
+    Tensor mdOt = make_tensor(make_gmem_ptr(do_ptr),
                              make_shape(batch_size, seq_len, num_heads, head_dim),
-                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+                             make_stride(seq_len * num_heads * head_dim, Int<1>{}, head_dim, num_heads * head_dim));
 
-    Tensor gdO = local_tile(mdO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                           make_coord(_, 0));
+    Tensor gdOt = local_tile(mdO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kHeadDim>, Int<kBlockM>>{},
+                           make_coord(0, _));
 
 
 
@@ -143,6 +143,7 @@ void compute_dq_dk_dv_kernel_v0(
     typename Kernel_traits::TiledMma_dV tiled_mma_dV;
     ThrMMA thr_mma_dV = tiled_mma_dV.get_slice(threadIdx.x);
     Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
+    Tensor tdVgdOt = thr_mma_dV.partition_B(gdOt);
     Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
@@ -166,7 +167,7 @@ void compute_dq_dk_dv_kernel_v0(
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
         // load gQ to sQ
         copy(tSgQ(_,_,_, q_tile), tSsQ);
-        copy(tSgdO(_,_,_, q_tile), tSsdO);
+        copy(tSgdOt(_,_,_, q_tile), tSsdOt);
         // compute S=QK^T
         gemm(tiled_mma, tSsQ, tSsK, tSrS_float);
 
@@ -203,30 +204,30 @@ void compute_dq_dk_dv_kernel_v0(
     }
 
     if (thread0()) {
-       print(gQ);
-       print("\n");
-       print(sQ);
-       print("\n");
-       print(tSgQ);
-       print("\n");
-       print(tSsQ);
-       print("\n");
-       print(gK);
-       print("\n");
-       print(sK);
-       print("\n");
-       print(tSgK);
-       print("\n");
-       print(tSsK);
-       print("\n");
-       print(sP);
-       print("\n");
-       print(sPt);
-       print("\n");
-      print(sdO);
-      print("\n");
-      print(sdOt);
-      print("\n");
+        print(gQ);
+        print("\n");
+        print(sQ);
+        print("\n");
+        print(tSgQ);
+        print("\n");
+        print(tSsQ);
+        print("\n");
+        print(gK);
+        print("\n");
+        print(sK);
+        print("\n");
+        print(tSgK);
+        print("\n");
+        print(tSsK);
+        print("\n");
+        print(sP);
+        print("\n");
+        print(sPt);
+        print("\n");
+        print(gdOt);
+        print("\n");
+        print(sdOt);
+        print("\n");
     }
 
     constexpr int num_element = decltype(size(tdVrdV_float))::value;
