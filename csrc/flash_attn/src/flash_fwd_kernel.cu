@@ -23,9 +23,9 @@ using namespace cute;
 template <typename Kernel_traits>
 __global__ __launch_bounds__(256)
 void flash_fwd_kernel(
-    half_t const* q,
-    half_t const* k,
-    half_t const* v,
+    half_t* q,
+    half_t* k,
+    half_t* v,
     half_t* o,
     float* l,
     int batch_size, int seq_len, int num_heads, int head_dim
