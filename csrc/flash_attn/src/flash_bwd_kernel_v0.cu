@@ -61,7 +61,13 @@ void compute_dq_dk_dv_kernel_v0(
     using SmemLayoutQTransposed = decltype(
                                       Layout<Shape<_128, _32>,
                                       Stride<_1, _128>>{});
-    
+
+
+
+    using SmemLayoutKV = decltype(
+           Layout<Shape<_32, _128>,
+           Stride<_128, _1>>{});
+
     constexpr int kBlockM = 32;
     constexpr int kBlockN = 32;
     constexpr int kHeadDim = 128;
@@ -107,150 +113,150 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor gdV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
-    extern __shared__ char smem_[];
-
-    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
-    Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
-    Tensor sdO = make_tensor(sV.data() + kBlockN * kHeadDim, SmemLayoutQ{});
-    Tensor sdOt = make_tensor(sV.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});
-
-    Tensor sP = make_tensor(sdV.data() + kBlockM * kBlockN, SmemLayoutAtom{});
-    Tensor sPt = make_tensor(sdV.data() + kBlockM * kBlockN, SmemLayoutAtomTranposed{});
-
-    int thread_id = threadIdx.x;
-    int warp_id = threadIdx.x / 32;
-    int thread_row = warp_id * 16 + thread_id / 4;
-
-    float rL[2];
-
-
-    // S = QK^T
-    TiledMma_S tiled_mma_S;
-    ThrMMA thr_mma_S = tiled_mma_S.get_slice(threadIdx.x);
-    Tensor tSgQ = thr_mma_S.partition_A(gQ);
-    Tensor tSsQ = thr_mma_S.partition_A(sQ);
-    Tensor tSgK = thr_mma_S.partition_B(gK);
-    Tensor tSsK = thr_mma_S.partition_B(sK);
-    Tensor tSrS_float = partition_fragment_C(tiled_mma_S, Shape<Int<kBlockM>, Int<kBlockN>>{});
-    Tensor tSsP = thr_mma_S.partition_C(sP);
-
-
-    // dV += P^TdO
-    TiledMma_dV tiled_mma_dV;
-    ThrMMA thr_mma_dV = tiled_mma_dV.get_slice(threadIdx.x);
-    Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
-    Tensor tdVgdOt = thr_mma_dV.partition_B(gdOt);
-    Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
-    Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
-    Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
-    Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
-
-    auto Q_TILE_MAX = size<3>(tSgQ);
-
-    // load K, V, dK, dV tiles
-    copy(tSgK, tSsK);
-
-    // load rL, rD from gmem to rmem
-    for (int i=0; i<2; i++) {
-        rL[i] = gL[thread_row + 8 * i];
-    }
-
-
-    CUTE_NO_UNROLL
-    for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
-        // load gQ to sQ
-        copy(tSgQ(_,_,_, q_tile), tSsQ);
-        //copy(tSgdOt(_,_,_, q_tile), tSsdOt);
-        // compute S=QK^T
-        gemm(tiled_mma, tSsQ, tSsK, tSrS_float);
-
-        // rescale S
-        for (int i=0;i< tSrS_float.size();i ++ ) {
-            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
-        }
-
-
-        // compute P = exp(S-l)
-
-        // P has size blockM x blockN, partitioned by mma_S
-        // gL has size (32), need to figure the L_i for each S_ij
-
-        for (int i=0; i<2; i++) {
-            for (int j=0; j< tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
-            }
-        }
-
-        //convert P from fp32 to fp16
-        constexpr int num_element = decltype(size(tSrS_float))::value;
-
-        cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
-
-        Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+//     extern __shared__ char smem_[];
 //
-        copy(tSrP, tSsP);
+//     Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
+//     Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
+//     Tensor sdO = make_tensor(sV.data() + kBlockN * kHeadDim, SmemLayoutQ{});
+//     Tensor sdOt = make_tensor(sV.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});
 //
-        gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
-
-
-    }
-
-
-
-    constexpr int num_element = decltype(size(tdVrdV_float))::value;
-
-    cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-    auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdVrdV_float.data()));
-
-    Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
-
-
-    Tensor tdVgV = thr_mma_dV.partition_C(gV);
-
-    copy(tdVrdV, tdVsdV);
-    //copy(tdVsdV, tdVgV);
-
-    dq_ptr[0] = static_cast<half_t>(0.0f);
-    dk_ptr[0] = static_cast<half_t>(0.0f);
-    dv_ptr[0] = static_cast<half_t>(0.0f);
-
-    if (thread0()) {
-        print(gQ);
-        print("\n");
-        print(sQ);
-        print("\n");
-        print(tSgQ);
-        print("\n");
-        print(tSsQ);
-        print("\n");
-        print(gK);
-        print("\n");
-        print(sK);
-        print("\n");
-        print(tSgK);
-        print("\n");
-        print(tSsK);
-        print("\n");
-        print(sP);
-        print("\n");
-        print(sPt);
-        print("\n");
-        print(gdOt);
-        print("\n");
-        print(sdOt);
-        print("\n");
-        print(gdV);
-        print("\n");
-        print(sdV);
-        print("\n");
-        print(tdVrdV);
-        print("\n");
-        print(tdVsdV);
-        print("\n");
-        print(tdVgdV);
-        print("\n");
-    }
+//     Tensor sP = make_tensor(sdV.data() + kBlockM * kBlockN, SmemLayoutAtom{});
+//     Tensor sPt = make_tensor(sdV.data() + kBlockM * kBlockN, SmemLayoutAtomTranposed{});
+//
+//     int thread_id = threadIdx.x;
+//     int warp_id = threadIdx.x / 32;
+//     int thread_row = warp_id * 16 + thread_id / 4;
+//
+//     float rL[2];
+//
+//
+//     // S = QK^T
+//     TiledMma_S tiled_mma_S;
+//     ThrMMA thr_mma_S = tiled_mma_S.get_slice(threadIdx.x);
+//     Tensor tSgQ = thr_mma_S.partition_A(gQ);
+//     Tensor tSsQ = thr_mma_S.partition_A(sQ);
+//     Tensor tSgK = thr_mma_S.partition_B(gK);
+//     Tensor tSsK = thr_mma_S.partition_B(sK);
+//     Tensor tSrS_float = partition_fragment_C(tiled_mma_S, Shape<Int<kBlockM>, Int<kBlockN>>{});
+//     Tensor tSsP = thr_mma_S.partition_C(sP);
+//
+//
+//     // dV += P^TdO
+//     TiledMma_dV tiled_mma_dV;
+//     ThrMMA thr_mma_dV = tiled_mma_dV.get_slice(threadIdx.x);
+//     Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
+//     Tensor tdVgdOt = thr_mma_dV.partition_B(gdOt);
+//     Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
+//     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
+//     Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
+//     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
+//
+//     auto Q_TILE_MAX = size<3>(tSgQ);
+//
+//     // load K, V, dK, dV tiles
+//     copy(tSgK, tSsK);
+//
+//     // load rL, rD from gmem to rmem
+//     for (int i=0; i<2; i++) {
+//         rL[i] = gL[thread_row + 8 * i];
+//     }
+//
+//
+//     CUTE_NO_UNROLL
+//     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
+//         // load gQ to sQ
+//         copy(tSgQ(_,_,_, q_tile), tSsQ);
+//         //copy(tSgdOt(_,_,_, q_tile), tSsdOt);
+//         // compute S=QK^T
+//         gemm(tiled_mma, tSsQ, tSsK, tSrS_float);
+//
+//         // rescale S
+//         for (int i=0;i< tSrS_float.size();i ++ ) {
+//             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+//         }
+//
+//
+//         // compute P = exp(S-l)
+//
+//         // P has size blockM x blockN, partitioned by mma_S
+//         // gL has size (32), need to figure the L_i for each S_ij
+//
+//         for (int i=0; i<2; i++) {
+//             for (int j=0; j< tSrS_float(make_coord(_,i),_,_).size(); j++) {
+//                 tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
+//             }
+//         }
+//
+//         //convert P from fp32 to fp16
+//         constexpr int num_element = decltype(size(tSrS_float))::value;
+//
+//         cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+//         auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
+//
+//         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+// //
+//         copy(tSrP, tSsP);
+// //
+//         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
+//
+//
+//     }
+//
+//
+//
+//     constexpr int num_element = decltype(size(tdVrdV_float))::value;
+//
+//     cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+//     auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdVrdV_float.data()));
+//
+//     Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
+//
+//
+//     Tensor tdVgV = thr_mma_dV.partition_C(gV);
+//
+//     copy(tdVrdV, tdVsdV);
+//     //copy(tdVsdV, tdVgV);
+//
+//     dq_ptr[0] = static_cast<half_t>(0.0f);
+//     dk_ptr[0] = static_cast<half_t>(0.0f);
+//     dv_ptr[0] = static_cast<half_t>(0.0f);
+//
+//     if (thread0()) {
+//         print(gQ);
+//         print("\n");
+//         print(sQ);
+//         print("\n");
+//         print(tSgQ);
+//         print("\n");
+//         print(tSsQ);
+//         print("\n");
+//         print(gK);
+//         print("\n");
+//         print(sK);
+//         print("\n");
+//         print(tSgK);
+//         print("\n");
+//         print(tSsK);
+//         print("\n");
+//         print(sP);
+//         print("\n");
+//         print(sPt);
+//         print("\n");
+//         print(gdOt);
+//         print("\n");
+//         print(sdOt);
+//         print("\n");
+//         print(gdV);
+//         print("\n");
+//         print(sdV);
+//         print("\n");
+//         print(tdVrdV);
+//         print("\n");
+//         print(tdVsdV);
+//         print("\n");
+//         print(tdVgdV);
+//         print("\n");
+//     }
 }
 
 
