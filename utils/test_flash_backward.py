@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch.profiler import profile, record_function, ProfilerActivity
 import argparse
-from flash_attn_turing import flash_attn_backward_func
+from flash_attn_turing import flash_attn_func, flash_attn_backward_func
 
 torch.set_printoptions(precision=8)
 
