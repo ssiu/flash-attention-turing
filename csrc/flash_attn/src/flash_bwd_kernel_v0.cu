@@ -126,30 +126,30 @@ void compute_dq_dk_dv_kernel_v0(
     int thread_id = threadIdx.x;
     int warp_id = threadIdx.x / 32;
     int thread_row = warp_id * 16 + thread_id / 4;
-//
-//     float rL[2];
-//
-//
-//     // S = QK^T
-//     TiledMma_S tiled_mma_S;
-//     ThrMMA thr_mma_S = tiled_mma_S.get_slice(threadIdx.x);
-//     Tensor tSgQ = thr_mma_S.partition_A(gQ);
-//     Tensor tSsQ = thr_mma_S.partition_A(sQ);
-//     Tensor tSgK = thr_mma_S.partition_B(gK);
-//     Tensor tSsK = thr_mma_S.partition_B(sK);
-//     Tensor tSrS_float = partition_fragment_C(tiled_mma_S, Shape<Int<kBlockM>, Int<kBlockN>>{});
-//     Tensor tSsP = thr_mma_S.partition_C(sP);
-//
-//
-//     // dV += P^TdO
-//     TiledMma_dV tiled_mma_dV;
-//     ThrMMA thr_mma_dV = tiled_mma_dV.get_slice(threadIdx.x);
-//     Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
-//     Tensor tdVgdOt = thr_mma_dV.partition_B(gdOt);
-//     Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
-//     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
-//     Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
-//     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
+
+    float rL[2];
+
+
+    // S = QK^T
+    TiledMma_S tiled_mma_S;
+    ThrMMA thr_mma_S = tiled_mma_S.get_slice(threadIdx.x);
+    Tensor tSgQ = thr_mma_S.partition_A(gQ);
+    Tensor tSsQ = thr_mma_S.partition_A(sQ);
+    Tensor tSgK = thr_mma_S.partition_B(gK);
+    Tensor tSsK = thr_mma_S.partition_B(sK);
+    Tensor tSrS_float = partition_fragment_C(tiled_mma_S, Shape<Int<kBlockM>, Int<kBlockN>>{});
+    Tensor tSsP = thr_mma_S.partition_C(sP);
+
+
+    // dV += P^TdO
+    TiledMma_dV tiled_mma_dV;
+    ThrMMA thr_mma_dV = tiled_mma_dV.get_slice(threadIdx.x);
+    Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
+    Tensor tdVgdOt = thr_mma_dV.partition_B(gdOt);
+    Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
+    Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
+    Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
+    Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
 //
 //     auto Q_TILE_MAX = size<3>(tSgQ);
 //
