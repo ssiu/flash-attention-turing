@@ -214,7 +214,7 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
 
 
-    copy(tdVrdV, tdVsdV);
+    copy(tdVgdV, tdVrdV);
 
     dq_ptr[0] = static_cast<half_t>(0.0f);
     dk_ptr[0] = static_cast<half_t>(0.0f);
