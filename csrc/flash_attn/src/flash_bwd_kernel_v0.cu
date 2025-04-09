@@ -212,9 +212,6 @@ void compute_dq_dk_dv_kernel_v0(
 
     Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
 
-
-    Tensor tdVgV = thr_mma_dV.partition_C(gV);
-
     copy(tdVrdV, tdVsdV);
     //copy(tdVsdV, tdVgV);
 
