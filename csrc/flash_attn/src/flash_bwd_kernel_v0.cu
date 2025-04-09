@@ -203,6 +203,22 @@ void compute_dq_dk_dv_kernel_v0(
 
     }
 
+
+
+    constexpr int num_element = decltype(size(tdVrdV_float))::value;
+
+    cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+    auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdVrdV_float.data()));
+
+    Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
+
+
+    //copy(tdVrdV, tdVgdV);
+
+    dq_ptr[0] = static_cast<half_t>(0.0f);
+    dk_ptr[0] = static_cast<half_t>(0.0f);
+    dv_ptr[0] = static_cast<half_t>(0.0f);
+
     if (thread0()) {
         print(gQ);
         print("\n");
@@ -233,20 +249,6 @@ void compute_dq_dk_dv_kernel_v0(
         print(tdVgdV);
         print("\n");
     }
-
-    constexpr int num_element = decltype(size(tdVrdV_float))::value;
-
-    cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-    auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdVrdV_float.data()));
-
-    Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
-
-
-    //copy(tdVrdV, tdVgdV);
-
-    dq_ptr[0] = static_cast<half_t>(0.0f);
-    dk_ptr[0] = static_cast<half_t>(0.0f);
-    dv_ptr[0] = static_cast<half_t>(0.0f);
 }
 
 
