@@ -169,7 +169,7 @@ void compute_dq_dk_dv_kernel_v0(
         copy(tSgQ(_,_,_, q_tile), tSsQ);
         //copy(tSgdOt(_,_,_, q_tile), tSsdOt);
         // compute S=QK^T
-        gemm(tiled_mma, tSsQ, tSsK, tSrS_float);
+        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
 
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
