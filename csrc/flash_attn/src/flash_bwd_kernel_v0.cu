@@ -228,6 +228,10 @@ void compute_dq_dk_dv_kernel_v0(
         print("\n");
         print(sdOt);
         print("\n");
+        print(tdVrdV);
+        print("\n");
+        print(tdVgdV);
+        print("\n");
     }
 
     constexpr int num_element = decltype(size(tdVrdV_float))::value;
