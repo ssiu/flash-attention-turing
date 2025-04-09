@@ -209,7 +209,7 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor tdVgV = thr_mma_dV.partition_C(gV);
 
     copy(tdVrdV, tdVsdV);
-    copy(tdVsdV, tdVgV);
+    //copy(tdVsdV, tdVgV);
 
     dq_ptr[0] = static_cast<half_t>(0.0f);
     dk_ptr[0] = static_cast<half_t>(0.0f);
