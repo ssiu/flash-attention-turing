@@ -40,24 +40,24 @@ def main():
     print(d_q.size())
     print(d_k.size())
     print(d_v.size())
-    #
-    # #batch_size, num_heads, seq_len, head_dim = 4, 32, 4096, 128
-    # Q = torch.rand(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
-    # K = torch.rand(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
-    # V = torch.rand(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
-    # dO = torch.randn(batch_size, num_heads, seq_len, head_dim, dtype=torch.float16, device="cuda")
-    #
-    # Q.requires_grad = True
-    # K.requires_grad = True
-    # V.requires_grad = True
-    #
-    # with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-    # # with sdpa_kernel(backends=[SDPBackend.EFFICIENT_ATTENTION]):
-    # #     output =  F.scaled_dot_product_attention(query, key, value)
-    #     output = F.scaled_dot_product_attention(Q, K, V)
-    #     output.backward(dO)
-    #
-    # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+
+
+    query_torch = query.permute(0, 2, 1, 3).contiguous().clone()
+    key_torch = key.permute(0, 2, 1, 3).contiguous().clone()
+    value_torch = value.permute(0, 2, 1, 3).contiguous().clone()
+    d_output_torch = d_output.permute(0, 2, 1, 3).contiguous().clone()
+
+    query_torch.requires_grad = True
+    key_torch.requires_grad = True
+    value_torch.requires_grad = True
+
+    output = F.scaled_dot_product_attention(query_torch, key_torch, value_torch)
+
+
+    output.backward(d_output_torch)
+
+    print(query_torch.grad.size())
+
 
 
 
