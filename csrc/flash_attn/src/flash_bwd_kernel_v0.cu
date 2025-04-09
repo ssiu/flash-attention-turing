@@ -113,19 +113,19 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor gdV = local_tile(mdV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
-//     extern __shared__ char smem_[];
-//
-//     Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
-//     Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
-//     Tensor sdO = make_tensor(sV.data() + kBlockN * kHeadDim, SmemLayoutQ{});
-//     Tensor sdOt = make_tensor(sV.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});
-//
-//     Tensor sP = make_tensor(sdV.data() + kBlockM * kBlockN, SmemLayoutAtom{});
-//     Tensor sPt = make_tensor(sdV.data() + kBlockM * kBlockN, SmemLayoutAtomTranposed{});
-//
-//     int thread_id = threadIdx.x;
-//     int warp_id = threadIdx.x / 32;
-//     int thread_row = warp_id * 16 + thread_id / 4;
+    extern __shared__ char smem_[];
+
+    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
+    Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
+    Tensor sdO = make_tensor(sV.data() + kBlockN * kHeadDim, SmemLayoutQ{});
+    Tensor sdOt = make_tensor(sV.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});
+
+    Tensor sP = make_tensor(sdV.data() + kBlockM * kBlockN, SmemLayoutAtom{});
+    Tensor sPt = make_tensor(sdV.data() + kBlockM * kBlockN, SmemLayoutAtomTranposed{});
+
+    int thread_id = threadIdx.x;
+    int warp_id = threadIdx.x / 32;
+    int thread_row = warp_id * 16 + thread_id / 4;
 //
 //     float rL[2];
 //
