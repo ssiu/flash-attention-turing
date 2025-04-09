@@ -215,6 +215,7 @@ void compute_dq_dk_dv_kernel_v0(
 
 
     copy(tdVrdV, tdVsdV);
+    copy(tdVsdV, tdVgdV);
 
     dq_ptr[0] = static_cast<half_t>(0.0f);
     dk_ptr[0] = static_cast<half_t>(0.0f);
