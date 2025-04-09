@@ -68,7 +68,7 @@ void compute_dq_dk_dv_kernel_v0(
                              make_shape(batch_size, seq_len, num_heads, head_dim),
                              make_stride(seq_len * num_heads * head_dim, Int<1>{}, head_dim, num_heads * head_dim));
 
-    Tensor gdOt = local_tile(mdO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kHeadDim>, Int<kBlockM>>{},
+    Tensor gdOt = local_tile(mdOt(blockIdx.x, _, blockIdx.y, _), Shape<Int<kHeadDim>, Int<kBlockM>>{},
                            make_coord(0, _));
 
 
@@ -167,7 +167,7 @@ void compute_dq_dk_dv_kernel_v0(
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
         // load gQ to sQ
         copy(tSgQ(_,_,_, q_tile), tSsQ);
-        copy(tSgdOt(_,_,_, q_tile), tSsdOt);
+        //copy(tSgdOt(_,_,_, q_tile), tSsdOt);
         // compute S=QK^T
         gemm(tiled_mma, tSsQ, tSsK, tSrS_float);
 
@@ -188,17 +188,17 @@ void compute_dq_dk_dv_kernel_v0(
             }
         }
 
-        //convert P from fp32 to fp16
-        constexpr int num_element = decltype(size(tSrS_float))::value;
-
-        cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
-
-        Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
-
-        copy(tSrP, tSsP);
-
-        gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
+//         //convert P from fp32 to fp16
+//         constexpr int num_element = decltype(size(tSrS_float))::value;
+//
+//         cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+//         auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
+//
+//         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+//
+//         copy(tSrP, tSsP);
+//
+//         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 
 
     }
