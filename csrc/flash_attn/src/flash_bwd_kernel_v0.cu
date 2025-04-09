@@ -151,16 +151,16 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
-//
-//     auto Q_TILE_MAX = size<3>(tSgQ);
-//
-//     // load K, V, dK, dV tiles
-//     copy(tSgK, tSsK);
-//
-//     // load rL, rD from gmem to rmem
-//     for (int i=0; i<2; i++) {
-//         rL[i] = gL[thread_row + 8 * i];
-//     }
+
+    auto Q_TILE_MAX = size<3>(tSgQ);
+
+    // load K, V, dK, dV tiles
+    copy(tSgK, tSsK);
+
+    // load rL, rD from gmem to rmem
+    for (int i=0; i<2; i++) {
+        rL[i] = gL[thread_row + 8 * i];
+    }
 //
 //
 //     CUTE_NO_UNROLL
