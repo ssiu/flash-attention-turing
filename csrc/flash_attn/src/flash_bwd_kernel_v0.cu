@@ -65,7 +65,7 @@ void compute_dq_dk_dv_kernel_v0(
 
     // dO
     Tensor mdOt = make_tensor(make_gmem_ptr(do_ptr),
-                             make_shape(batch_size, seq_len, num_heads, head_dim),
+                             make_shape(batch_size, head_dim, num_heads, seq_len),
                              make_stride(seq_len * num_heads * head_dim, Int<1>{}, head_dim, num_heads * head_dim));
 
     Tensor gdOt = local_tile(mdOt(blockIdx.x, _, blockIdx.y, _), Shape<Int<kHeadDim>, Int<kBlockM>>{},
