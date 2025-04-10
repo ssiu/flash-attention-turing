@@ -165,6 +165,7 @@ void compute_dq_dk_dv_kernel_v0(
         clear(tSrS_float);
         printf("reset tSrS\n");
         for (int i=0;i< tSrS_float.size();i ++ ) {
+            tSrS_float[i] = 0;
             printf("%f ", tSrS_float[i]);
         }
         printf("\n");
