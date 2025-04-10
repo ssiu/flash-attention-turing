@@ -163,6 +163,12 @@ void compute_dq_dk_dv_kernel_v0(
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
         clear(tSrS_float);
+        printf("reset tSrS\n");
+        for (int i=0;i< tSrS_float.size();i ++ ) {
+            printf("%f ", tSrS_float[i]);
+        }
+        printf("\n");
+
         // load gQ to sQ
         copy(tSgQ(_,_,_, q_tile), tSsQ);
         copy(tdVgdOt(_,_,_, q_tile), tdVsdOt);
