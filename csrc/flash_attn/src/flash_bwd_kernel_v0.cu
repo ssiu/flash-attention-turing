@@ -172,7 +172,7 @@ void compute_dq_dk_dv_kernel_v0(
 
         // load rL, rD from gmem to rmem
         for (int i=0; i<2; i++) {
-            rL[i] = gL[q_tile * kBlockM + thread_row + 8 * i];
+            rL[i] = gL((thread_row + 8 * i), q_tile)
         }
 
         // rescale S
