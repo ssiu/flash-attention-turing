@@ -256,9 +256,19 @@ void compute_dq_dk_dv_kernel_v0(
         }
 
         if (thread0()) {
-            printf("sdOt\n");
-            for (int i =0;i < sdOt.size(); i++){
-                printf("%f ", sdOt[i]);
+            printf("tdVgdOt\n");
+            for (int i =0;i < tdVgdOt.size(); i++){
+                printf("%f ", tdVgdOt[i]);
+            }
+            print("\n");
+            print("=====");
+            print("\n");
+        }
+
+        if (thread0()) {
+            printf("tdVsdOt\n");
+            for (int i =0;i < tdVsdOt.size(); i++){
+                printf("%f ", tdVsdOt[i]);
             }
             print("\n");
             print("=====");
