@@ -37,7 +37,7 @@ def main():
     print("values of l")
 
     for i in range(128):
-        print(l[1,1,i])
+        print(l[0,0,i])
 
     print("=====")
 
