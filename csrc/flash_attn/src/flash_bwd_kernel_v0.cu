@@ -295,9 +295,7 @@ void compute_dq_dk_dv_kernel_v0(
             printf("tdVsdOt\n");
             print(sdOt);
             print(tdVsdOt);
-            for (int i =0;i < 16; i++){
-                printf("%f ", tdVrdOt());
-            }
+            print_tensor(tdVrdOt);
             print("\n");
             print("=====");
             print("\n");
