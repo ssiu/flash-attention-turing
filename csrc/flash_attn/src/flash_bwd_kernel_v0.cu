@@ -188,11 +188,30 @@ void compute_dq_dk_dv_kernel_v0(
             rL[i] = gL((thread_row + 8 * i), q_tile);
         }
 
+        if (thread0()) {
+            printf("tSrS\n");
+            for (int i =0;i < tSrS_float.size(); i++){
+                printf("%f ", tSrS_float[i]);
+            }
+            print("\n");
+            print("=====");
+            print("\n");
+        }
+
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
 
+        if (thread0()) {
+            printf("tSrS after scaling headdim\n");
+            for (int i =0;i < tSrS_float.size(); i++){
+                printf("%f ", tSrS_float[i]);
+            }
+            print("\n");
+            print("=====");
+            print("\n");
+        }
 
         // compute P = exp(S-l)
 
@@ -206,7 +225,7 @@ void compute_dq_dk_dv_kernel_v0(
         }
 
         if (thread0()) {
-            printf("tSrS\n");
+            printf("tSrP float\n");
             for (int i =0;i < tSrS_float.size(); i++){
                 printf("%f ", tSrS_float[i]);
             }
@@ -222,6 +241,28 @@ void compute_dq_dk_dv_kernel_v0(
         auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
 
         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+
+        if (thread0()) {
+            printf("tSrP\n");
+            for (int i =0;i < tSrS_float.size(); i++){
+                printf("%f ", static_cast<float>(tSrS_float[i]));
+            }
+            print("\n");
+            print("=====");
+            print("\n");
+        }
+
+        if (thread0()) {
+            printf("sdOt\n");
+            for (int i =0;i < sdOt.size(); i++){
+                printf("%f ", sdOt[i]);
+            }
+            print("\n");
+            print("=====");
+            print("\n");
+        }
+
+
 //
         copy(tSrP, tSsP);
 //
