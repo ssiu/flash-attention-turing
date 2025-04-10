@@ -34,12 +34,12 @@ def main():
 
     output, l = flash_attn_func(query, key, value, batch_size, seq_len, num_heads, head_dim)
 
-    print("values of l")
-
-    for i in range(128):
-        print(l[0,0,i])
-
-    print("=====")
+    # print("values of l")
+    #
+    # for i in range(128):
+    #     print(l[0,0,i])
+    #
+    # print("=====")
 
     d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
     d_q, d_k, d_v = flash_attn_backward_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim)
