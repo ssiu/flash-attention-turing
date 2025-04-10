@@ -349,7 +349,8 @@ void flash_fwd_kernel(
     // end of KV loop
 
     int warp_id = threadIdx.x / 32;
-    int thread_row = warp_id * 16 + thread_id / 4;
+    int lane_id = threadIdx.x % 32;
+    int thread_row = warp_id * 16 + lane_id / 4;
     gL[thread_row] = rM[0] + logf(rL[0]);
     gL[thread_row + 8] = rM[1] + logf(rL[1]);
 
@@ -373,11 +374,11 @@ void flash_fwd_kernel(
     __syncthreads();
 
     copy(gmem_tiled_copy_O, tOsO_copy, tOgO_copy);
-
-    if (thread0()){
-        print(gL);
-        print("\n");
-    }
+//
+//     if (thread0()){
+//         print(gL);
+//         print("\n");
+//     }
 
 }
 
