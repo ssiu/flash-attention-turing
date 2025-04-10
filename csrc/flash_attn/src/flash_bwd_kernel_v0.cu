@@ -379,6 +379,14 @@ void compute_dq_dk_dv_kernel_v0(
         printf("sdOt\n");
         print(sdOt);
         print("\n");
+
+        printf("tdVgdOt\n");
+        print(tdVgdOt);
+        print("\n");
+        printf("tdVgdOt\n");
+        print(tdVsdOt);
+        print("\n");
+
         printf("gdV\n");
         print(gdV);
         print("\n");
