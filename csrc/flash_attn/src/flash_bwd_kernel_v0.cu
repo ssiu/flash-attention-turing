@@ -198,7 +198,8 @@ void compute_dq_dk_dv_kernel_v0(
                 printf("%f ", tSrS_float[i]);
             }
             print("\n");
-
+            print("=====");
+            print("\n");
         }
 
         //convert P from fp32 to fp16
@@ -219,7 +220,8 @@ void compute_dq_dk_dv_kernel_v0(
                 printf("%f ", tdVrdV_float[i]);
             }
             print("\n");
-
+            print("=====");
+            print("\n");
         }
 
 
