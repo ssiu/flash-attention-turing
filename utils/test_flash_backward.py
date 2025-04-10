@@ -63,7 +63,7 @@ def main():
 
     print(query_torch_grad.size())
     for i in range(10):
-        print(d_v[0,0,0,i], value_torch_grad[0,0,0,i])
+        print(l[0,0,i], d_v[0,0,0,i], value_torch_grad[0,0,0,i])
 
 
 
