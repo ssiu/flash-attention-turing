@@ -156,8 +156,10 @@ void compute_dq_dk_dv_kernel_v0(
 
     // load K, V, dK, dV tiles
     copy(tSgK, tSsK);
-
-    print(gdOt);
+    if (thread0()) {
+        print(gdOt);
+        print("\n");
+    }
 
     clear(tdVrdV_float);
 
