@@ -259,7 +259,8 @@ void compute_dq_dk_dv_kernel_v0(
             print(gdOt);
             print(tdVgdOt);
             for (int i =0;i < tdVgdOt.size(); i++){
-                printf("%f ", static_cast<float>(tdVgdOt[i]));
+//                 printf("%f ", static_cast<float>(tdVgdOt[i]));
+                printf("%f ", static_cast<float>(gdOt[i]));
             }
             print("\n");
             print("=====");
