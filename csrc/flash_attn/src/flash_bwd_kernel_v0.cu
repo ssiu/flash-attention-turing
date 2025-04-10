@@ -258,6 +258,8 @@ void compute_dq_dk_dv_kernel_v0(
         print("\n");
         print(tdVgdV);
         print("\n");
+        print(gL);
+        print("\n");
     }
 }
 
