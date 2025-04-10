@@ -374,6 +374,11 @@ void flash_fwd_kernel(
 
     copy(gmem_tiled_copy_O, tOsO_copy, tOgO_copy);
 
+    if (thread0()){
+        print(gL);
+        print("\n");
+    }
+
 }
 
 
