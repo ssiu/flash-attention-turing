@@ -192,6 +192,15 @@ void compute_dq_dk_dv_kernel_v0(
             }
         }
 
+        if (thread0()) {
+            printf("tSrS\n");
+            for (int i =0;i < tSrS_float.size(); i++){
+                printf("%f ", tSrS_float[i]);
+            }
+            print("\n");
+
+        }
+
         //convert P from fp32 to fp16
         constexpr int num_element = decltype(size(tSrS_float))::value;
 
