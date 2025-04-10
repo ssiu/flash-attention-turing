@@ -146,7 +146,7 @@ void compute_dq_dk_dv_kernel_v0(
     TiledMma_dV tiled_mma_dV;
     ThrMMA thr_mma_dV = tiled_mma_dV.get_slice(threadIdx.x);
     Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
-    Tensor tdVgdOt = thr_mma_dV.partition_B(gdOt);
+
     Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
@@ -163,7 +163,7 @@ void compute_dq_dk_dv_kernel_v0(
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
         clear(tSrS_float);
-
+        Tensor tdVgdOt = thr_mma_dV.partition_B(gdOt(_,_,_,q_tile));
 
 //         for (int i=0;i < tSrS_float.size();i ++ ) {
 //             tSrS_float[i] = 0;
@@ -178,7 +178,7 @@ void compute_dq_dk_dv_kernel_v0(
 
         // load gQ to sQ
         copy(tSgQ(_,_,_, q_tile), tSsQ);
-        copy(tdVgdOt(_,_,_, q_tile), tdVsdOt);
+        //copy(tdVgdOt(_,_,_, q_tile), tdVsdOt);
 
         __syncthreads();
         // compute S=QK^T
@@ -255,7 +255,9 @@ void compute_dq_dk_dv_kernel_v0(
         }
 
         if (thread0()) {
+
             printf("tdVgdOt\n");
+            print(gdOt);
             print(tdVgdOt);
 //             for (int i =0;i < tdVgdOt.size(); i++){
 //                 printf("%f ", static_cast<float>(tdVgdOt[i]));
@@ -267,6 +269,7 @@ void compute_dq_dk_dv_kernel_v0(
 
         if (thread0()) {
             printf("tdVsdOt\n");
+            print(sdOt);
             print(tdVsdOt);
 //             for (int i =0;i < tdVsdOt.size(); i++){
 //                 printf("%f ", tdVsdOt[i]);
