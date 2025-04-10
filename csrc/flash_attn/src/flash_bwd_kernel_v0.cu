@@ -260,9 +260,9 @@ void compute_dq_dk_dv_kernel_v0(
 //             for (int i =0;i < tdVgdOt.size(); i++){
 //                 printf("%f ", static_cast<float>(tdVgdOt[i]));
 //             }
-//             print("\n");
-//             print("=====");
-//             print("\n");
+            print("\n");
+            print("=====");
+            print("\n");
         }
 
         if (thread0()) {
@@ -271,9 +271,9 @@ void compute_dq_dk_dv_kernel_v0(
 //             for (int i =0;i < tdVsdOt.size(); i++){
 //                 printf("%f ", tdVsdOt[i]);
 //             }
-//             print("\n");
-//             print("=====");
-//             print("\n");
+            print("\n");
+            print("=====");
+            print("\n");
         }
 
 
