@@ -179,7 +179,6 @@ void compute_dq_dk_dv_kernel_v0(
         // load gQ to sQ
         copy(tSgQ(_,_,_, q_tile), tSsQ);
         copy(tdVgdOt(_,_,_, q_tile), tdVsdOt);
-        copy(tdVgdOt, tdVsdOt);
 
         __syncthreads();
         // compute S=QK^T
@@ -258,12 +257,12 @@ void compute_dq_dk_dv_kernel_v0(
         if (thread0()) {
             printf("tdVgdOt\n");
             print(tdVgdOt);
-//             for (int i =0;i < tdVgdOt.size(); i++){
-//                 printf("%f ", tdVgdOt[i]);
-//             }
-//             print("\n");
-//             print("=====");
-//             print("\n");
+            for (int i =0;i < tdVgdOt.size(); i++){
+                printf("%f ", tdVgdOt[i]);
+            }
+            print("\n");
+            print("=====");
+            print("\n");
         }
 
         if (thread0()) {
