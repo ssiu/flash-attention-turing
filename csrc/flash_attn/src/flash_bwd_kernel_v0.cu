@@ -192,7 +192,7 @@ void compute_dq_dk_dv_kernel_v0(
             }
         }
 
-        if (thread0() && q_tile==0) {
+        if (thread0()) {
             printf("tSrS\n");
             for (int i =0;i < tSrS_float.size(); i++){
                 printf("%f ", tSrS_float[i]);
@@ -213,7 +213,7 @@ void compute_dq_dk_dv_kernel_v0(
 //
         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 
-        if (thread0() && q_tile==0) {
+        if (thread0()) {
             printf("tdVrdV\n");
             for (int i =0;i < tdVrdV_float.size(); i++){
                 printf("%f ", tdVrdV_float[i]);
@@ -228,7 +228,7 @@ void compute_dq_dk_dv_kernel_v0(
 
 
     if (thread0()) {
-        printf("tdVrdV, finish\n");
+        printf("tdVrdV, FINISH\n");
         for (int i =0;i < tdVrdV_float.size(); i++){
             printf("%f ", tdVrdV_float[i]);
         }
