@@ -159,7 +159,7 @@ void compute_dq_dk_dv_kernel_v0(
 
     // load K, V, dK, dV tiles
     copy(tSgK, tSsK);
-    copy(tdVgdOt, tdVrdOt);
+    copy(tdVgdOt(_,_,_,0), tdVrdOt);
     if (thread0()) {
         print(gdOt);
         print("\n");
