@@ -162,11 +162,11 @@ void compute_dq_dk_dv_kernel_v0(
 //         for (int i =0; i<128;i++) {
 //             printf("%f\n", static_cast<float>(gdOt(i,0,0)));
 //         }
-//         for (int i =0; i< tdVgdOt.size();i++) {
-//             printf("%f\n", static_cast<float>(tdVgdOt[i]));
-//         }
-        print(tdVgdOt);
-        print("\n");
+        for (int i =0; i< 16;i++) {
+            printf("%f\n", static_cast<float>(tdVgdOt(0,i,0,0)));
+        }
+//         print(tdVgdOt); //(_2,_16,_4,4)
+//         print("\n");
     }
 
     clear(tdVrdV_float);
