@@ -159,9 +159,13 @@ void compute_dq_dk_dv_kernel_v0(
     if (thread0()) {
         print(gdOt);
         print("\n");
-        for (int i =0; i<128;i++) {
-            printf("%f\n", static_cast<float>(gdOt(i,0,0)));
+//         for (int i =0; i<128;i++) {
+//             printf("%f\n", static_cast<float>(gdOt(i,0,0)));
+//         }
+        for (int i =0; i< tdVgdOt.size();i++) {
+            printf("%f\n", static_cast<float>(tdVgdOt[i]));
         }
+
     }
 
     clear(tdVrdV_float);
