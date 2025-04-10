@@ -257,12 +257,12 @@ void compute_dq_dk_dv_kernel_v0(
         if (thread0()) {
             printf("tdVgdOt\n");
             print(tdVgdOt);
-            for (int i =0;i < tdVgdOt.size(); i++){
-                printf("%f ", static_cast<float>(tdVgdOt[i]));
-            }
-            print("\n");
-            print("=====");
-            print("\n");
+//             for (int i =0;i < tdVgdOt.size(); i++){
+//                 printf("%f ", static_cast<float>(tdVgdOt[i]));
+//             }
+//             print("\n");
+//             print("=====");
+//             print("\n");
         }
 
         if (thread0()) {
