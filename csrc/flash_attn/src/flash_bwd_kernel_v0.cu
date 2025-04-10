@@ -175,10 +175,10 @@ void compute_dq_dk_dv_kernel_v0(
 //     }
 
     clear(tdVrdV_float);
-
+    clear(tSrS_float);
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
-        clear(tSrS_float);
+
 
 //         for (int i=0;i < tSrS_float.size();i ++ ) {
 //             tSrS_float[i] = 0;
@@ -308,6 +308,8 @@ void compute_dq_dk_dv_kernel_v0(
         copy(tSrP, tSsP);
 //
         __syncthreads();
+        clear(tSrS_float);
+
         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 
         __syncthreads();
