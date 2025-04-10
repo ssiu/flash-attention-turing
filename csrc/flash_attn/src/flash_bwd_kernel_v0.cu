@@ -301,9 +301,9 @@ void compute_dq_dk_dv_kernel_v0(
             printf("tdVsdOt\n");
             print(sdOt);
             print(tdVsdOt);
-//             for (int i =0;i < tdVsdOt.size(); i++){
-//                 printf("%f ", tdVsdOt[i]);
-//             }
+            for (int i =0;i < tdVsdOt.size(); i++){
+                printf("%f ", tdVsdOt[i]);
+            }
             print("\n");
             print("=====");
             print("\n");
