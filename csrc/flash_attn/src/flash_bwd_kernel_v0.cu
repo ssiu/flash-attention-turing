@@ -161,10 +161,11 @@ void compute_dq_dk_dv_kernel_v0(
     for (int i=0; i<2; i++) {
         rL[i] = gL[thread_row + 8 * i];
     }
-
+    clear(tdVrdV_float);
 
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
+        clear(tSrS_float);
         // load gQ to sQ
         copy(tSgQ(_,_,_, q_tile), tSsQ);
         //copy(tSgdOt(_,_,_, q_tile), tSsdOt);
