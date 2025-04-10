@@ -195,6 +195,20 @@ void compute_dq_dk_dv_kernel_v0(
         copy(tSgQ(_,_,_, q_tile), tSsQ);
         copy(tdVgdOt(_,_,_, q_tile), tdVsdOt);
 
+
+        if (thread0()) {
+            print("check sdOt\n");
+            for (int i=0;i<32;i++) {
+                for (int j=0;j<32;j++) {
+                    printf("%f ", static_cast<float>(sdOt(i,j)));
+                }
+                print("\n");
+
+            }
+            print("\n");
+        }
+
+
         __syncthreads();
         // compute S=QK^T
         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
@@ -383,7 +397,7 @@ void compute_dq_dk_dv_kernel_v0(
         printf("tdVgdOt\n");
         print(tdVgdOt);
         print("\n");
-        printf("tdVgdOt\n");
+        printf("tdVsdOt\n");
         print(tdVsdOt);
         print("\n");
 
