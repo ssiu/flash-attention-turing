@@ -165,7 +165,7 @@ void compute_dq_dk_dv_kernel_v0(
         clear(tSrS_float);
         // load gQ to sQ
         copy(tSgQ(_,_,_, q_tile), tSsQ);
-        //copy(tSgdOt(_,_,_, q_tile), tSsdOt);
+        copy(tdVgdOt(_,_,_, q_tile), tdVsdOt);
         // compute S=QK^T
         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
 
