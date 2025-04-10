@@ -157,10 +157,7 @@ void compute_dq_dk_dv_kernel_v0(
     // load K, V, dK, dV tiles
     copy(tSgK, tSsK);
 
-    // load rL, rD from gmem to rmem
-    for (int i=0; i<2; i++) {
-        rL[i] = gL[thread_row + 8 * i];
-    }
+
     clear(tdVrdV_float);
 
     CUTE_NO_UNROLL
@@ -171,6 +168,12 @@ void compute_dq_dk_dv_kernel_v0(
         //copy(tSgdOt(_,_,_, q_tile), tSsdOt);
         // compute S=QK^T
         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+
+
+        // load rL, rD from gmem to rmem
+        for (int i=0; i<2; i++) {
+            rL[i] = gL[q_tile * kBlockM + thread_row + 8 * i];
+        }
 
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
