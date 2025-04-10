@@ -93,7 +93,8 @@ void flash_fwd_kernel(
 
     int thread_id = threadIdx.x;
     int lane_id = thread_id % 32;
-
+    int warp_id = threadIdx.x / 32;
+    int thread_row = warp_id * 16 + lane_id / 4;
 
     float rM_old[2] = {-FLT_MAX, -FLT_MAX};
     float rM[2] = {0.0f};
@@ -348,9 +349,7 @@ void flash_fwd_kernel(
     }
     // end of KV loop
 
-    int warp_id = threadIdx.x / 32;
-    int lane_id = threadIdx.x % 32;
-    int thread_row = warp_id * 16 + lane_id / 4;
+
     gL[thread_row] = rM[0] + logf(rL[0]);
     gL[thread_row + 8] = rM[1] + logf(rL[1]);
 
