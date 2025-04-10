@@ -94,7 +94,7 @@ void compute_dq_dk_dv_kernel(
     float* l_ptr,
     half_t* do_ptr,
 //     half_t* d_ptr, // dO \circ O
-    half_t const* dq_ptr,
+    half_t dq_ptr,
     half_t const* dk_ptr,
     half_t const* dv_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim

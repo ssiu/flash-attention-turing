@@ -257,22 +257,24 @@ void compute_dq_dk_dv_kernel_v0(
 
         if (thread0()) {
             printf("tdVgdOt\n");
-            for (int i =0;i < tdVgdOt.size(); i++){
-                printf("%f ", tdVgdOt[i]);
-            }
-            print("\n");
-            print("=====");
-            print("\n");
+            print(tdVgdOt);
+//             for (int i =0;i < tdVgdOt.size(); i++){
+//                 printf("%f ", tdVgdOt[i]);
+//             }
+//             print("\n");
+//             print("=====");
+//             print("\n");
         }
 
         if (thread0()) {
             printf("tdVsdOt\n");
-            for (int i =0;i < tdVsdOt.size(); i++){
-                printf("%f ", tdVsdOt[i]);
-            }
-            print("\n");
-            print("=====");
-            print("\n");
+            print(tdVsdOt);
+//             for (int i =0;i < tdVsdOt.size(); i++){
+//                 printf("%f ", tdVsdOt[i]);
+//             }
+//             print("\n");
+//             print("=====");
+//             print("\n");
         }
 
 
