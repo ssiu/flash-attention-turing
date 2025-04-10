@@ -148,6 +148,9 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
     Tensor tdVgdOt = thr_mma_dV.partition_B(gdOt);
     Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
+    Tensor tdVrdOt = thr_mma_dV.partition_fragment_B(gdOt);
+
+
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
@@ -156,14 +159,18 @@ void compute_dq_dk_dv_kernel_v0(
 
     // load K, V, dK, dV tiles
     copy(tSgK, tSsK);
+    copy(tdVgdOt, tdVrdOt);
     if (thread0()) {
         print(gdOt);
         print("\n");
 //         for (int i =0; i<128;i++) {
 //             printf("%f\n", static_cast<float>(gdOt(i,0,0)));
 //         }
-        for (int i =0; i< 16;i++) {
-            printf("%f\n", static_cast<float>(tdVgdOt(0,i,0,0)));
+//         for (int i =0; i< 16;i++) {
+//             printf("%f\n", static_cast<float>(tdVgdOt(0,i,0,0)));
+//         }
+        for (int i =0; i< tdVrdOt.size();i++) {
+            printf("%f\n", static_cast<float>(tdVrdOt[i]));
         }
 //         print(tdVgdOt); //(_2,_16,_4,4)
 //         print("\n");
