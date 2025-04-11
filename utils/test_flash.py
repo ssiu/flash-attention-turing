@@ -9,9 +9,13 @@ torch.set_printoptions(precision=8)
 
 def get_error(batch_size=1, seq_len=16, num_heads=1, head_dim=128):
     print(f"Computing error for batch_size={batch_size}, seq_len={seq_len}, num_heads={num_heads}, head_dim={head_dim}")
-    query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    query = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    key = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    value = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+
+    # query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    # key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    # value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
 
     # for pytorch function
     # (batch_size, num_heads, seq_len, head_dim)
@@ -23,7 +27,7 @@ def get_error(batch_size=1, seq_len=16, num_heads=1, head_dim=128):
     output, l = flash_attn_func(query, key, value, batch_size, seq_len, num_heads, head_dim)
 
     print(l.shape)
-    print(l[:32])
+    print(l[:128])
     # (batch_size, num_heads, seq_len, head_dim)
     output_torch = F.scaled_dot_product_attention(query_torch, key_torch, value_torch)
 
