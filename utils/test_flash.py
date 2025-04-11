@@ -9,9 +9,9 @@ torch.set_printoptions(precision=8)
 
 def get_error(batch_size=1, seq_len=16, num_heads=1, head_dim=128):
     print(f"Computing error for batch_size={batch_size}, seq_len={seq_len}, num_heads={num_heads}, head_dim={head_dim}")
-    query = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    key = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    value = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    query = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    key = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    value = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
 
     # query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
