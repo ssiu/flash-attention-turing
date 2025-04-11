@@ -192,15 +192,15 @@ void compute_dq_dk_dv_kernel_v0(
 
 
         // load gQ to sQ
-        copy(tSgQ(_,_,_, q_tile), tSsQ);
-        copy(tdVgdOt(_,_,_, q_tile), tdVsdOt);
+        copy(tSgQ(_,_,_,q_tile), tSsQ);
+        copy(tdVgdOt(_,_,_,q_tile), tdVsdOt);
 
 
-        if (thread0()) {
-            print("check tdVsdOt\n");
-            print_tensor(tdVsdOt);
-            print("\n");
-        }
+//         if (thread0()) {
+//             print("check tdVsdOt\n");
+//             print_tensor(tdVsdOt);
+//             print("\n");
+//         }
 
 
         __syncthreads();
@@ -214,10 +214,24 @@ void compute_dq_dk_dv_kernel_v0(
         }
 
         if (thread0()) {
+            printf("tSsQ\n");
+            print_tensor(tSsQ);
+            print("\n");
+            print("=====");
+            print("\n");
+        }
+
+        if (thread0()) {
+            printf("tSsK\n");
+            print_tensor(tSsK);
+            print("\n");
+            print("=====");
+            print("\n");
+        }
+
+        if (thread0()) {
             printf("tSrS\n");
-            for (int i =0;i < tSrS_float.size(); i++){
-                printf("%f ", tSrS_float[i]);
-            }
+            print_tensor(tSrS_float);
             print("\n");
             print("=====");
             print("\n");
@@ -230,9 +244,7 @@ void compute_dq_dk_dv_kernel_v0(
 
         if (thread0()) {
             printf("tSrS after scaling headdim\n");
-            for (int i =0;i < tSrS_float.size(); i++){
-                printf("%f ", tSrS_float[i]);
-            }
+            print_tensor(tSrS_float);
             print("\n");
             print("=====");
             print("\n");
@@ -251,9 +263,7 @@ void compute_dq_dk_dv_kernel_v0(
 
         if (thread0()) {
             printf("tSrP float\n");
-            for (int i =0;i < tSrS_float.size(); i++){
-                printf("%f ", tSrS_float[i]);
-            }
+            print_tensor(tSrS_float);
             print("\n");
             print("=====");
             print("\n");
@@ -269,13 +279,13 @@ void compute_dq_dk_dv_kernel_v0(
 
         if (thread0()) {
             printf("tSrP\n");
-            for (int i =0;i < tSrS_float.size(); i++){
-                printf("%f ", static_cast<float>(tSrS_float[i]));
-            }
+            print_tensor(tSrP);
             print("\n");
             print("=====");
             print("\n");
         }
+
+
 
 //         if (thread0()) {
 //
@@ -291,15 +301,14 @@ void compute_dq_dk_dv_kernel_v0(
 //             print("\n");
 //         }
 
-        if (thread0()) {
-            printf("tdVsdOt\n");
-            print(sdOt);
-            print(tdVsdOt);
-            print_tensor(tdVrdOt);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
+//         if (thread0()) {
+//             printf("tdVsdOt\n");
+//             print(sdOt);
+//             print(tdVsdOt);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
 
 
 //
@@ -308,15 +317,30 @@ void compute_dq_dk_dv_kernel_v0(
         __syncthreads();
         clear(tSrS_float);
 
+        if (thread0()) {
+            printf("tdVsPt\n");
+            print_tensor(tdVsPt);
+            print("\n");
+            print("=====");
+            print("\n");
+        }
+
+        if (thread0()) {
+            printf("tdVsdOt\n");
+            print_tensor(tdVsdOt);
+            print("\n");
+            print("=====");
+            print("\n");
+        }
+
+
         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 
         __syncthreads();
 
         if (thread0()) {
             printf("tdVrdV\n");
-            for (int i =0;i < tdVrdV_float.size(); i++){
-                printf("%f ", tdVrdV_float[i]);
-            }
+            print_tensor(tdVrdV);
             print("\n");
             print("=====");
             print("\n");
