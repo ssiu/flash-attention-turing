@@ -315,6 +315,23 @@ void compute_dq_dk_dv_kernel_v0(
         copy(tSrP, tSsP);
 //
         __syncthreads();
+        if (thread0()) {
+            printf("sP\n");
+            print_tensor(sP);
+            print("\n");
+            print("=====");
+            print("\n");
+
+        }
+        if (thread0()) {
+            printf("sPt\n");
+            print_tensor(sPt);
+            print("\n");
+            print("=====");
+            print("\n");
+
+        }
+
         clear(tSrS_float);
 
         if (thread0()) {
