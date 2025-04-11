@@ -340,7 +340,7 @@ void compute_dq_dk_dv_kernel_v0(
 
         if (thread0()) {
             printf("tdVrdV\n");
-            print_tensor(tdVrdV);
+            print_tensor(tdVrdV_float);
             print("\n");
             print("=====");
             print("\n");
@@ -352,10 +352,8 @@ void compute_dq_dk_dv_kernel_v0(
 
 
     if (thread0()) {
-        printf("tdVrdV, FINISH\n");
-        for (int i =0;i < tdVrdV_float.size(); i++){
-            printf("%f ", tdVrdV_float[i]);
-        }
+        printf("tdVrdV, FINAL\n");
+        print_tensor(tdVrdV_float);
         print("\n");
 
     }
