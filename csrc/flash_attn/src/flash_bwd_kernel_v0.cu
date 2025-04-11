@@ -178,7 +178,7 @@ void compute_dq_dk_dv_kernel_v0(
     clear(tSrS_float);
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
-
+        clear(tdVrdV_float);
 
 //         for (int i=0;i < tSrS_float.size();i ++ ) {
 //             tSrS_float[i] = 0;
