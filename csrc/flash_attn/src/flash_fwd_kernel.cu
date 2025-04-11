@@ -274,9 +274,9 @@ void flash_fwd_kernel(
             rD[i] = 0.0f;
         }
 
-        if (thread0()){
-            printf("kv_tile = %d, rL for this loop: %f\n", kv_tile, rL[0]);
-        }
+//         if (thread0()){
+//             printf("kv_tile = %d, rL for this loop: %f\n", kv_tile, rL[0]);
+//         }
 
         // compute sum(sP)
 
@@ -303,9 +303,9 @@ void flash_fwd_kernel(
         for (int i =0; i<2; i++) {
             rL[i] += rD[i];
         }
-        if (thread0()){
-            printf("kv_tile = %d, rL after adding rD: %f\n", kv_tile, rL[0]);
-        }
+//         if (thread0()){
+//             printf("kv_tile = %d, rL after adding rD: %f\n", kv_tile, rL[0]);
+//         }
 
 
         // sync rL
