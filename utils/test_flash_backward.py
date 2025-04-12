@@ -26,13 +26,13 @@ def main():
     num_heads=args.num_heads
     head_dim=args.head_dim
 
-    query = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    key = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    value = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    # query = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    # key = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    # value = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     #
-    # query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    # key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    # value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # o = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # l = torch.randn(batch_size, num_heads, seq_len, dtype=torch.float).to("cuda")
 
