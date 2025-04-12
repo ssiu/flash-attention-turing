@@ -222,6 +222,7 @@ void compute_dq_dk_dv_kernel_v0(
             print("\n");
         }
 
+        __syncthreads();
         // load rL, rD from gmem to rmem
         for (int i=0; i<2; i++) {
             rL[i] = gL((thread_row + 8 * i), q_tile);
@@ -266,7 +267,7 @@ void compute_dq_dk_dv_kernel_v0(
             print("=====");
             print("\n");
         }
-
+        __syncthreads();
 //         if (thread0()) {
 //             printf("tSrS after scaling headdim\n");
 //             print_tensor(tSrS_float);
@@ -296,7 +297,7 @@ void compute_dq_dk_dv_kernel_v0(
             print("=====");
             print("\n");
         }
-
+        __syncthreads();
 //         if (thread0()) {
 //             printf("tSrP float\n");
 //             print_tensor(tSrS_float);
@@ -367,7 +368,7 @@ void compute_dq_dk_dv_kernel_v0(
             print("\n");
 
         }
-
+        __syncthreads();
         clear(tSrS_float);
 
 //         if (thread0()) {
