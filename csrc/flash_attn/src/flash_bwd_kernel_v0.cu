@@ -272,8 +272,14 @@ void compute_dq_dk_dv_kernel_v0(
         }
         __syncthreads();
 
-        printf("rL[0] = %f\n", rL[0]);
-        printf("rL[1] = %f\n", rL[1]);
+        if (thread(63)) {
+            printf("rL[0] = %f\n", rL[0]);
+            printf("rL[1] = %f\n", rL[1]);
+
+        }
+
+
+
 //         if (thread0()) {
 //             printf("tSrS after scaling headdim\n");
 //             print_tensor(tSrS_float);
