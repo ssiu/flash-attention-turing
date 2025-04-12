@@ -174,7 +174,7 @@ void compute_dq_dk_dv_kernel_v0(
 // //         print("\n");
 //     }
 
-    clear(tdVrdV_float);
+    //clear(tdVrdV_float);
     clear(tSrS_float);
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
@@ -213,42 +213,42 @@ void compute_dq_dk_dv_kernel_v0(
             rL[i] = gL((thread_row + 8 * i), q_tile);
         }
 
-        if (thread0()) {
-            printf("tSsQ\n");
-            print_tensor(tSsQ);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
-
-        if (thread0()) {
-            printf("tSsK\n");
-            print_tensor(tSsK);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
-
-        if (thread0()) {
-            printf("tSrS\n");
-            print_tensor(tSrS_float);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
+//         if (thread0()) {
+//             printf("tSsQ\n");
+//             print_tensor(tSsQ);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
+//
+//         if (thread0()) {
+//             printf("tSsK\n");
+//             print_tensor(tSsK);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
+//
+//         if (thread0()) {
+//             printf("tSrS\n");
+//             print_tensor(tSrS_float);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
 
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
 
-        if (thread0()) {
-            printf("tSrS after scaling headdim\n");
-            print_tensor(tSrS_float);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
+//         if (thread0()) {
+//             printf("tSrS after scaling headdim\n");
+//             print_tensor(tSrS_float);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
 
         // compute P = exp(S-l)
 
@@ -261,13 +261,13 @@ void compute_dq_dk_dv_kernel_v0(
             }
         }
 
-        if (thread0()) {
-            printf("tSrP float\n");
-            print_tensor(tSrS_float);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
+//         if (thread0()) {
+//             printf("tSrP float\n");
+//             print_tensor(tSrS_float);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
 
         //convert P from fp32 to fp16
         constexpr int num_element = decltype(size(tSrS_float))::value;
@@ -334,46 +334,46 @@ void compute_dq_dk_dv_kernel_v0(
 
         clear(tSrS_float);
 
-        if (thread0()) {
-            printf("tdVsPt\n");
-            print_tensor(tdVsPt);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
-
-        if (thread0()) {
-            printf("tdVsdOt\n");
-            print_tensor(tdVsdOt);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
+//         if (thread0()) {
+//             printf("tdVsPt\n");
+//             print_tensor(tdVsPt);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
+//
+//         if (thread0()) {
+//             printf("tdVsdOt\n");
+//             print_tensor(tdVsdOt);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
 
 
         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 
         __syncthreads();
 
-        if (thread0()) {
-            printf("tdVrdV\n");
-            print_tensor(tdVrdV_float);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
+//         if (thread0()) {
+//             printf("tdVrdV\n");
+//             print_tensor(tdVrdV_float);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
 
 
 
     }
 
 
-    if (thread0()) {
-        printf("tdVrdV, FINAL\n");
-        print_tensor(tdVrdV_float);
-        print("\n");
-
-    }
+//     if (thread0()) {
+//         printf("tdVrdV, FINAL\n");
+//         print_tensor(tdVrdV_float);
+//         print("\n");
+//
+//     }
 
     constexpr int num_element = decltype(size(tdVrdV_float))::value;
 
@@ -389,70 +389,70 @@ void compute_dq_dk_dv_kernel_v0(
 //     dk_ptr[0] = static_cast<half_t>(0.0f);
 //     dv_ptr[0] = static_cast<half_t>(0.0f);
 
-    if (thread0()) {
-        printf("gQ\n");
-        print(gQ);
-        print("\n");
-        printf("sQ\n");
-        print(sQ);
-        print("\n");
-        printf("tSgQ\n");
-        print(tSgQ);
-        print("\n");
-        printf("tSsQ\n");
-        print(tSsQ);
-        print("\n");
-        printf("gK\n");
-        print(gK);
-        print("\n");
-        printf("sK\n");
-        print(sK);
-        print("\n");
-        printf("tSgK\n");
-        print(tSgK);
-        print("\n");
-        printf("tSsK\n");
-        print(tSsK);
-        print("\n");
-        printf("sP\n");
-        print(sP);
-        print("\n");
-        printf("sPt\n");
-        print(sPt);
-        print("\n");
-        printf("gdOt\n");
-        print(gdOt);
-        print("\n");
-        printf("sdOt\n");
-        print(sdOt);
-        print("\n");
-
-        printf("tdVgdOt\n");
-        print(tdVgdOt);
-        print("\n");
-        printf("tdVsdOt\n");
-        print(tdVsdOt);
-        print("\n");
-
-        printf("gdV\n");
-        print(gdV);
-        print("\n");
-        printf("sdV\n");
-        print(sdV);
-        print("\n");
-        printf("tdVrdV\n");
-        print(tdVrdV);
-        print("\n");
-        printf("tdVsdV\n");
-        print(tdVsdV);
-        print("\n");
-        printf("tdVgdV\n");
-        print(tdVgdV);
-        print("\n");
-        printf("gL\n");
-        print(gL);
-        print("\n");
-    }
+//     if (thread0()) {
+//         printf("gQ\n");
+//         print(gQ);
+//         print("\n");
+//         printf("sQ\n");
+//         print(sQ);
+//         print("\n");
+//         printf("tSgQ\n");
+//         print(tSgQ);
+//         print("\n");
+//         printf("tSsQ\n");
+//         print(tSsQ);
+//         print("\n");
+//         printf("gK\n");
+//         print(gK);
+//         print("\n");
+//         printf("sK\n");
+//         print(sK);
+//         print("\n");
+//         printf("tSgK\n");
+//         print(tSgK);
+//         print("\n");
+//         printf("tSsK\n");
+//         print(tSsK);
+//         print("\n");
+//         printf("sP\n");
+//         print(sP);
+//         print("\n");
+//         printf("sPt\n");
+//         print(sPt);
+//         print("\n");
+//         printf("gdOt\n");
+//         print(gdOt);
+//         print("\n");
+//         printf("sdOt\n");
+//         print(sdOt);
+//         print("\n");
+//
+//         printf("tdVgdOt\n");
+//         print(tdVgdOt);
+//         print("\n");
+//         printf("tdVsdOt\n");
+//         print(tdVsdOt);
+//         print("\n");
+//
+//         printf("gdV\n");
+//         print(gdV);
+//         print("\n");
+//         printf("sdV\n");
+//         print(sdV);
+//         print("\n");
+//         printf("tdVrdV\n");
+//         print(tdVrdV);
+//         print("\n");
+//         printf("tdVsdV\n");
+//         print(tdVsdV);
+//         print("\n");
+//         printf("tdVgdV\n");
+//         print(tdVgdV);
+//         print("\n");
+//         printf("gL\n");
+//         print(gL);
+//         print("\n");
+//     }
 }
 
 
