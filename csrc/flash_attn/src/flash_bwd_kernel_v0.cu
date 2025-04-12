@@ -120,9 +120,12 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor sdO = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQ{});
     Tensor sdOt = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});
 
+
     Tensor sP = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtom{});
     Tensor sPt = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtomTranposed{});
     Tensor sdV = make_tensor(sP.data() + kBlockM * kBlockN, SmemLayoutKV{});
+
+    Tensor sS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});
 
     int thread_id = threadIdx.x;
     int warp_id = threadIdx.x / 32;
@@ -140,6 +143,7 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor tSsK = thr_mma_S.partition_B(sK);
     Tensor tSrS_float = partition_fragment_C(tiled_mma_S, Shape<Int<kBlockM>, Int<kBlockN>>{});
     Tensor tSsP = thr_mma_S.partition_C(sP);
+    Tensor tSsS_float = thr_mma_S.partition_C(sS);
 
 
     // dV += P^TdO
@@ -207,6 +211,16 @@ void compute_dq_dk_dv_kernel_v0(
         // compute S=QK^T
         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
 
+        copy(tSrS_float, tSsS_float);
+        __syncthreads();
+
+        if  (thread0()){
+            printf("sS\n");
+            print_tensor(sS);
+            print("\n");
+            print("=====");
+            print("\n");
+        }
 
         // load rL, rD from gmem to rmem
         for (int i=0; i<2; i++) {
@@ -277,13 +291,13 @@ void compute_dq_dk_dv_kernel_v0(
 
         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
 
-        if (thread0()) {
-            printf("tSrP\n");
-            print_tensor(tSrP);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
+//         if (thread0()) {
+//             printf("tSrP\n");
+//             print_tensor(tSrP);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
 
 
 
