@@ -45,7 +45,7 @@ def main():
     #
     # print("=====")
 
-    d_output = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
+    d_output = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
     d_q, d_k, d_v = flash_attn_backward_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim)
 
     print(d_q.size())
