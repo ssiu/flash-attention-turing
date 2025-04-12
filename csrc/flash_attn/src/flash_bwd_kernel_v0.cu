@@ -215,7 +215,7 @@ void compute_dq_dk_dv_kernel_v0(
         __syncthreads();
 
         if  (thread0()){
-            printf("sS\n");
+            printf("q_tile = %d, sS\n", q_tile);
             print_tensor(sS);
             print("\n");
             print("=====");
@@ -330,7 +330,7 @@ void compute_dq_dk_dv_kernel_v0(
 //
         __syncthreads();
         if (thread0()) {
-            printf("sP\n");
+            printf("q_tile = %d, sP\n", q_tile);
             print_tensor(sP);
             print("\n");
             print("=====");
@@ -338,7 +338,7 @@ void compute_dq_dk_dv_kernel_v0(
 
         }
         if (thread0()) {
-            printf("sPt\n");
+            printf("q_tile = %d, sPt\n", q_tile);
             print_tensor(sPt);
             print("\n");
             print("=====");
