@@ -256,6 +256,17 @@ void compute_dq_dk_dv_kernel_v0(
             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
 
+        copy(tSrS_float, tSsS_float);
+        __syncthreads();
+
+        if  (thread0()){
+            printf("q_tile = %d, sS after scaling headdim\n", q_tile);
+            print_tensor(sS);
+            print("\n");
+            print("=====");
+            print("\n");
+        }
+
 //         if (thread0()) {
 //             printf("tSrS after scaling headdim\n");
 //             print_tensor(tSrS_float);
@@ -273,6 +284,17 @@ void compute_dq_dk_dv_kernel_v0(
             for (int j=0; j< tSrS_float(make_coord(_,i),_,_).size(); j++) {
                 tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
             }
+        }
+
+        copy(tSrS_float, tSsS_float);
+        __syncthreads();
+
+        if  (thread0()){
+            printf("q_tile = %d, sS after applying exp\n", q_tile);
+            print_tensor(sS);
+            print("\n");
+            print("=====");
+            print("\n");
         }
 
 //         if (thread0()) {
