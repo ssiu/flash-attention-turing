@@ -128,8 +128,10 @@ void compute_dq_dk_dv_kernel_v0(
     Tensor sS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});
 
     int thread_id = threadIdx.x;
+    int lane_id = threadIdx.x % 32;
     int warp_id = threadIdx.x / 32;
-    int thread_row = warp_id * 16 + thread_id / 4;
+
+    int thread_row = warp_id * 16 + lane_id / 4;
 
     float rL[2];
 
