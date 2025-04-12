@@ -214,9 +214,10 @@ void compute_dq_dk_dv_kernel_v0(
         copy(tSrS_float, tSsS_float);
         __syncthreads();
 
-        if  (thread0()){
+        if  (thread(63)){
             printf("q_tile = %d, sS\n", q_tile);
-            print_tensor(sS);
+            print_tensor(tSrS_float);
+//             print_tensor(sS);
             print("\n");
             print("=====");
             print("\n");
@@ -227,6 +228,7 @@ void compute_dq_dk_dv_kernel_v0(
         for (int i=0; i<2; i++) {
             rL[i] = gL((thread_row + 8 * i), q_tile);
         }
+
 
 //         if (thread0()) {
 //             printf("tSsQ\n");
@@ -260,14 +262,18 @@ void compute_dq_dk_dv_kernel_v0(
         copy(tSrS_float, tSsS_float);
         __syncthreads();
 
-        if  (thread0()){
+        if  (thread(63)){
             printf("q_tile = %d, sS after scaling headdim\n", q_tile);
-            print_tensor(sS);
+//             print_tensor(sS);
+            print_tensor(tSrS_float);
             print("\n");
             print("=====");
             print("\n");
         }
         __syncthreads();
+
+        printf("rL[0] = %f\n", rL[0]);
+        printf("rL[1] = %f\n", rL[1]);
 //         if (thread0()) {
 //             printf("tSrS after scaling headdim\n");
 //             print_tensor(tSrS_float);
@@ -290,9 +296,11 @@ void compute_dq_dk_dv_kernel_v0(
         copy(tSrS_float, tSsS_float);
         __syncthreads();
 
-        if  (thread0()){
+        if  (thread(63)){
             printf("q_tile = %d, sS after applying exp\n", q_tile);
-            print_tensor(sS);
+//             print_tensor(sS);
+            print_tensor(tSrS_float);
+
             print("\n");
             print("=====");
             print("\n");
@@ -352,17 +360,19 @@ void compute_dq_dk_dv_kernel_v0(
         copy(tSrP, tSsP);
 //
         __syncthreads();
-        if (thread0()) {
+        if (thread(63)) {
             printf("q_tile = %d, sP\n", q_tile);
-            print_tensor(sP);
+//             print_tensor(sP);
+            print_tensor(tSrP);
             print("\n");
             print("=====");
             print("\n");
 
         }
-        if (thread0()) {
+        if (thread(63)) {
             printf("q_tile = %d, sPt\n", q_tile);
             print_tensor(sPt);
+            print_tensor(sP);
             print("\n");
             print("=====");
             print("\n");
