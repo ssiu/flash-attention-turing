@@ -229,10 +229,18 @@ void compute_dq_dk_dv_kernel_v0(
             rL[i] = gL((thread_row + 8 * i), q_tile);
         }
 
+//         int thread_id = threadIdx.x;
+//         int warp_id = threadIdx.x / 32;
+//         int thread_row = warp_id * 16 + thread_id / 4;
+
         if (thread(63)) {
             printf("q_tile = %d, gL\n", q_tile);
             print(gL);
             printf("\n");
+            printf("thread id = %d\n", thread_id);
+            printf("warp id = %d\n", warp_id);
+            printf("warp id * 16 = %d\n", warp_id * 16);
+            printf("thread_id / 4 = %d\n", thread_id / 4);
             printf("row 0 = %d\n", thread_row + 8 * 0);
             printf("row 1 = %d\n", thread_row + 8 * 1);
         }
