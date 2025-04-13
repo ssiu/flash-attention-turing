@@ -438,12 +438,12 @@ void compute_dq_dk_dv_kernel_v0(
     }
 
 
-    if (thread0()) {
-        printf("tdVrdV, FINAL\n");
-        print_tensor(tdVrdV_float);
-        print("\n");
-
-    }
+//     if (thread0()) {
+//         printf("tdVrdV, FINAL\n");
+//         print_tensor(tdVrdV_float);
+//         print("\n");
+//
+//     }
 
     constexpr int num_element = decltype(size(tdVrdV_float))::value;
 
