@@ -81,16 +81,26 @@ def main():
     key_torch.requires_grad = True
     value_torch.requires_grad = True
 
-    output = F.scaled_dot_product_attention(query_torch, key_torch, value_torch)
+    output_torch = F.scaled_dot_product_attention(query_torch, key_torch, value_torch)
 
 
-    output.backward(d_output_torch)
+    output_torch.backward(d_output_torch)
 
     d_query_torch = query_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
     d_key_torch = key_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
     d_value_torch = value_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
 
 
+    print("output")
+    sum_error, avg_error, max_error, output_value, output_torch_value = \
+        get_error(output, output_torch, batch_size, seq_len, num_heads, head_dim)
+
+    print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
+
+
+    print("==========")
+
+    print("d_value")
 
     sum_error, avg_error, max_error, output_value, output_torch_value = \
         get_error(d_value, d_value_torch, batch_size, seq_len, num_heads, head_dim)
