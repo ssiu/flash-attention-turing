@@ -383,15 +383,15 @@ void compute_dq_dk_dv_kernel_v0(
         copy(tSrP, tSsP);
 //
         __syncthreads();
-        if (thread(63)) {
-            printf("q_tile = %d, sP\n", q_tile);
-//             print_tensor(sP);
-            print_tensor(tSrP);
-            print("\n");
-            print("=====");
-            print("\n");
-
-        }
+//         if (thread(63)) {
+//             printf("q_tile = %d, sP\n", q_tile);
+// //             print_tensor(sP);
+//             print_tensor(tSrP);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//
+//         }
         if (thread(63)) {
             printf("q_tile = %d, sPt\n", q_tile);
             print_tensor(sPt);
