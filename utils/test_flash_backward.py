@@ -85,6 +85,7 @@ def main():
 
 
     output_torch.backward(d_output_torch)
+    output_torch = output_torch.permute(0, 2, 1, 3).contiguous().clone()
 
     d_query_torch = query_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
     d_key_torch = key_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
