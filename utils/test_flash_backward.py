@@ -7,19 +7,19 @@ from flash_attn_turing import flash_attn_func, flash_attn_backward_func
 torch.set_printoptions(precision=8)
 
 
-def get_error(output, output_torch, batch_size, seq_len, num_heads, head_dim):
-    sum_error = torch.sum(torch.abs(output - output_torch))
+def get_error(tensor, tensor_torch, batch_size, seq_len, num_heads, head_dim):
+    sum_error = torch.sum(torch.abs(tensor - tensor_torch))
     avg_error = sum_error / (batch_size * seq_len * num_heads * head_dim)
-    max_error = torch.max(torch.abs(output - output_torch))
+    max_error = torch.max(torch.abs(tensor - tensor_torch))
 
-    max_error_index = torch.argmax(torch.abs(output - output_torch))
+    max_error_index = torch.argmax(torch.abs(tensor - tensor_torch))
 
     # Convert the flat index to multi-dimensional indices (if needed)
-    max_error_indices = torch.unravel_index(max_error_index, output.shape)
+    max_error_indices = torch.unravel_index(max_error_index, tensor.shape)
 
     # Extract the values at the maximum error location
-    output_value = output[max_error_indices]
-    output_torch_value = output_torch[max_error_indices]
+    output_value = tensor[max_error_indices]
+    output_torch_value = tensor_torch[max_error_indices]
 
 
     return sum_error, avg_error, max_error, output_value, output_torch_value
