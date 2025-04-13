@@ -425,13 +425,13 @@ void compute_dq_dk_dv_kernel_v0(
 
         __syncthreads();
 
-        if (thread0()) {
-            printf("tdVrdV\n");
-            print_tensor(tdVrdV_float);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
+//         if (thread0()) {
+//             printf("tdVrdV\n");
+//             print_tensor(tdVrdV_float);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
 
 
 
