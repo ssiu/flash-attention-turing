@@ -279,21 +279,21 @@ void compute_dq_dk_dv_kernel_v0(
         copy(tSrS_float, tSsS_float);
         __syncthreads();
 
-        if  (thread(63)){
-            printf("q_tile = %d, sS after scaling headdim\n", q_tile);
-//             print_tensor(sS);
-            print_tensor(tSrS_float);
-            print("\n");
-            print("=====");
-            print("\n");
-        }
+//         if  (thread(63)){
+//             printf("q_tile = %d, sS after scaling headdim\n", q_tile);
+// //             print_tensor(sS);
+//             print_tensor(tSrS_float);
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
         __syncthreads();
 
-        if (thread(63)) {
-            printf("rL[0] = %f\n", rL[0]);
-            printf("rL[1] = %f\n", rL[1]);
-
-        }
+//         if (thread(63)) {
+//             printf("rL[0] = %f\n", rL[0]);
+//             printf("rL[1] = %f\n", rL[1]);
+//
+//         }
 
 
 
@@ -319,16 +319,16 @@ void compute_dq_dk_dv_kernel_v0(
         copy(tSrS_float, tSsS_float);
         __syncthreads();
 
-        if  (thread(63)){
-            printf("q_tile = %d, sS after applying exp\n", q_tile);
-//             print_tensor(sS);
-            print_tensor(tSrS_float);
-
-            print("\n");
-            print("=====");
-            print("\n");
-        }
-        __syncthreads();
+//         if  (thread(63)){
+//             printf("q_tile = %d, sS after applying exp\n", q_tile);
+// //             print_tensor(sS);
+//             print_tensor(tSrS_float);
+//
+//             print("\n");
+//             print("=====");
+//             print("\n");
+//         }
+//         __syncthreads();
 //         if (thread0()) {
 //             printf("tSrP float\n");
 //             print_tensor(tSrS_float);
