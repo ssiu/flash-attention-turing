@@ -9,7 +9,7 @@ std::vector<torch::Tensor> flash_fwd(torch::Tensor q,
                                      int num_heads,
                                      int head_dim);
 
-std::vector<torch::Tensor> flash_bwd_v0(torch::Tensor q,
+std::vector<torch::Tensor> flash_bwd_v1(torch::Tensor q,
                                      torch::Tensor k,
                                      torch::Tensor v,
                                      torch::Tensor o,
@@ -22,5 +22,5 @@ std::vector<torch::Tensor> flash_bwd_v0(torch::Tensor q,
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("flash_attn_func", &flash_fwd, "flash_fwd");
-    m.def("flash_attn_backward_func", &flash_bwd_v0, "flash_bwd");
+    m.def("flash_attn_backward_func", &flash_bwd_v1, "flash_bwd");
 }
