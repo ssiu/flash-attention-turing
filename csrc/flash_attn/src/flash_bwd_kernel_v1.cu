@@ -125,9 +125,7 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor sdO = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQ{});                            // 8KB
     Tensor sdOt = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});                 // 8KB
 
-    if (thread0()) {
-        printf("sQ has size %d, total mem %d, cosize %d \n", sQ.size(), sQ.size() * sizeof(half_t), cosize_v<SmemLayoutQ>);
-    }
+
 
     Tensor sP = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtom{});                         // 2KB
     Tensor sPt = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtomTranposed{});               // 2KB
@@ -135,7 +133,7 @@ void compute_dq_dk_dv_kernel_v1(
 
     int total_bytes_for_half = cosize_v<SmemLayoutQ> * 2 + cosize_v<SmemLayoutQTransposed> + cosize_v<SmemLayoutKV> * 2 + cosize_v<SmemLayoutAtom> + cosize_v<SmemLayoutAtomTranposed>;
 
-    Tensor sS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[total_bytes_for_half])), SmemLayoutAtom{});      // 2KB
+    Tensor sS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});      // 2KB
     //Tensor sdP = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});     // 2KB
 
 
@@ -178,50 +176,16 @@ void compute_dq_dk_dv_kernel_v1(
 
     // load K, V, dK, dV tiles
     copy(tSgK, tSsK);
-//     if (thread0()) {
-//         print(gdOt);
-//         print("\n");
-// //         for (int i =0; i<128;i++) {
-// //             printf("%f\n", static_cast<float>(gdOt(i,0,0)));
-// //         }
-// //         for (int i =0; i< 16;i++) {
-// //             printf("%f\n", static_cast<float>(tdVgdOt(0,i,0,0)));
-// //         }
-//         for (int i =0; i< tdVrdOt.size();i++) {
-//             printf("%f\n", static_cast<float>(tdVrdOt[i]));
-//         }
-// //         print(tdVgdOt); //(_2,_16,_4,4)
-// //         print("\n");
-//     }
+
 
     //clear(tdVrdV_float);
     clear(tSrS_float);
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
 
-
-//         for (int i=0;i < tSrS_float.size();i ++ ) {
-//             tSrS_float[i] = 0;
-//             if (thread0()) {
-//                 printf("reset tSrS\n");
-//                 printf("%f ", tSrS_float[i]);
-//                 printf("\n");
-//             }
-//         }
-
-
-
         // load gQ to sQ
         copy(tSgQ(_,_,_,q_tile), tSsQ);
         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
-
-
-//         if (thread0()) {
-//             print("check tdVsdOt\n");
-//             print_tensor(tdVsdOt);
-//             print("\n");
-//         }
-
 
         __syncthreads();
         // compute S=QK^T
@@ -230,60 +194,13 @@ void compute_dq_dk_dv_kernel_v1(
         copy(tSrS_float, tSsS_float);
         __syncthreads();
 
-//         if  (thread(63)){
-//             printf("q_tile = %d, sS\n", q_tile);
-//             print_tensor(tSrS_float);
-// //             print_tensor(sS);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
 
-        __syncthreads();
         // load rL, rD from gmem to rmem
         for (int i=0; i<2; i++) {
             rL[i] = gL((thread_row + 8 * i), q_tile);
         }
 
-//         int thread_id = threadIdx.x;
-//         int warp_id = threadIdx.x / 32;
-//         int thread_row = warp_id * 16 + thread_id / 4;
 
-//         if (thread(63)) {
-//             printf("q_tile = %d, gL\n", q_tile);
-//             print(gL);
-//             printf("\n");
-//             printf("thread id = %d\n", thread_id);
-//             printf("warp id = %d\n", warp_id);
-//             printf("warp id * 16 = %d\n", warp_id * 16);
-//             printf("thread_id / 4 = %d\n", thread_id / 4);
-//             printf("row 0 = %d\n", thread_row + 8 * 0);
-//             printf("row 1 = %d\n", thread_row + 8 * 1);
-//         }
-
-//         if (thread0()) {
-//             printf("tSsQ\n");
-//             print_tensor(tSsQ);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
-//
-//         if (thread0()) {
-//             printf("tSsK\n");
-//             print_tensor(tSsK);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
-//
-//         if (thread0()) {
-//             printf("tSrS\n");
-//             print_tensor(tSrS_float);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
 
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
@@ -293,31 +210,10 @@ void compute_dq_dk_dv_kernel_v1(
         copy(tSrS_float, tSsS_float);
         __syncthreads();
 
-//         if  (thread(63)){
-//             printf("q_tile = %d, sS after scaling headdim\n", q_tile);
-// //             print_tensor(sS);
-//             print_tensor(tSrS_float);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
+
         __syncthreads();
 
-//         if (thread(63)) {
-//             printf("rL[0] = %f\n", rL[0]);
-//             printf("rL[1] = %f\n", rL[1]);
-//
-//         }
 
-
-
-//         if (thread0()) {
-//             printf("tSrS after scaling headdim\n");
-//             print_tensor(tSrS_float);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
 
         // compute P = exp(S-l)
 
@@ -333,23 +229,7 @@ void compute_dq_dk_dv_kernel_v1(
         copy(tSrS_float, tSsS_float);
         __syncthreads();
 
-//         if  (thread(63)){
-//             printf("q_tile = %d, sS after applying exp\n", q_tile);
-// //             print_tensor(sS);
-//             print_tensor(tSrS_float);
-//
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
-//         __syncthreads();
-//         if (thread0()) {
-//             printf("tSrP float\n");
-//             print_tensor(tSrS_float);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
+
 
         //convert P from fp32 to fp16
         constexpr int num_element = decltype(size(tSrS_float))::value;
@@ -359,105 +239,25 @@ void compute_dq_dk_dv_kernel_v1(
 
         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
 
-//         if (thread0()) {
-//             printf("tSrP\n");
-//             print_tensor(tSrP);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
 
-
-
-//         if (thread0()) {
-//
-//             printf("tdVgdOt\n");
-//             print(gdOt);
-//             print(tdVgdOt);
-//             for (int i =0;i < 10; i++){
-// //                 printf("%f ", static_cast<float>(tdVgdOt[i]));
-//                 printf("%f ", static_cast<float>(gdOt[i]));
-//             }
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
-
-//         if (thread0()) {
-//             printf("tdVsdOt\n");
-//             print(sdOt);
-//             print(tdVsdOt);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
 
 
 //
         copy(tSrP, tSsP);
 //
         __syncthreads();
-//         if (thread(63)) {
-//             printf("q_tile = %d, sP\n", q_tile);
-// //             print_tensor(sP);
-//             print_tensor(tSrP);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//
-//         }
-//         if (thread(63)) {
-//             printf("q_tile = %d, sPt\n", q_tile);
-//             print_tensor(sPt);
-//             print_tensor(sP);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//
-//         }
+
         __syncthreads();
         clear(tSrS_float);
 
-//         if (thread0()) {
-//             printf("tdVsPt\n");
-//             print_tensor(tdVsPt);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
-//
-//         if (thread0()) {
-//             printf("tdVsdOt\n");
-//             print_tensor(tdVsdOt);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
+
 
 
         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 
         __syncthreads();
 
-//         if (thread0()) {
-//             printf("tdVrdV\n");
-//             print_tensor(tdVrdV_float);
-//             print("\n");
-//             print("=====");
-//             print("\n");
-//         }
 
-
-
-    }
-
-
-//     if (thread0()) {
-//         printf("tdVrdV, FINAL\n");
-//         print_tensor(tdVrdV_float);
-//         print("\n");
-//
-//     }
 
     constexpr int num_element = decltype(size(tdVrdV_float))::value;
 
@@ -469,74 +269,7 @@ void compute_dq_dk_dv_kernel_v1(
 //    copy(tdVrdV, tdVsdV);
     copy(tdVrdV, tdVgdV);
 
-//     dq_ptr[0] = static_cast<half_t>(0.0f);
-//     dk_ptr[0] = static_cast<half_t>(0.0f);
-//     dv_ptr[0] = static_cast<half_t>(0.0f);
 
-//     if (thread0()) {
-//         printf("gQ\n");
-//         print(gQ);
-//         print("\n");
-//         printf("sQ\n");
-//         print(sQ);
-//         print("\n");
-//         printf("tSgQ\n");
-//         print(tSgQ);
-//         print("\n");
-//         printf("tSsQ\n");
-//         print(tSsQ);
-//         print("\n");
-//         printf("gK\n");
-//         print(gK);
-//         print("\n");
-//         printf("sK\n");
-//         print(sK);
-//         print("\n");
-//         printf("tSgK\n");
-//         print(tSgK);
-//         print("\n");
-//         printf("tSsK\n");
-//         print(tSsK);
-//         print("\n");
-//         printf("sP\n");
-//         print(sP);
-//         print("\n");
-//         printf("sPt\n");
-//         print(sPt);
-//         print("\n");
-//         printf("gdOt\n");
-//         print(gdOt);
-//         print("\n");
-//         printf("sdOt\n");
-//         print(sdOt);
-//         print("\n");
-//
-//         printf("tdVgdOt\n");
-//         print(tdVgdOt);
-//         print("\n");
-//         printf("tdVsdOt\n");
-//         print(tdVsdOt);
-//         print("\n");
-//
-//         printf("gdV\n");
-//         print(gdV);
-//         print("\n");
-//         printf("sdV\n");
-//         print(sdV);
-//         print("\n");
-//         printf("tdVrdV\n");
-//         print(tdVrdV);
-//         print("\n");
-//         printf("tdVsdV\n");
-//         print(tdVsdV);
-//         print("\n");
-//         printf("tdVgdV\n");
-//         print(tdVgdV);
-//         print("\n");
-//         printf("gL\n");
-//         print(gL);
-//         print("\n");
-//     }
 }
 
 
