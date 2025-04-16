@@ -133,7 +133,7 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor sPt = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtomTranposed{});               // 2KB
     Tensor sdV = make_tensor(sP.data() + kBlockM * kBlockN, SmemLayoutKV{});                            // 2KB
 
-    total_bytes_for_half = cosize_v<SmemLayoutQ> * 2 + cosize_v<SmemLayoutQTransposed> + cosize_v<SmemLayoutKV> * 2 + cosize_v<SmemLayoutAtom> + cosize_v<SmemLayoutAtomTranposed>;
+    int total_bytes_for_half = cosize_v<SmemLayoutQ> * 2 + cosize_v<SmemLayoutQTransposed> + cosize_v<SmemLayoutKV> * 2 + cosize_v<SmemLayoutAtom> + cosize_v<SmemLayoutAtomTranposed>;
 
     Tensor sS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[total_bytes_for_half])), SmemLayoutAtom{});      // 2KB
     //Tensor sdP = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});     // 2KB
