@@ -41,6 +41,11 @@ void compute_dq_dk_dv_kernel_v1(
         Layout<Shape<_2,_1,_1>>,
         Tile<_32, _32, _8>>;
 
+    using TiledMma_dP = TiledMMA<
+        MMA_Atom_Arch,
+        Layout<Shape<_2,_1,_1>>,
+        Tile<_32, _32, _8>>;
+
     using TiledMma_dV = TiledMMA<
         MMA_Atom_Arch,
         Layout<Shape<_2,_1,_1>>,
@@ -115,17 +120,19 @@ void compute_dq_dk_dv_kernel_v1(
 
     extern __shared__ char smem_[];
 
-    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
-    Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
-    Tensor sdO = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQ{});
-    Tensor sdOt = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});
+    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});        // 8KB
+    Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});                            // 8KB
+    Tensor sdO = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQ{});                            // 8KB
+    Tensor sdOt = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});                 // 8KB
 
 
-    Tensor sP = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtom{});
-    Tensor sPt = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtomTranposed{});
-    Tensor sdV = make_tensor(sP.data() + kBlockM * kBlockN, SmemLayoutKV{});
+    Tensor sP = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtom{});                         // 2KB
+    Tensor sPt = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtomTranposed{});               // 2KB
+    Tensor sdV = make_tensor(sP.data() + kBlockM * kBlockN, SmemLayoutKV{});                            // 2KB
 
-    Tensor sS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});
+    Tensor sS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(sdV.data())), SmemLayoutAtom{});      // 2KB
+    //Tensor sdP = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});     // 2KB
+
 
     int thread_id = threadIdx.x;
     int lane_id = threadIdx.x % 32;
