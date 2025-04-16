@@ -135,7 +135,7 @@ void compute_dq_dk_dv_kernel_v1(
 
     // only
     //Tensor sS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});      // 2KB
-    Tensor sdS = make_tensor(sdV + size(sdV), SmemLayoutAtom{});     // 2KB
+    Tensor sdS = make_tensor(sdV.data() + size(sdV), SmemLayoutAtom{});     // 2KB
     if (thread0()){
         printf("sdV size %d\n", size(sdV));
     }
