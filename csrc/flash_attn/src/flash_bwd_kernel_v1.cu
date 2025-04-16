@@ -126,7 +126,7 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor sdOt = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});                 // 8KB
 
     if (thread0()) {
-        printf("sQ has size %d, total mem %d, cosize %d \n", sQ.size(), sQ.size() * sizeof(half_t), cosize_v(sQ));
+        printf("sQ has size %d, total mem %d, cosize %d \n", sQ.size(), sQ.size() * sizeof(half_t), cosize_v<SmemLayoutQ{}>);
     }
 
     Tensor sP = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtom{});                         // 2KB
