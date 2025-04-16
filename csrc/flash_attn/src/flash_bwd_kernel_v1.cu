@@ -121,7 +121,8 @@ void compute_dq_dk_dv_kernel_v1(
     extern __shared__ char smem_[];
 
     Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});        // 8KB
-    Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});                            // 8KB
+    //Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
+    Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});   // 8KB
     Tensor sdO = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQ{});                            // 8KB
     Tensor sdOt = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});                 // 8KB
 
