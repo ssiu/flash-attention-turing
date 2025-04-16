@@ -123,14 +123,14 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});        // 8KB
     //Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
     Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});   // 8KB
-    Tensor sdO = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQ{});                            // 8KB
-    Tensor sdOt = make_tensor(sK.data() + kBlockN * kHeadDim, SmemLayoutQTransposed{});                 // 8KB
+    Tensor sdO = make_tensor(sK.data() + size(sK), SmemLayoutQ{});                            // 8KB
+    Tensor sdOt = make_tensor(sK.data() + size(sK), SmemLayoutQTransposed{});                 // 8KB
 
 
 
-    Tensor sP = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtom{});                         // 2KB
-    Tensor sPt = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtomTranposed{});               // 2KB
-    Tensor sdV = make_tensor(sP.data() + kBlockM * kBlockN, SmemLayoutKV{});                            // 2KB
+    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});                         // 2KB
+    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});               // 2KB
+    Tensor sdV = make_tensor(sP.data() + size(sP), SmemLayoutKV{});                            // 2KB
 
     //int total_bytes_for_half = cosize_v<SmemLayoutQ> * 2 + cosize_v<SmemLayoutQTransposed> + cosize_v<SmemLayoutKV> * 2 + cosize_v<SmemLayoutAtom> + cosize_v<SmemLayoutAtomTranposed>;
 
