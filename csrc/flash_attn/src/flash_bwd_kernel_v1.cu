@@ -131,10 +131,11 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor sPt = make_tensor(sdO.data() + kBlockM * kHeadDim, SmemLayoutAtomTranposed{});               // 2KB
     Tensor sdV = make_tensor(sP.data() + kBlockM * kBlockN, SmemLayoutKV{});                            // 2KB
 
-    int total_bytes_for_half = cosize_v<SmemLayoutQ> * 2 + cosize_v<SmemLayoutQTransposed> + cosize_v<SmemLayoutKV> * 2 + cosize_v<SmemLayoutAtom> + cosize_v<SmemLayoutAtomTranposed>;
+    //int total_bytes_for_half = cosize_v<SmemLayoutQ> * 2 + cosize_v<SmemLayoutQTransposed> + cosize_v<SmemLayoutKV> * 2 + cosize_v<SmemLayoutAtom> + cosize_v<SmemLayoutAtomTranposed>;
 
+    // only
     Tensor sS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});      // 2KB
-    //Tensor sdP = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});     // 2KB
+    //Tensor sdS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});     // 2KB
 
 
     int thread_id = threadIdx.x;
@@ -191,7 +192,7 @@ void compute_dq_dk_dv_kernel_v1(
         // compute S=QK^T
         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
 
-        copy(tSrS_float, tSsS_float);
+        //copy(tSrS_float, tSsS_float);
         __syncthreads();
 
 
@@ -207,11 +208,10 @@ void compute_dq_dk_dv_kernel_v1(
             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
 
-        copy(tSrS_float, tSsS_float);
+        //copy(tSrS_float, tSsS_float);
         __syncthreads();
 
 
-        __syncthreads();
 
 
 
@@ -226,7 +226,7 @@ void compute_dq_dk_dv_kernel_v1(
             }
         }
 
-        copy(tSrS_float, tSsS_float);
+        //copy(tSrS_float, tSsS_float);
         __syncthreads();
 
 
@@ -238,20 +238,12 @@ void compute_dq_dk_dv_kernel_v1(
         auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
 
         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
-
-
-
-
 //
         copy(tSrP, tSsP);
 //
         __syncthreads();
 
-        __syncthreads();
         clear(tSrS_float);
-
-
-
 
         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 
