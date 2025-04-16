@@ -257,7 +257,7 @@ void compute_dq_dk_dv_kernel_v1(
 
         __syncthreads();
 
-
+    }
 
     constexpr int num_element = decltype(size(tdVrdV_float))::value;
 
