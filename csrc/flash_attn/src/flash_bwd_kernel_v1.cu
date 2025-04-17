@@ -134,7 +134,7 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});     // 2KB
     Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});     // 2KB
 
-    Tensor sdV = make_tensor(sdS.data() + size(sdS), SmemLayoutKV{});                            // 2KB
+    //Tensor sdV = make_tensor(sdS.data() + size(sdS), SmemLayoutKV{});                            // 2KB
 
     //int total_bytes_for_half = cosize_v<SmemLayoutQ> * 2 + cosize_v<SmemLayoutQTransposed> + cosize_v<SmemLayoutKV> * 2 + cosize_v<SmemLayoutAtom> + cosize_v<SmemLayoutAtomTranposed>;
 
@@ -177,7 +177,7 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor tdVrdOt = thr_mma_dV.partition_fragment_B(sdOt);
 
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
-    Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
+    //Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
 
     // dP = dOV^T
