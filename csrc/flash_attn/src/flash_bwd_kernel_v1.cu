@@ -243,30 +243,44 @@ void compute_dq_dk_dv_kernel_v1(
 
         for (int i=0; i<2; i++) {
             for (int j=0; j< tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
+                tSrP_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
             }
         }
 
         // compute dS = P \circ (dP - D)
-//         for (int i=0; i<2; i++) {
-//             for (int j=0; j< tdPrdP_float(make_coord(_,i),_,_).size(); j++) {
-//                 tdPrdP_float(make_coord(_,i),_,_)[j] = tSrS_float(make_coord(_,i),_,_)[j] * (tdPrdP_float(make_coord(_,i),_,_)[j] - rD[i]);
-//             }
-//         }
+        // tS has the same mma layout as tdP
+        for (int i=0; i<2; i++) {
+            for (int j=0; j< tdPrdP_float(make_coord(_,i),_,_).size(); j++) {
+                tdPrdS_float(make_coord(_,i),_,_)[j] = tSrP_float(make_coord(_,i),_,_)[j] * (tdPrdP_float(make_coord(_,i),_,_)[j] - rD[i]);
+            }
+        }
 
+        if (thread0()) {
+            print_tensor(tSrS_float);
+            print("\n");
+            print_tensor(tSrP_float);
+            print("\n");
+            print_tensor(tdPrdP_float);
+            print("\n");
+            print_tensor(tdPrdS_float);
+            print("\n");
+        }
 
 
 
         //convert P from fp32 to fp16
-        constexpr int num_element = decltype(size(tSrS_float))::value;
+        constexpr int num_element = decltype(size(tSrP_float))::value;
 
         cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
+        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrP_float.data()));
 
-        Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+        Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
 //
         copy(tSrP, tSsP);
 //
+
+
+
         __syncthreads();
 
         clear(tSrS_float);
