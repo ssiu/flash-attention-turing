@@ -247,7 +247,12 @@ void compute_dq_dk_dv_kernel_v1(
             }
         }
 
-        //copy(tSrS_float, tSsS_float);
+        // compute dS = P \circ (dP - D)
+//         for (int i=0; i<2; i++) {
+//             for (int j=0; j< tdPrdP_float(make_coord(_,i),_,_).size(); j++) {
+//                 tdPrdP_float(make_coord(_,i),_,_)[j] = tSrS_float(make_coord(_,i),_,_)[j] * (tdPrdP_float(make_coord(_,i),_,_)[j] - rD[i]);
+//             }
+//         }
 
 
 
