@@ -202,7 +202,7 @@ void compute_dq_dk_dv_kernel_v1(
 
     // load K, V, dK, dV tiles
     copy(tSgK, tSsK);
-
+    copy(tdPgV, tdPsV);
 
     //clear(tdVrdV_float);
     clear(tSrS_float);
@@ -212,10 +212,6 @@ void compute_dq_dk_dv_kernel_v1(
         // load gQ to sQ
         copy(tSgQ(_,_,_,q_tile), tSsQ);
         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
-
-        copy(tdPgdO(_,_,_,q_tile), tdPsdO);
-        copy(tdPgV(_,_,_,q_tile), tdPsV);
-
 
 
         __syncthreads();
