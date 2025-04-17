@@ -123,23 +123,27 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});        // 8KB
     //Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
     Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});   // 8KB
-    Tensor sdO = make_tensor(sK.data() + size(sK), SmemLayoutQ{});                            // 8KB
-    Tensor sdOt = make_tensor(sK.data() + size(sK), SmemLayoutQTransposed{});                 // 8KB
+    Tensor sV = make_tensor(sK.data() + size(sK), SmemLayoutKV{});
 
-
+    Tensor sdO = make_tensor(sV.data() + size(sV), SmemLayoutQ{});                            // 8KB
+    Tensor sdOt = make_tensor(sV.data() + size(sV), SmemLayoutQTransposed{});                 // 8KB
 
     Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});                         // 2KB
     Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});               // 2KB
-    Tensor sdV = make_tensor(sP.data() + size(sP), SmemLayoutKV{});                            // 2KB
+
+    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});     // 2KB
+    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});     // 2KB
+
+    Tensor sdV = make_tensor(sdS.data() + size(sdS), SmemLayoutKV{});                            // 2KB
 
     //int total_bytes_for_half = cosize_v<SmemLayoutQ> * 2 + cosize_v<SmemLayoutQTransposed> + cosize_v<SmemLayoutKV> * 2 + cosize_v<SmemLayoutAtom> + cosize_v<SmemLayoutAtomTranposed>;
 
     // only
     //Tensor sS = make_tensor(make_smem_ptr(reinterpret_cast<float*>(&smem_[0])), SmemLayoutAtom{});      // 2KB
-    Tensor sdS = make_tensor(sdV.data() + size(sdV), SmemLayoutAtom{});     // 2KB
-    if (thread0()){
-        printf("sdV size %d\n", size(sdV));
-    }
+
+//     if (thread0()){
+//         printf("sdV size %d\n", size(sdV));
+//     }
 
     int thread_id = threadIdx.x;
     int lane_id = threadIdx.x % 32;
@@ -176,6 +180,15 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
 
+    // dP = dOV^T
+    TiledMma_dP tiled_mma_dP;
+    ThrMMA thr_mma_dP = tiled_mma_dP.get_slice(threadIdx.x);
+    Tensor tdPsdO = thr_mma_dP.partition_A(sdO);
+    Tensor tdPsV = thr_mma_dP.partition_B(sV);
+    Tensor tdPrdP_float = thr_mma_dP.partition_fragment_C(tiled_mma_dP, Shape<Int<kBlockM>, Int<kBlockN>>{});
+    Tensor tdPsdS = thr_mma_dP.partition_C(sdS);
+
+
     auto Q_TILE_MAX = size<3>(tSgQ);
 
     // load K, V, dK, dV tiles
@@ -205,18 +218,12 @@ void compute_dq_dk_dv_kernel_v1(
         }
 
 
-
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
 
         //copy(tSrS_float, tSsS_float);
-        __syncthreads();
-
-
-
-
 
         // compute P = exp(S-l)
 
@@ -230,7 +237,7 @@ void compute_dq_dk_dv_kernel_v1(
         }
 
         //copy(tSrS_float, tSsS_float);
-        __syncthreads();
+
 
 
 
