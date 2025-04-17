@@ -241,6 +241,9 @@ void compute_dq_dk_dv_kernel_v1(
         // P has size blockM x blockN, partitioned by mma_S
         // gL has size (32), need to figure the L_i for each S_ij
 
+        Tensor tSrP_float = tSrS_float;
+        Tensor tdPrdS_float = tdPrdP_float;
+
         for (int i=0; i<2; i++) {
             for (int j=0; j< tSrS_float(make_coord(_,i),_,_).size(); j++) {
                 tSrP_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
@@ -275,9 +278,13 @@ void compute_dq_dk_dv_kernel_v1(
         auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrP_float.data()));
 
         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
-//
+
+        // convert dS from fp32 to fp16
+
+
+
         copy(tSrP, tSsP);
-//
+
 
 
 
