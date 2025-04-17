@@ -185,7 +185,7 @@ void compute_dq_dk_dv_kernel_v1(
     ThrMMA thr_mma_dP = tiled_mma_dP.get_slice(threadIdx.x);
     Tensor tdPsdO = thr_mma_dP.partition_A(sdO);
     Tensor tdPsV = thr_mma_dP.partition_B(sV);
-    Tensor tdPrdP_float = thr_mma_dP.partition_fragment_C(tiled_mma_dP, Shape<Int<kBlockM>, Int<kBlockN>>{});
+    Tensor tdPrdP_float = partition_fragment_C(tiled_mma_dP, Shape<Int<kBlockM>, Int<kBlockN>>{});
     Tensor tdPsdS = thr_mma_dP.partition_C(sdS);
 
 
