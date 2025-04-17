@@ -93,6 +93,14 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
+    // V
+    Tensor mV = make_tensor(make_gmem_ptr(v_ptr),
+                            make_shape(batch_size, seq_len, num_heads, head_dim),
+                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+                           make_coord(blockIdx.z, 0));
+
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(l_ptr),
