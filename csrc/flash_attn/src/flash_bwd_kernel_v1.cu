@@ -160,7 +160,7 @@ void compute_dq_dk_dv_kernel_v1(
     int thread_row = warp_id * 16 + lane_id / 4;
 
     float rL[2];
-
+    float rD[2] = {0};
 
     // S = QK^T
     TiledMma_S tiled_mma_S;
