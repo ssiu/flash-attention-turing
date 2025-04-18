@@ -18,6 +18,70 @@
 
 using namespace cute;
 
+#define FLOAT2(value) reinterpret_cast<float2*>(&(value))[0]
+
+__global__ __launch_bounds__(1024)
+void compute_dot_do_o(half_t const* o_ptr,
+                      half_t const* do_ptr,
+                      float*  d_ptr,
+                      int batch_size, int seq_len, int num_heads, int head_dim)
+{
+    // o_offset: (batch_size, seq_len, num_heads, head_dim)
+    // do_offset: (batch_size, seq_len, num_heads, head_dim)
+    // d_offset: (batch_size, num_heads, seq_len)
+
+
+    // block x = batch_size
+    // block y = num_heads
+    // block z = seq_len / 32
+
+    // each thread loads 4 elements from do and o
+
+    half_t* rdO[4];
+    half_t* rO[4];
+    float sum = 0;
+
+    int thread_id = threadIdx.x;
+    int warp_id = threadIdx.x / 32;
+    int lane_id = threadIdx.x % 32;
+
+    int do_o_offset = blockIdx.z * seq_len * num_heads * head_dim + blockIdx.z * 32 * num_heads * head_dim + blockIdx.y * head_dim;
+    int d_offset = blockIdx.z * num_heads * seq_len + blockIdx.y * seq_len + blockIdx.z * 32;
+
+
+    thread_row = warp_id;
+    thread_col = lane_id * 4;
+
+
+    // for (int i = 0; i < 4; i++) {
+    //     FLOAT4(tQ[i][0]) = FLOAT4(gQ(thread_row + i, thread_col));
+    //     FLOAT4(tQ[i+4][0]) = FLOAT4(gQ(thread_row + i + 8, thread_col));
+    // }
+
+
+    // load O to register
+    FLOAT2(rO[0]) = FLOAT2(o_ptr[do_o_offset + thread_row + thread_col]);
+    FLOAT2(rdO[0]) = FLOAT2(do_ptr[do_o_offset + thread_row + thread_col]);
+
+
+
+    // thread reduction
+    for (int i=0;i<4;i ++) {
+        sum += static_cast<float>(rO[i]) * static_cast<float>(rdO[i]);
+    }
+
+    // warp reduction
+    for (int offset = 16; offset > 0; offset /= 2) {
+            sum += __shfl_down_sync(0xffffffff, sum, offset);
+    }
+
+    if (lane_id == 0 ) {
+        d_ptr[d_offset + thread_row + thread_col] = sum;
+    }
+
+}
+
+
 
 __global__ __launch_bounds__(64)
 void compute_dq_dk_dv_kernel_v1(
@@ -330,12 +394,14 @@ flash_bwd_v1(torch::Tensor q,
     torch::Tensor dq = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
     torch::Tensor dk = torch::empty(k.sizes(), k.options().dtype(torch::kFloat16));
     torch::Tensor dv = torch::empty(v.sizes(), v.options().dtype(torch::kFloat16));
+    torch::Tensor d = torch::empty(l.sizes(), l.options());
 
     half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
     half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
     half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
     float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
+    float* d_ptr = reinterpret_cast<float*>(d.data_ptr());
     half_t* do_ptr = reinterpret_cast<half_t*>(d_o.data_ptr());
 
     half_t* dq_ptr = reinterpret_cast<half_t*>(dq.data_ptr());
@@ -343,20 +409,23 @@ flash_bwd_v1(torch::Tensor q,
     half_t* dv_ptr = reinterpret_cast<half_t*>(dv.data_ptr());
 
     // compute dO \circ O
-    //compute_dot_do_o
+    // we use 1 warp to compute a single row
+    // each thread block we launch 1024 = 32 x 32 threads = 32 warps
+    // so each thread block process 32 rows
+    dim3 dimGrid(batch_size, num_heads, seq_len / 32);
+    dim3 dimBlock(1024);
+    compute_dot_do_o(o_ptr,
+                    do_ptr,
+                    d_ptr,
+                    batch_size, seq_len, num_heads, head_dim);
 
-
+    // compute dQ, dK, dV
     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockN);
     dim3 dimBlock(64);
     int maxbytes = 65536;
 
-
-    // compute dQ, dK, dV
-
     cudaFuncSetAttribute(compute_dq_dk_dv_kernel_v1, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-
-
-   compute_dq_dk_dv_kernel_v1<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
+    compute_dq_dk_dv_kernel_v1<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
                                             k_ptr,
                                             v_ptr,
                                             l_ptr,
