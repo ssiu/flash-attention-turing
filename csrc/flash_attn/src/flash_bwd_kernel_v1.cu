@@ -92,12 +92,17 @@ void compute_dot_do_o(half_t* o_ptr,
 
     }
 
+    if (blockIdx.x == 0 and thread_id < 32) {
+        printf("sum = %f\n", sum);
+    }
+
+
     // warp reduction
     for (int offset = 16; offset > 0; offset /= 2) {
             sum += __shfl_down_sync(0xffffffff, sum, offset);
     }
 
-    if (lane_id == 0 ) {
+    if (thread0()) {
        d_ptr[d_offset + thread_row + thread_col] = sum;
        printf("sum is %f\n", sum);
        //d_ptr[0] = sum;
