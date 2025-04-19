@@ -68,8 +68,6 @@ def main():
     q_query, q_key, d_value = flash_attn_backward_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim)
 
     print(q_query.size())
-    print(q_key.size())
-    print(d_value.size())
 
 
     query_torch = query.permute(0, 2, 1, 3).contiguous().clone()
