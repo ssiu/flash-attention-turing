@@ -417,13 +417,14 @@ void compute_dq_dk_dv_kernel_v1(
 
         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
 
+
         // convert dS from fp32 to fp16
-        constexpr int num_element = decltype(size(tdPrdS_float))::value;
+        constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
 
-        cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdPrdS_float.data()));
+        cutlass::NumericArrayConverter<half_t, float, num_element_dS> convert_op;
+        auto frag_dS = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
 
-        Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag), tdPrdS_float.layout());
+        Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
 
 
         copy(tSrP, tSsP);
