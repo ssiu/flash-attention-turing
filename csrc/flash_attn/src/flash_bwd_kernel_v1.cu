@@ -69,7 +69,9 @@ void compute_dot_do_o(half_t* o_ptr,
         rdO[i] = do_ptr[do_o_offset + thread_row + thread_col + i];
     }
     if (blockIdx.x == 0 and thread_id < 32) {
-        printf("thread id = %d, rdO = %f, rO = %f\n", thread_id, static_cast<float>(rO[i]), static_cast<float>(rdO[i]));
+        for (int i=0;i<4;i++) {
+            printf("thread id = %d, rdO = %f, rO = %f\n", thread_id, static_cast<float>(rO[i]), static_cast<float>(rdO[i]));
+        }
     }
 
 
