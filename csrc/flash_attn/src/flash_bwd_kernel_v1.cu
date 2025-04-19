@@ -346,6 +346,9 @@ void compute_dq_dk_dv_kernel_v1(
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
 
+        clear(tSrS_float);
+        clear(tdPrdP_float);
+
         // load gQ to sQ
         copy(tSgQ(_,_,_,q_tile), tSsQ);
         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
@@ -433,7 +436,7 @@ void compute_dq_dk_dv_kernel_v1(
 
         __syncthreads();
 
-        clear(tSrS_float);
+
 
         // dV += P^TdO
         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
