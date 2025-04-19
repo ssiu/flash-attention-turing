@@ -72,11 +72,11 @@ void compute_dot_do_o(half_t* o_ptr,
 
 
 
-    if (thread0()) {
-        for (int i=0;i<4;i++) {
-            printf("%f\n", static_cast<float>(rO[i]));
-        }
-    }
+//     if (thread0()) {
+//         for (int i=0;i<4;i++) {
+//             printf("%f\n", static_cast<float>(rO[i]));
+//         }
+//     }
 
 
 
@@ -96,6 +96,7 @@ void compute_dot_do_o(half_t* o_ptr,
 
     if (lane_id == 0 ) {
        d_ptr[d_offset + thread_row + thread_col] = sum;
+       printf("sum is %f\n", sum);
        //d_ptr[0] = sum;
     }
 
