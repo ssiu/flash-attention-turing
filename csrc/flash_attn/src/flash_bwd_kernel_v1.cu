@@ -8,7 +8,7 @@
 #include "cutlass/util/print_error.hpp"
 #include "cutlass/util/GPU_Clock.hpp"
 #include "cutlass/util/helper_cuda.hpp"
-
+#include <cuda_fp16.h>
 #include <cutlass/array.h>
 #include <cutlass/cutlass.h>
 #include <cutlass/numeric_conversion.h>
@@ -21,8 +21,8 @@ using namespace cute;
 #define FLOAT2(value) reinterpret_cast<float2*>(&(value))[0]
 
 __global__ __launch_bounds__(1024)
-void compute_dot_do_o(half_t const* o_ptr,
-                      half_t const* do_ptr,
+void compute_dot_do_o(half_t* o_ptr,
+                      half_t* do_ptr,
                       float*  d_ptr,
                       int batch_size, int seq_len, int num_heads, int head_dim)
 {
@@ -67,7 +67,7 @@ void compute_dot_do_o(half_t const* o_ptr,
 
     // thread reduction
     for (int i=0;i<4;i ++) {
-        sum += float(rO[i]) * float(rdO[i]);
+        sum += __half2float(rO[i]) * __half2float(rdO[i]);
     }
 
     // warp reduction
