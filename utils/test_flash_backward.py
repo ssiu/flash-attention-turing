@@ -118,7 +118,7 @@ def main():
     print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
 
 
-    for i in range(32):
+    for i in range(128):
         print(f"i = {i}, dK = {d_key[0,0,0,i]}, dK_torch = {d_key_torch[0,0,0,i]}")
 
 
