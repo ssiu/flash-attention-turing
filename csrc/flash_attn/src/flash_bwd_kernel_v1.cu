@@ -439,7 +439,7 @@ flash_bwd_v1(torch::Tensor q,
     half_t* dk_ptr = reinterpret_cast<half_t*>(dk.data_ptr());
     half_t* dv_ptr = reinterpret_cast<half_t*>(dv.data_ptr());
 
-    for (i=0;i<1024;i++) {
+    for (int i=0;i<1024;i++) {
         printf("check o, i = %d, o = %f", i, static_cast<float>(o_ptr[i]));
     }
 
