@@ -121,6 +121,10 @@ def main():
     for i in range(128):
         print(f"i = {i}, dK = {d_key[0,0,0,i]}, dK_torch = {d_key_torch[0,0,0,i]}")
 
+    print("##################################################")
+    for i in range(128):
+        print(f"i = {i}, dK = {d_key[0,i,0,0]}, dK_torch = {d_key_torch[0,i,0,0]}")
+
 
 if __name__ == "__main__":
     main()
