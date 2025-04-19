@@ -78,10 +78,10 @@ def main():
     # print("=====")
 
 
-    d_output = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+    #d_output = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
     #d_output = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
 
-    #d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
+    d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
     d_query, d_key, d_value = flash_attn_backward_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim)
 
     print(d_query.size())
