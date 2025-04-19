@@ -218,6 +218,14 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
                            make_coord(_));
 
+
+    Tensor mD = make_tensor(make_gmem_ptr(d_ptr),
+                             make_shape(batch_size, num_heads, seq_len),
+                             make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
+
+    Tensor gD = local_tile(mD(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
+                           make_coord(_));
+
     // dO
     Tensor mdO = make_tensor(make_gmem_ptr(do_ptr),
                              make_shape(batch_size, seq_len, num_heads, head_dim),
@@ -233,6 +241,16 @@ void compute_dq_dk_dv_kernel_v1(
 
     Tensor gdV = local_tile(mdV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
+
+    // dK
+    Tensor mdK = make_tensor(make_gmem_ptr(dk_ptr),
+                            make_shape(batch_size, seq_len, num_heads, head_dim),
+                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gdK = local_tile(mdK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+                           make_coord(blockIdx.z, 0));
+
+
 
     extern __shared__ char smem_[];
 
@@ -438,6 +456,13 @@ void compute_dq_dk_dv_kernel_v1(
 
 
     // dK
+
+    // rescale by head dim
+    for (int i=0;i< tdKrdK_float.size();i ++ ) {
+        tdKrdK_float[i] *= 1.0f / sqrtf(kHeadDim);
+    }
+
+
     constexpr int num_element = decltype(size(tdKrdK_float))::value;
 
     cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
