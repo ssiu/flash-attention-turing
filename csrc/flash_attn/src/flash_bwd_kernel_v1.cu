@@ -59,11 +59,17 @@ void compute_dot_do_o(half_t* o_ptr,
     // }
 
 
+
     // load O to register
 //     FLOAT2(rO[0]) = FLOAT2(o_ptr[do_o_offset + thread_row + thread_col]);
 //     FLOAT2(rdO[0]) = FLOAT2(do_ptr[do_o_offset + thread_row + thread_col]);
-    FLOAT2(rO[0]) = FLOAT2(o_ptr[0]);
-    FLOAT2(rdO[0]) = FLOAT2(do_ptr[0]);
+
+    for (int i=0;i<4;i++) {
+        rO[i] = o_ptr[do_o_offset+thread_row+thread_col + i];
+        rdO[i] = do_ptr[do_o_offset+thread_row+thread_col + i];
+    }
+
+
 
 
     if (thread0()) {
@@ -336,16 +342,16 @@ void compute_dq_dk_dv_kernel_v1(
             }
         }
 
-        if (thread0()) {
-            print_tensor(tSrS_float);
-            print("\n");
-            print_tensor(tSrP_float);
-            print("\n");
-            print_tensor(tdPrdP_float);
-            print("\n");
-            print_tensor(tdPrdS_float);
-            print("\n");
-        }
+//         if (thread0()) {
+//             print_tensor(tSrS_float);
+//             print("\n");
+//             print_tensor(tSrP_float);
+//             print("\n");
+//             print_tensor(tdPrdP_float);
+//             print("\n");
+//             print_tensor(tdPrdS_float);
+//             print("\n");
+//         }
 
 
 
