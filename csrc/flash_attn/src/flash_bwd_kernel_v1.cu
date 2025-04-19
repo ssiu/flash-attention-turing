@@ -465,12 +465,12 @@ void compute_dq_dk_dv_kernel_v1(
     }
 
 
-    constexpr int num_element = decltype(size(tdKrdK_float))::value;
+    constexpr int num_element_dK = decltype(size(tdKrdK_float))::value;
 
-    cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-    auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdKrdK_float.data()));
+    cutlass::NumericArrayConverter<half_t, float, num_element_dK> convert_op_dK;
+    auto frag_dK = convert_op_dK(*reinterpret_cast<const cutlass::Array<float, num_element_dK> *>(tdKrdK_float.data()));
 
-    Tensor tdKrdK = make_tensor(make_rmem_ptr<half_t>(&frag), tdKrdK_float.layout());
+    Tensor tdKrdK = make_tensor(make_rmem_ptr<half_t>(&frag_dK), tdKrdK_float.layout());
 
     copy(tdKrdK, tdKgdK);
 
