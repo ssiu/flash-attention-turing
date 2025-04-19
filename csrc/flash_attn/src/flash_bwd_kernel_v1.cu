@@ -68,7 +68,7 @@ void compute_dot_do_o(half_t* o_ptr,
     // thread reduction
     for (int i=0;i<4;i ++) {
 //         sum += __half2float(rO[i]) * __half2float(rdO[i]);
-        sum += __half2float(static_cast<__half>(rO[i])) * __half2float(static_cast<__half>(rdO[i]));
+        sum += static_cast<float>(rO[i]) * static_cast<float>(rdO[i]);
 
     }
 
