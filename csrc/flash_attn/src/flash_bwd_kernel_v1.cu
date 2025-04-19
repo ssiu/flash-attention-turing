@@ -45,8 +45,8 @@ void compute_dot_do_o(half_t* o_ptr,
     int warp_id = threadIdx.x / 32;
     int lane_id = threadIdx.x % 32;
 
-    int do_o_offset = blockIdx.z * seq_len * num_heads * head_dim + blockIdx.z * 32 * num_heads * head_dim + blockIdx.y * head_dim;
-    int d_offset = blockIdx.z * num_heads * seq_len + blockIdx.y * seq_len + blockIdx.z * 32;
+    int do_o_offset = blockIdx.x * seq_len * num_heads * head_dim + blockIdx.z * 32 * num_heads * head_dim + blockIdx.y * head_dim;
+    int d_offset = blockIdx.x * num_heads * seq_len + blockIdx.y * seq_len + blockIdx.z * 32;
 
 
     int thread_row = warp_id;
@@ -76,11 +76,11 @@ void compute_dot_do_o(half_t* o_ptr,
     }
 
 
-//     if (blockIdx.x == 0 and thread_id < 32) {
-//         for (int i=0;i<4;i++) {
-//             printf("thread id = %d, i = %d, rdO = %f, rO = %f\n", thread_id, i, static_cast<float>(rO[i]), static_cast<float>(rdO[i]));
-//         }
-//     }
+    if (blockIdx.x == 0 and thread_id < 32) {
+        for (int i=0;i<4;i++) {
+            printf("thread id = %d, i = %d, rdO = %f, rO = %f\n", thread_id, i, static_cast<float>(rO[i]), static_cast<float>(rdO[i]));
+        }
+    }
 
 
 
@@ -112,11 +112,11 @@ void compute_dot_do_o(half_t* o_ptr,
             sum += __shfl_down_sync(0xffffffff, sum, offset);
     }
 
-//     if (thread0()) {
-//        d_ptr[d_offset + thread_row + thread_col] = sum;
-//        printf("sum is %f\n", sum);
-//        //d_ptr[0] = sum;
-//     }
+    if (thread0()) {
+       d_ptr[d_offset + thread_row + thread_col] = sum;
+       printf("sum is %f\n", sum);
+       //d_ptr[0] = sum;
+    }
 
 }
 
