@@ -78,7 +78,8 @@ void compute_dot_do_o(half_t* o_ptr,
     }
 
     if (lane_id == 0 ) {
-        d_ptr[d_offset + thread_row + thread_col] = sum;
+       // d_ptr[d_offset + thread_row + thread_col] = sum;
+       d_ptr[0] = sum;
     }
 
 }
