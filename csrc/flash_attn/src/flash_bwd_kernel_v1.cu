@@ -37,8 +37,8 @@ void compute_dot_do_o(half_t* o_ptr,
 
     // each thread loads 4 elements from do and o
 
-    half_t* rdO[4];
-    half_t* rO[4];
+    half_t rdO[4];
+    half_t rO[4];
     float sum = 0;
 
     int thread_id = threadIdx.x;
