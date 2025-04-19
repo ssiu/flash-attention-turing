@@ -49,8 +49,8 @@ void compute_dot_do_o(half_t const* o_ptr,
     int d_offset = blockIdx.z * num_heads * seq_len + blockIdx.y * seq_len + blockIdx.z * 32;
 
 
-    thread_row = warp_id;
-    thread_col = lane_id * 4;
+    int thread_row = warp_id;
+    int thread_col = lane_id * 4;
 
 
     // for (int i = 0; i < 4; i++) {
@@ -67,7 +67,7 @@ void compute_dot_do_o(half_t const* o_ptr,
 
     // thread reduction
     for (int i=0;i<4;i ++) {
-        sum += static_cast<float>(rO[i]) * static_cast<float>(rdO[i]);
+        sum += __half2float(rO[i]) * __half2float(rdO[i]);
     }
 
     // warp reduction
