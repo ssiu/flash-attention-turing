@@ -60,12 +60,21 @@ void compute_dot_do_o(half_t* o_ptr,
 
 
     // load O to register
-    FLOAT2(rO[0]) = FLOAT2(o_ptr[do_o_offset + thread_row + thread_col]);
-    FLOAT2(rdO[0]) = FLOAT2(do_ptr[do_o_offset + thread_row + thread_col]);
+//     FLOAT2(rO[0]) = FLOAT2(o_ptr[do_o_offset + thread_row + thread_col]);
+//     FLOAT2(rdO[0]) = FLOAT2(do_ptr[do_o_offset + thread_row + thread_col]);
+    FLOAT2(rO[0]) = FLOAT2(o_ptr[0]);
+    FLOAT2(rdO[0]) = FLOAT2(do_ptr[0]);
 
-    for (int i=0;i<4;i++) {
-        printf("%f\n", static_cast<float>(rO[i]));
+
+    if (thread0()) {
+        for (int i=0;i<4;i++) {
+            printf("%f\n", static_cast<float>(rO[i]));
+        }
     }
+
+
+
+
 
     // thread reduction
     for (int i=0;i<4;i ++) {
