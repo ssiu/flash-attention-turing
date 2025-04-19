@@ -67,7 +67,7 @@ void compute_dot_do_o(half_t const* o_ptr,
 
     // thread reduction
     for (int i=0;i<4;i ++) {
-        sum += __half2float(rO[i]) * __half2float(rdO[i]);
+        sum += float(rO[i]) * float(rdO[i]);
     }
 
     // warp reduction
@@ -412,9 +412,9 @@ flash_bwd_v1(torch::Tensor q,
     // we use 1 warp to compute a single row
     // each thread block we launch 1024 = 32 x 32 threads = 32 warps
     // so each thread block process 32 rows
-    dim3 dimGrid(batch_size, num_heads, seq_len / 32);
-    dim3 dimBlock(1024);
-    compute_dot_do_o(o_ptr,
+    dim3 dimGrid_dot_do_o(batch_size, num_heads, seq_len / 32);
+    dim3 dimBlock_dot_do_o(1024);
+    compute_dot_do_o<<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(o_ptr,
                     do_ptr,
                     d_ptr,
                     batch_size, seq_len, num_heads, head_dim);
