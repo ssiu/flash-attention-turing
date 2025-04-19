@@ -65,9 +65,9 @@ def main():
     # print("=====")
 
     d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
-    q_query, q_key, d_value = flash_attn_backward_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim)
+    d_query, d_key, d_value = flash_attn_backward_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim)
 
-    print(q_query.size())
+    print(d_query.size())
 
 
     query_torch = query.permute(0, 2, 1, 3).contiguous().clone()
@@ -90,7 +90,7 @@ def main():
     d_value_torch = value_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
 
 
-    print("output")
+    print("Comparing O")
     sum_error, avg_error, max_error, output_value, output_torch_value = \
         get_error(output, output_torch, batch_size, seq_len, num_heads, head_dim)
 
@@ -99,7 +99,8 @@ def main():
 
     print("==========")
 
-    print("d_value")
+
+    print("Comparing dV")
 
     sum_error, avg_error, max_error, output_value, output_torch_value = \
         get_error(d_value, d_value_torch, batch_size, seq_len, num_heads, head_dim)
@@ -107,6 +108,14 @@ def main():
     print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
 
 
+    print("==========")
+
+    print("Comparing dK")
+
+    sum_error, avg_error, max_error, output_value, output_torch_value = \
+        get_error(d_key, d_key_torch, batch_size, seq_len, num_heads, head_dim)
+
+    print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
 
 
 
