@@ -297,7 +297,7 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor sQt = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQTransposed{});
     //Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
     Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});   // 8KB
-    Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKVTransposed{});   // 8KB
+    Tensor sKt = make_tensor(sQ.data() + size(sQ), SmemLayoutKVTransposed{});   // 8KB
 
     Tensor sV = make_tensor(sK.data() + size(sK), SmemLayoutKV{});
 
