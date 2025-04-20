@@ -180,6 +180,12 @@ void compute_dq_dk_dv_kernel_v1(
         Layout<Shape<_2,_1,_1>>,
         Tile<_32, _128, _8>>;
 
+
+    using TiledMma_dQ = TiledMMA<
+        MMA_Atom_Arch,
+        Layout<Shape<_2,_1,_1>>,
+        Tile<_32, _128, _8>>;
+
     using SmemLayoutAtom = decltype(
                     Layout<Shape<_32, _32>,
                     Stride<_32, _1>>{});
@@ -201,6 +207,10 @@ void compute_dq_dk_dv_kernel_v1(
     using SmemLayoutKV = decltype(
            Layout<Shape<_32, _128>,
            Stride<_128, _1>>{});
+
+    using SmemLayoutKVTransposed = decltype(
+           Layout<Shape<_128, _32>,
+           Stride<_1, _128>>{});
 
     constexpr int kBlockM = 32;
     constexpr int kBlockN = 32;
@@ -272,6 +282,14 @@ void compute_dq_dk_dv_kernel_v1(
                            make_coord(blockIdx.z, 0));
 
 
+    // dQ
+    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr),
+                            make_shape(batch_size, seq_len, num_heads, head_dim),
+                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gdQ = local_tile(mdQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(_, 0));
+
 
     extern __shared__ char smem_[];
 
@@ -279,6 +297,8 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor sQt = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQTransposed{});
     //Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
     Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});   // 8KB
+    Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKVTransposed{});   // 8KB
+
     Tensor sV = make_tensor(sK.data() + size(sK), SmemLayoutKV{});
 
     Tensor sdO = make_tensor(sV.data() + size(sV), SmemLayoutQ{});                            // 8KB
@@ -355,6 +375,14 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
 
 
+    // dQ += dSK
+    TiledMma_dQ tiled_mma_dQ;
+    ThrMMA thr_mma_dQ = tiled_mma_dQ.get_slice(threadIdx.x);
+    Tensor tdQsdS = thr_mma_dQ.partition_A(sdS);
+    Tensor tdQsKt = thr_mma_dQ.partition_B(sKt);
+    Tensor tdQrdQ_float = partition_fragment_C(tiled_mma_dQ, Shape<Int<kBlockM>, Int<kHeadDim>>{});
+    Tensor tdQgdQ = thr_mma_dQ.partition_C(gdQ);
+
     auto Q_TILE_MAX = size<3>(tSgQ);
 
     // load K, V, dK, dV tiles
@@ -373,6 +401,12 @@ void compute_dq_dk_dv_kernel_v1(
         copy(tSgQ(_,_,_,q_tile), tSsQ);
         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
 
+        // load gdQ to tdQrdQ
+        Tensor tdQrdQ = gdQ(_,_,_,q_tile);
+        if (thread0()) {
+            print(tdQrdQ);
+            print_tensor(tdQrdQ);
+        }
 
         __syncthreads();
         // compute S=QK^T
@@ -464,7 +498,14 @@ void compute_dq_dk_dv_kernel_v1(
         // dK += dS^TQ
         gemm(tiled_mma_dK, tdKsdSt, tdKsQt, tdKrdK_float);
 
+
+        // dQ += dSK
+        //gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
+
         __syncthreads();
+
+        //convert dQ from float to fp16
+
 
     }
 
@@ -498,11 +539,11 @@ void compute_dq_dk_dv_kernel_v1(
     copy(tdKrdK, tdKgdK);
 
 
-    if (thread0()){
-        for (int i =0;i<128;i++) {
-            printf("i = %d, d[i] = %f\n", i, d_ptr[i]);
-        }
-    }
+//     if (thread0()){
+//         for (int i =0;i<128;i++) {
+//             printf("i = %d, d[i] = %f\n", i, d_ptr[i]);
+//         }
+//     }
 
 
 }
@@ -523,7 +564,7 @@ flash_bwd_v1(torch::Tensor q,
     constexpr int kBlockN = 32;
     constexpr int kHeadDim = 128;
 
-    torch::Tensor dq = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
+    torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
     torch::Tensor dk = torch::empty(k.sizes(), k.options().dtype(torch::kFloat16));
     torch::Tensor dv = torch::empty(v.sizes(), v.options().dtype(torch::kFloat16));
     torch::Tensor d = torch::empty(l.sizes(), l.options());
