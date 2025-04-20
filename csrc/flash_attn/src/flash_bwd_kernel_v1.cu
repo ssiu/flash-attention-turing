@@ -131,7 +131,7 @@ void compute_dot_do_o(half_t* o_ptr,
     if (thread0()) {
         for (int i=0; i<4; i++) {
             for (int j=0;j<128;j++) {
-                print("i = %d, j = %d, do = %f\n", static_cast<float>(do_ptr[128 * i + j]));
+                print("i = %d, j = %d, do = %f\n", i, j, static_cast<float>(do_ptr[128 * i + j]));
             }
         }
     }
