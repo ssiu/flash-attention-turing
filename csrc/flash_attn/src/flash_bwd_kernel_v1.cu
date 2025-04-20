@@ -115,9 +115,7 @@ void compute_dot_do_o(half_t* o_ptr,
 
 
 
-    if (blockIdx.x == 0 and thread_id < 32) {
-        printf("sum = %f\n", sum);
-    }
+
 
 
     // warp reduction
@@ -500,11 +498,11 @@ void compute_dq_dk_dv_kernel_v1(
     copy(tdKrdK, tdKgdK);
 
 
-//     if (thread0()){
-//         for (int i =0;i<128;i++) {
-//             printf("i = %d, d[i] = %f\n", i, d_ptr[i]);
-//         }
-//     }
+    if (thread0()){
+        for (int i =0;i<128;i++) {
+            printf("i = %d, d[i] = %f\n", i, d_ptr[i]);
+        }
+    }
 
 
 }
