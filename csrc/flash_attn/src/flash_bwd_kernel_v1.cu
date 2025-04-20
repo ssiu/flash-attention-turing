@@ -68,14 +68,14 @@ void compute_dot_do_o(half_t* o_ptr,
         rO[i] = o_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];
         rdO[i] = do_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];
 
-        if (warp_id == 1 && lane_id == 0 && blockIdx.z == 0) {
-            printf("do_o_offset = %d, thread_row = %d, thread_col = %d, addr = %d\n", do_o_offset, thread_row, thread_col, do_o_offset + thread_row * num_heads * head_dim + thread_col + i);
-            printf("thread reduction, sum is %f\n",  sum);
-            for (int i=0;i<4;i++) {
-                printf("i = %d, rO[i] = %f, rdO[i] = %f\n", i, static_cast<float>(rO[i]), static_cast<float>(rdO[i]));
-            }
-           //d_ptr[0] = sum;
-        }
+//         if (warp_id == 1 && lane_id == 0 && blockIdx.z == 0) {
+//             printf("do_o_offset = %d, thread_row = %d, thread_col = %d, addr = %d\n", do_o_offset, thread_row, thread_col, do_o_offset + thread_row * num_heads * head_dim + thread_col + i);
+//             printf("thread reduction, sum is %f\n",  sum);
+//             for (int i=0;i<4;i++) {
+//                 printf("i = %d, rO[i] = %f, rdO[i] = %f\n", i, static_cast<float>(rO[i]), static_cast<float>(rdO[i]));
+//             }
+//            //d_ptr[0] = sum;
+//         }
 
     }
 
@@ -115,9 +115,9 @@ void compute_dot_do_o(half_t* o_ptr,
 
 
 
-//     if (blockIdx.x == 0 and thread_id < 32) {
-//         printf("sum = %f\n", sum);
-//     }
+    if (blockIdx.x == 0 and thread_id < 32) {
+        printf("sum = %f\n", sum);
+    }
 
 
     // warp reduction
