@@ -54,7 +54,7 @@ def main():
     value = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
 
 
-    # device = torch.device('cuda')
+    device = torch.device('cuda')
     # query = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
     # key = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
     # value = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
