@@ -104,7 +104,7 @@ void compute_dot_do_o(half_t* o_ptr,
 
 
     if (warp_id == 1 && lane_id == 0 && blockIdx.z == 0) {
-
+        printf("do_o_offset = %d, thread_row = %d, thread_col = %d\n", do_o_offset, thread_row, thread_col);
         printf("thread reduction,sum is %f\n",  sum);
         for (int i=0;i<4;i++) {
             printf("i = %d, rO[i] = %f, rdO[i] = %f\n", i, static_cast<float>(rO[i]), static_cast<float>(rdO[i]));
@@ -497,11 +497,11 @@ void compute_dq_dk_dv_kernel_v1(
     copy(tdKrdK, tdKgdK);
 
 
-    if (thread0()){
-        for (int i =0;i<128;i++) {
-            printf("i = %d, d[i] = %f\n", i, d_ptr[i]);
-        }
-    }
+//     if (thread0()){
+//         for (int i =0;i<128;i++) {
+//             printf("i = %d, d[i] = %f\n", i, d_ptr[i]);
+//         }
+//     }
 
 
 }
