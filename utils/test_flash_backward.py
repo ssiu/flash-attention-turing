@@ -49,9 +49,9 @@ def main():
     # key = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # value = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     #
-    query = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    key = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    value = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    # query = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    # key = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    # value = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
 
 
     device = torch.device('cuda')
@@ -60,9 +60,9 @@ def main():
     # value = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
 
 
-    # query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    # key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    # value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
 
     # o = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # l = torch.randn(batch_size, num_heads, seq_len, dtype=torch.float).to("cuda")
