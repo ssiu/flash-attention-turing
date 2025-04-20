@@ -123,11 +123,11 @@ void compute_dot_do_o(half_t* o_ptr,
             sum += __shfl_down_sync(0xffffffff, sum, offset);
     }
 
-//     if (lane_id == 0 && blockIdx.z == 0) {
-//        d_ptr[d_offset + thread_row] = sum;
-//        printf("warp id = %d, sum is %f\n", warp_id, sum);
-//        //d_ptr[0] = sum;
-//     }
+    if (lane_id == 0) {
+       d_ptr[d_offset + thread_row] = sum;
+       //printf("warp id = %d, sum is %f\n", warp_id, sum);
+       //d_ptr[0] = sum;
+    }
 
 //     if (thread0()) {
 //         for (int i=0; i<4; i++) {
