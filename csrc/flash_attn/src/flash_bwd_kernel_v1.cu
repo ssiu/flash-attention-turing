@@ -49,7 +49,7 @@ void compute_dot_do_o(half_t* o_ptr,
     int d_offset = blockIdx.x * num_heads * seq_len + blockIdx.y * seq_len + blockIdx.z * 32;
 
 
-    int thread_row = warp_id;
+    int thread_row = warp_id * num_heads * head_dim;
     int thread_col = lane_id * 4;
 
 
