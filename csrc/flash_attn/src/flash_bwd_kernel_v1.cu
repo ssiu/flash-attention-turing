@@ -478,7 +478,11 @@ void compute_dq_dk_dv_kernel_v1(
     copy(tdKrdK, tdKgdK);
 
 
-
+    if (thread0()){
+        for (int i =0;i<128;i++) {
+            printf("i = %d, d[i] = %f\n", i, d_ptr[i]);
+        }
+    }
 
 
 }
