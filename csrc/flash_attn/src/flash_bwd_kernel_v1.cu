@@ -406,11 +406,11 @@ void compute_dq_dk_dv_kernel_v1(
 
 
 
-        if (thread0()) {
-            print(tdQrdQ_float);
-            //print(tdQgdQ_float);
-            //print_tensor(tdQrdQ);
-        }
+//         if (thread0()) {
+//             print(tdQrdQ_float);
+//             //print(tdQgdQ_float);
+//             //print_tensor(tdQrdQ);
+//         }
 
         __syncthreads();
         // compute S=QK^T
