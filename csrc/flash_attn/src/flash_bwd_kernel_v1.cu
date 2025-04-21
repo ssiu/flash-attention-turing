@@ -403,7 +403,7 @@ void compute_dq_dk_dv_kernel_v1(
         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
 
         // load gdQ to tdQrdQ
-
+        copy(tdQgdQ(_,_,_,q_tile), tdQrdQ);
         
 //         if (thread0()) {
 //             print(tdQrdQ);
