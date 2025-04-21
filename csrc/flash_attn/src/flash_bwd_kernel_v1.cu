@@ -381,8 +381,7 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor tdQsdS = thr_mma_dQ.partition_A(sdS);
     Tensor tdQsKt = thr_mma_dQ.partition_B(sKt);
     Tensor tdQrdQ_float = partition_fragment_C(tiled_mma_dQ, Shape<Int<kBlockM>, Int<kHeadDim>>{});
-    Tensor tdQgdQ = thr_mma_dQ.partition_C(gdQ);
-    Tensor tdQrdQ = make_fragment_like(tdQgdQ(_,_,_,0));
+    Tensor tdQgdQ_float = thr_mma_dQ.partition_C(gdQ);
 
     auto Q_TILE_MAX = size<3>(tSgQ);
 
@@ -403,12 +402,13 @@ void compute_dq_dk_dv_kernel_v1(
         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
 
         // load gdQ to tdQrdQ
-        copy(tdQgdQ(_,_,_,q_tile), tdQrdQ);
+        //copy(tdQgdQ(_,_,_,q_tile), tdQrdQ);
 
 
 
         if (thread0()) {
-            print(tdQrdQ);
+            print(tdQrdQ_float);
+            print(tdQgdQ_float);
             //print_tensor(tdQrdQ);
         }
 
