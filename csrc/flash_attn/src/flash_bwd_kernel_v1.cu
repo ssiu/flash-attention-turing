@@ -404,11 +404,13 @@ void compute_dq_dk_dv_kernel_v1(
 
         // load gdQ to tdQrdQ
         copy(tdQgdQ(_,_,_,q_tile), tdQrdQ);
-        
-//         if (thread0()) {
-//             print(tdQrdQ);
-//             print_tensor(tdQrdQ);
-//         }
+
+
+
+        if (thread0()) {
+            print(tdQrdQ);
+            print_tensor(tdQrdQ);
+        }
 
         __syncthreads();
         // compute S=QK^T
