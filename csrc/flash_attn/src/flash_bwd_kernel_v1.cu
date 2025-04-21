@@ -522,15 +522,16 @@ void compute_dq_dk_dv_kernel_v1(
 
 
         // dQ += dSK
-        copy(tdQgdQ_float(_,_,_,0), tdQrdQ_float);
-        print_tensor(tdQrdQ_float);
+        copy(tdQgdQ_float(_,_,_,q_tile), tdQrdQ_float);
+
+        //print_tensor(tdQrdQ_float);
 
 //         gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
 //
-//         if (thread0()) {
-//
-//             print(tdQrdQ_float);
-//         }
+        if (thread0()) {
+
+            print(tdQrdQ_float);
+        }
         __syncthreads();
 
         //convert dQ from float to fp16
