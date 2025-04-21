@@ -504,7 +504,8 @@ void compute_dq_dk_dv_kernel_v1(
 
 
         // dQ += dSK
-        //gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
+        gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
+
 
         __syncthreads();
 
