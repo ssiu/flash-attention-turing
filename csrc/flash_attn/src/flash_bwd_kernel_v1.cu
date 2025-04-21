@@ -399,8 +399,10 @@ void compute_dq_dk_dv_kernel_v1(
         print("\n");
         print(tdQgdQ_float);
         print("\n");
+        print(tdQgdQ_float(_,_,_,0);
+        print("\n");
         print(tdQrdQ_float);
-
+        print("\n");
     }
 
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
