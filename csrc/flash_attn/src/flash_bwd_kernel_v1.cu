@@ -392,6 +392,10 @@ void compute_dq_dk_dv_kernel_v1(
     //clear(tdVrdV_float);
     clear(tSrS_float);
     CUTE_NO_UNROLL
+    if (thread0()) {
+        printf("gdQ is %f\n", dq_ptr[0]);
+    }
+
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
 
         clear(tSrS_float);
@@ -504,12 +508,12 @@ void compute_dq_dk_dv_kernel_v1(
 
 
         // dQ += dSK
-        gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
-
-        if (thread0()) {
-
-            print(tdQrdQ_float);
-        }
+//         gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
+//
+//         if (thread0()) {
+//
+//             print(tdQrdQ_float);
+//         }
         __syncthreads();
 
         //convert dQ from float to fp16
