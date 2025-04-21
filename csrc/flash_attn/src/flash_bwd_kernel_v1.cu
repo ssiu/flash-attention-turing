@@ -409,7 +409,7 @@ void compute_dq_dk_dv_kernel_v1(
 
         if (thread0()) {
             print(tdQrdQ);
-            print_tensor(tdQrdQ);
+            //print_tensor(tdQrdQ);
         }
 
         __syncthreads();
