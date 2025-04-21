@@ -394,6 +394,7 @@ void compute_dq_dk_dv_kernel_v1(
     CUTE_NO_UNROLL
     if (thread0()) {
         printf("gdQ is %f\n", dq_ptr[0]);
+        print(gdQ);
     }
 
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
