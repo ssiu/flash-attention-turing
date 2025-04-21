@@ -392,21 +392,21 @@ void compute_dq_dk_dv_kernel_v1(
     //clear(tdVrdV_float);
     clear(tSrS_float);
     CUTE_NO_UNROLL
-    if (thread0()) {
-        printf("gdQ is %f\n", dq_ptr[0]);
-        print("\n");
-        print(gdQ);
-        print("\n");
-        print(tdQgdQ_float);
-        print("\n");
-        print(tdQgdQ_float(_,_,_,0));
-        print("\n");
-        print(tdQrdQ_float);
-        print("\n");
-        print_tensor(tdQrdQ_float);
-        copy(tdQgdQ_float(_,_,_,0), tdQrdQ_float);
-        print_tensor(tdQrdQ_float);
-    }
+//     if (thread0()) {
+//         printf("gdQ is %f\n", dq_ptr[0]);
+//         print("\n");
+//         print(gdQ);
+//         print("\n");
+//         print(tdQgdQ_float);
+//         print("\n");
+//         print(tdQgdQ_float(_,_,_,0));
+//         print("\n");
+//         print(tdQrdQ_float);
+//         print("\n");
+//         print_tensor(tdQrdQ_float);
+//         copy(tdQgdQ_float(_,_,_,0), tdQrdQ_float);
+//         print_tensor(tdQrdQ_float);
+//     }
 
 
 
@@ -522,7 +522,7 @@ void compute_dq_dk_dv_kernel_v1(
 
 
         // dQ += dSK
-        copy(tdQgdQ_float(_,_,_,q_tile), tdQrdQ_float);
+        copy(tdQgdQ_float(_,_,_,0), tdQrdQ_float);
 
         //print_tensor(tdQrdQ_float);
 
