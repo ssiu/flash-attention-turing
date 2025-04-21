@@ -403,7 +403,12 @@ void compute_dq_dk_dv_kernel_v1(
         print("\n");
         print(tdQrdQ_float);
         print("\n");
+        print_tensor(tdQrdQ_float);
+        copy(tdQgdQ_float(_,_,_,0), tdQrdQ_float);
+        print_tensor(tdQrdQ_float);
     }
+
+
 
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
 
