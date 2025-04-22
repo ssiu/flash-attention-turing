@@ -414,8 +414,8 @@ void compute_dq_dk_dv_kernel_v1(
 //     copy(tSgK, tSsK);
 //     copy(tdPgV, tdPsV);
 
-    copy(tKgK, tKsK);
-    copy(tVgV, tVsV);
+    copy(gmem_tiled_copy_QKV, tKgK, tKsK);
+    copy(gmem_tiled_copy_QKV, tVgV, tVsV);
 
 
     //clear(tdVrdV_float);
