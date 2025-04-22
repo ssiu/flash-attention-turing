@@ -346,13 +346,17 @@ void compute_dq_dk_dv_kernel_v1(
 
     ThrCopy thr_copy_QKV = gmem_tiled_copy_QKV.get_slice(threadIdx.x);
 
+    Tensor tQgQ = thr_copy_QKV.partition_S(gQ);
+    Tensor tQsQ = thr_copy_QKV.partition_D(sQ);
+
     Tensor tKgK = thr_copy_QKV.partition_S(gK);
     Tensor tKsK = thr_copy_QKV.partition_D(sK);
 
     Tensor tVgV = thr_copy_QKV.partition_S(gV);
     Tensor tVsV = thr_copy_QKV.partition_D(sV);
 
-
+    Tensor tdOgdO = thr_copy_QKV.partition_S(gdO);
+    Tensor tdOsdO = thr_copy_QKV.partition_D(sdO);
 
 
     // S = QK^T
@@ -445,8 +449,10 @@ void compute_dq_dk_dv_kernel_v1(
         clear(tdPrdP_float);
 
         // load gQ to sQ
-        copy(tSgQ(_,_,_,q_tile), tSsQ);
-        copy(tdVgdO(_,_,_,q_tile), tdVsdO);
+//         copy(tSgQ(_,_,_,q_tile), tSsQ);
+//         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
+        copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,q_tile), tQsQ);
+        copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile), tdOsdO);
 
         // load gdQ to tdQrdQ
         //copy(tdQgdQ(_,_,_,q_tile), tdQrdQ);
