@@ -186,6 +186,17 @@ void compute_dq_dk_dv_kernel_v1(
         Layout<Shape<_2,_1,_1>>,
         Tile<_32, _128, _8>>;
 
+
+    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
+
+    using GmemLayoutAtomQKV = Layout<Shape <_8, _8>, Stride<_8, _1>>;
+
+    using GmemTiledCopyQKV = decltype(
+                make_tiled_copy(Copy_Atom<Gmem_copy_struct, half_t>{},
+                                GmemLayoutAtomQKV{},
+                                Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
+
+
     using SmemLayoutAtom = decltype(
                     Layout<Shape<_32, _32>,
                     Stride<_32, _1>>{});
@@ -330,6 +341,20 @@ void compute_dq_dk_dv_kernel_v1(
     float rL[2];
     float rD[2];
 
+    // Copy operation
+    GmemTiledCopyQKV gmem_tiled_copy_QKV;
+
+    ThrCopy thr_copy_QKV = gmem_tiled_copy_QKV.get_slice(threadIdx.x);
+
+    Tensor tKgK = thr_copy_QKV.partition_S(gK);
+    Tensor tKsK = thr_copy_QKV.partition_D(sK);
+
+    Tensor tVgV = thr_copy_QKV.partition_S(gV);
+    Tensor tVsV = thr_copy_QKV.partition_D(sV);
+
+
+
+
     // S = QK^T
     TiledMma_S tiled_mma_S;
     ThrMMA thr_mma_S = tiled_mma_S.get_slice(threadIdx.x);
@@ -386,8 +411,12 @@ void compute_dq_dk_dv_kernel_v1(
     auto Q_TILE_MAX = size<3>(tSgQ);
 
     // load K, V, dK, dV tiles
-    copy(tSgK, tSsK);
-    copy(tdPgV, tdPsV);
+//     copy(tSgK, tSsK);
+//     copy(tdPgV, tdPsV);
+
+    copy(tKgK, tKsK);
+    copy(tVgV, tVsV);
+
 
     //clear(tdVrdV_float);
     clear(tSrS_float);
