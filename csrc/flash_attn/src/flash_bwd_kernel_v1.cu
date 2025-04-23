@@ -622,6 +622,11 @@ void compute_dq_kernel_v1(
         Layout<Shape<_2,_1,_1>>,
         Tile<_32, _32, _8>>;
 
+    using TiledMma_dQ = TiledMMA<
+        MMA_Atom_Arch,
+        Layout<Shape<_2,_1,_1>>,
+        Tile<_32, _128, _8>>;
+
     using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
 
     using GmemLayoutAtomQKV = Layout<Shape <_8, _8>, Stride<_8, _1>>;
