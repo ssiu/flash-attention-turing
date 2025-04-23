@@ -765,7 +765,7 @@ void compute_dq_kernel_v1(
 
     int thread_row = warp_id * 16 + lane_id / 4;
 
-
+    float rL[2];
     float rD[2];
 
     // Copy operation
@@ -823,8 +823,8 @@ void compute_dq_kernel_v1(
         clear(tSrS_float);
         clear(tdPrdP_float);
 
-        copy(gmem_tiled_copy_QK, tKgK(_,_,_,kv_tile), tKsK);
-        copy(gmem_tiled_copy_QK, tVgV(_,_,_,kv_tile), tVsV);
+        copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile), tKsK);
+        copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile), tVsV);
 
         __syncthreads();
 
@@ -836,8 +836,8 @@ void compute_dq_kernel_v1(
 
         // load rL, rD from gmem to rmem
         for (int i=0; i<2; i++) {
-            rL[i] = gL((thread_row + 8 * i), q_tile);
-            rD[i] = gD((thread_row + 8 * i), q_tile);
+            rL[i] = gL((thread_row + 8 * i));
+            rD[i] = gD((thread_row + 8 * i));
         }
 
 
@@ -896,7 +896,7 @@ void compute_dq_kernel_v1(
         __syncthreads();
 
 
-        gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ);
+        gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
 
         __syncthreads();
 
