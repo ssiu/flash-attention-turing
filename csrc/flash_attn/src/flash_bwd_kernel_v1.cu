@@ -797,7 +797,6 @@ flash_bwd_v1(torch::Tensor q,
                                             l_ptr,
                                             d_ptr,
                                             do_ptr,
-                                            dq_ptr,
                                             dk_ptr,
                                             dv_ptr,
                                             batch_size, seq_len, num_heads, head_dim);
