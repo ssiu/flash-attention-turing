@@ -778,6 +778,9 @@ void compute_dq_kernel_v1(
 
     ThrCopy thr_copy_QKV = gmem_tiled_copy_QKV.get_slice(threadIdx.x);
 
+    Tensor tQgQ = thr_copy_QKV.partition_S(gQ);
+    Tensor tQsQ = thr_copy_QKV.partition_D(sQ);
+
     Tensor tKgK = thr_copy_QKV.partition_S(gK);
     Tensor tKsK = thr_copy_QKV.partition_D(sK);
 
