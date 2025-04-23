@@ -612,6 +612,11 @@ void compute_dq_kernel_v1(
 {
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
+    using TiledMma_S = TiledMMA<
+        MMA_Atom_Arch,
+        Layout<Shape<_2,_1,_1>>,
+        Tile<_32, _32, _8>>;
+
     using TiledMma_dP = TiledMMA<
         MMA_Atom_Arch,
         Layout<Shape<_2,_1,_1>>,
