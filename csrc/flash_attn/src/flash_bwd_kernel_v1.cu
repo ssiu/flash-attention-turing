@@ -701,17 +701,19 @@ void compute_dq_kernel_v1(
     Tensor gdQ = local_tile(mdQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
+    if (thread0()) {
+        print(gK);
+        print("\n");
+        print(gV);
+        print("\n");
+        print(gD);
+        print("\n");
+        print(gdO);
+        print("\n");
+        print(gdQ);
+        print("\n");
+    }
 
-    print(gK);
-    print("\n");
-    print(gV);
-    print("\n");
-    print(gD);
-    print("\n");
-    print(gdO);
-    print("\n");
-    print(gdQ);
-    print("\n");
 
 }
 
