@@ -395,13 +395,6 @@ void compute_dq_dk_dv_kernel_v1(
     Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
 
 
-    // dQ += dSK
-    TiledMma_dQ tiled_mma_dQ;
-    ThrMMA thr_mma_dQ = tiled_mma_dQ.get_slice(threadIdx.x);
-    Tensor tdQsdS = thr_mma_dQ.partition_A(sdS);
-    Tensor tdQsKt = thr_mma_dQ.partition_B(sKt);
-    Tensor tdQrdQ_float = partition_fragment_C(tiled_mma_dQ, Shape<Int<kBlockM>, Int<kHeadDim>>{});
-    Tensor tdQgdQ_float = thr_mma_dQ.partition_C(gdQ);
 
     auto Q_TILE_MAX = size<3>(tSgQ);
 
