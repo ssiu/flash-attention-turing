@@ -150,8 +150,6 @@ void compute_dq_dk_dv_kernel_v1(
     float const* l_ptr,
     float const* d_ptr,
     half_t const* do_ptr,
-//     half_t* d_ptr, // dO \circ O
-    float* dq_ptr,
     half_t* dk_ptr,
     half_t* dv_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim
@@ -614,6 +612,123 @@ void compute_dq_dk_dv_kernel_v1(
 }
 
 
+__global__ __launch_bounds__(64)
+void compute_dq_kernel_v1(
+    half_t const* k_ptr,
+    half_t const* v_ptr,
+    float const* d_ptr,
+    half_t const* do_ptr,
+    half_t* dq_ptr,
+    int batch_size, int seq_len, int num_heads, int head_dim
+)
+{
+    using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
+
+    using TiledMma_dP = TiledMMA<
+        MMA_Atom_Arch,
+        Layout<Shape<_2,_1,_1>>,
+        Tile<_32, _32, _8>>;
+
+    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
+
+    using GmemLayoutAtomQKV = Layout<Shape <_8, _8>, Stride<_8, _1>>;
+
+    using GmemTiledCopyQKV = decltype(
+                make_tiled_copy(Copy_Atom<Gmem_copy_struct, half_t>{},
+                                GmemLayoutAtomQKV{},
+                                Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
+
+
+    using SmemLayoutAtom = decltype(
+                    Layout<Shape<_32, _32>,
+                    Stride<_32, _1>>{});
+
+    using SmemLayoutAtomTranposed = decltype(
+                    Layout<Shape<_32, _32>,
+                    Stride<_1, _32>>{});
+
+    using SmemLayoutQ = decltype(
+                            Layout<Shape<_32, _128>,
+                            Stride<_128, _1>>{});
+
+    using SmemLayoutQTransposed = decltype(
+                                      Layout<Shape<_128, _32>,
+                                      Stride<_1, _128>>{});
+
+
+
+    using SmemLayoutKV = decltype(
+           Layout<Shape<_32, _128>,
+           Stride<_128, _1>>{});
+
+    using SmemLayoutKVTransposed = decltype(
+           Layout<Shape<_128, _32>,
+           Stride<_1, _128>>{});
+
+    constexpr int kBlockM = 32;
+    constexpr int kBlockN = 32;
+    constexpr int kHeadDim = 128;
+
+
+
+
+    // K
+    Tensor mK = make_tensor(make_gmem_ptr(k_ptr),
+                            make_shape(batch_size, seq_len, num_heads, head_dim),
+                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+                           make_coord(_, 0));
+
+    // V
+    Tensor mV = make_tensor(make_gmem_ptr(v_ptr),
+                            make_shape(batch_size, seq_len, num_heads, head_dim),
+                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+                           make_coord(_, 0));
+
+
+
+    Tensor mD = make_tensor(make_gmem_ptr(d_ptr),
+                             make_shape(batch_size, num_heads, seq_len),
+                             make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
+
+    Tensor gD = local_tile(mD(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
+                           make_coord(blockIdx.z));
+
+    // dO
+    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr),
+                             make_shape(batch_size, seq_len, num_heads, head_dim),
+                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gdO = local_tile(mdO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(blockIdx.z, 0));
+
+
+
+    // dQ
+    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr),
+                            make_shape(batch_size, seq_len, num_heads, head_dim),
+                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gdQ = local_tile(mdQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(blockIdx.z, 0));
+
+
+    print(gK);
+    print("\n");
+    print(gV);
+    print("\n");
+    print(gD);
+    print("\n");
+    print(gdO);
+    print("\n");
+    print(gdQ);
+    print("\n");
+
+}
+
 
 std::vector<torch::Tensor>
 flash_bwd_v1(torch::Tensor q,
@@ -661,10 +776,26 @@ flash_bwd_v1(torch::Tensor q,
                     d_ptr,
                     batch_size, seq_len, num_heads, head_dim);
 
-    // compute dQ, dK, dV
+    // compute dQ
+    dim3 dimGrid_dq(batch_size, num_heads, seq_len / kBlockM);
+    dim3 dimBlock_dq(64);
+    int maxbytes = 65536;
+
+
+    cudaFuncSetAttribute(compute_dq_kernel_v1, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    compute_dq_kernel_v1<<<dimGrid_dq, dimBlock_dq, maxbytes>>>(
+                                                            k_ptr,
+                                                            v_ptr,
+                                                            d_ptr,
+                                                            do_ptr,
+                                                            dq_ptr,
+                                                            batch_size, seq_len, num_heads, head_dim);
+
+
+    // compute dK, dV
     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockN);
     dim3 dimBlock(64);
-    int maxbytes = 65536;
+
 
     cudaFuncSetAttribute(compute_dq_dk_dv_kernel_v1, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     compute_dq_dk_dv_kernel_v1<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
