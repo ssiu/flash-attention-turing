@@ -657,6 +657,11 @@ void compute_dq_kernel_v1(
 
 
 
+//     gmem_ptr[16b](0x2a78cd208000) o (_32,_128,4):(128,_1,4096)
+//     gmem_ptr[16b](0x2a78cd210000) o (_32,_128,4):(128,_1,4096)
+//     gmem_ptr[32b](0x2a78cd240200) o ((_32)):((_1))
+//     gmem_ptr[16b](0x2a78cd220200) o (_32,_128):(128,_1)
+//     gmem_ptr[16b](0x2a78cd228200) o (_32,_128):(128,_1)
 
     // K
     Tensor mK = make_tensor(make_gmem_ptr(k_ptr),
@@ -711,6 +716,8 @@ void compute_dq_kernel_v1(
         print(gdO);
         print("\n");
         print(gdQ);
+        print("\n");
+        print("gD[0] = %f\n", gD((0)));
         print("\n");
     }
 
