@@ -8,17 +8,17 @@ std::vector<torch::Tensor> flash_fwd(torch::Tensor q,
                                      int seq_len,
                                      int num_heads,
                                      int head_dim);
-
-std::vector<torch::Tensor> flash_bwd_v1(torch::Tensor q,
-                                     torch::Tensor k,
-                                     torch::Tensor v,
-                                     torch::Tensor o,
-                                     torch::Tensor l,
-                                     torch::Tensor d_o,
-                                     int batch_size,
-                                     int seq_len,
-                                     int num_heads,
-                                     int head_dim);
+//
+//std::vector<torch::Tensor> flash_bwd_v1(torch::Tensor q,
+//                                     torch::Tensor k,
+//                                     torch::Tensor v,
+//                                     torch::Tensor o,
+//                                     torch::Tensor l,
+//                                     torch::Tensor d_o,
+//                                     int batch_size,
+//                                     int seq_len,
+//                                     int num_heads,
+//                                     int head_dim);
 
 
 std::vector<torch::Tensor> flash_bwd_v2(torch::Tensor q,
