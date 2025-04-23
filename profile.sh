@@ -12,6 +12,8 @@ pip install wheel
 pip install .
 
 
+echo "Starting profiling"
+
 ncu -f --target-processes all --set full \
 --import-source on \
 -o profile_flash_attn python utils/test_flash_backward.py 4 4096 32 128
