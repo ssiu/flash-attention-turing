@@ -387,38 +387,40 @@ void compute_dq_kernel_v2(
     copy(gmem_tiled_copy_QKV, tdOgdO, tdOsdO);
     clear(tdQrdQ_float);
 
-    if (thread0()) {
-        print_tensor(tSrS_float);
-    }
 
-//     CUTE_NO_UNROLL
-//     for (int kv_tile = 0; kv_tile < KV_TILE_MAX; ++kv_tile) {
-//         clear(tSrS_float);
-//         clear(tdPrdP_float);
-//
-//         copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile), tKsK);
-//         copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile), tVsV);
-//
-//         __syncthreads();
-//
-//         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
-//         gemm(thr_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
-//
-//
-//         __syncthreads();
-//
-//         // load rL, rD from gmem to rmem
-//         for (int i=0; i<2; i++) {
-//             rL[i] = gL((thread_row + 8 * i));
-//             rD[i] = gD((thread_row + 8 * i));
-//         }
-//
-//
-//         // rescale S
-//         for (int i=0;i< tSrS_float.size();i ++ ) {
-//             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
-//         }
-//
+
+    CUTE_NO_UNROLL
+    for (int kv_tile = 0; kv_tile < KV_TILE_MAX; ++kv_tile) {
+        clear(tSrS_float);
+        clear(tdPrdP_float);
+
+        copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile), tKsK);
+        copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile), tVsV);
+
+        __syncthreads();
+
+        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+        gemm(thr_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
+
+
+        __syncthreads();
+
+        if (thread0()) {
+            print_tensor(tSrS_float);
+        }
+
+        // load rL, rD from gmem to rmem
+        for (int i=0; i<2; i++) {
+            rL[i] = gL((thread_row + 8 * i));
+            rD[i] = gD((thread_row + 8 * i));
+        }
+
+
+        // rescale S
+        for (int i=0;i< tSrS_float.size();i ++ ) {
+            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+        }
+
 //         if (thread0()) {
 //             print_tensor(tSrS_float);
 //         }
@@ -488,12 +490,12 @@ void compute_dq_kernel_v2(
 //         gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
 //
 //         __syncthreads();
-//
-//
-//     }
-//
-//
-//
+
+
+    }
+
+
+
 //     // rescale by head dim
 //     for (int i=0;i< tdQrdQ_float.size();i ++ ) {
 //         tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
