@@ -388,103 +388,103 @@ void compute_dq_kernel_v2(
     clear(tdQrdQ_float);
 
 
-    CUTE_NO_UNROLL
-    for (int kv_tile = 0; kv_tile < KV_TILE_MAX; ++kv_tile) {
-        clear(tSrS_float);
-        clear(tdPrdP_float);
-
-        copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile), tKsK);
-        copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile), tVsV);
-
-        __syncthreads();
-
-        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
-        gemm(thr_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
-
-
-        __syncthreads();
-
-        // load rL, rD from gmem to rmem
-        for (int i=0; i<2; i++) {
-            rL[i] = gL((thread_row + 8 * i));
-            rD[i] = gD((thread_row + 8 * i));
-        }
-
-
-        // rescale S
-        for (int i=0;i< tSrS_float.size();i ++ ) {
-            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
-        }
-
-        if (thread0()) {
-            print_tensor(tSrS_float);
-        }
-
-        //copy(tSrS_float, tSsS_float);
-
-        // compute P = exp(S-l)
-
-        // P has size blockM x blockN, partitioned by mma_S
-        // gL has size (32), need to figure the L_i for each S_ij
-
-        Tensor tSrP_float = tSrS_float;
-        Tensor tdPrdS_float = tdPrdP_float;
-
-        for (int i=0; i<2; i++) {
-            for (int j=0; j< tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                tSrP_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
-            }
-        }
-
-//         if (thread0()) {
-//             print_tensor(tSrP_float);
+//     CUTE_NO_UNROLL
+//     for (int kv_tile = 0; kv_tile < KV_TILE_MAX; ++kv_tile) {
+//         clear(tSrS_float);
+//         clear(tdPrdP_float);
+//
+//         copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile), tKsK);
+//         copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile), tVsV);
+//
+//         __syncthreads();
+//
+//         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+//         gemm(thr_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
+//
+//
+//         __syncthreads();
+//
+//         // load rL, rD from gmem to rmem
+//         for (int i=0; i<2; i++) {
+//             rL[i] = gL((thread_row + 8 * i));
+//             rD[i] = gD((thread_row + 8 * i));
+//         }
+//
+//
+//         // rescale S
+//         for (int i=0;i< tSrS_float.size();i ++ ) {
+//             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
 //         }
 //
 //         if (thread0()) {
-//             print_tensor(tdPrdP_float);
+//             print_tensor(tSrS_float);
 //         }
-
-        // compute dS = P \circ (dP - D)
-        // tS has the same mma layout as tdP
-        for (int i=0; i<2; i++) {
-            for (int j=0; j< tdPrdP_float(make_coord(_,i),_,_).size(); j++) {
-                tdPrdS_float(make_coord(_,i),_,_)[j] = tSrP_float(make_coord(_,i),_,_)[j] * (tdPrdP_float(make_coord(_,i),_,_)[j] - rD[i]);
-            }
-        }
-
-
-//         if (thread0()) {
-//             print_tensor(tdPrdS_float);
+//
+//         //copy(tSrS_float, tSsS_float);
+//
+//         // compute P = exp(S-l)
+//
+//         // P has size blockM x blockN, partitioned by mma_S
+//         // gL has size (32), need to figure the L_i for each S_ij
+//
+//         Tensor tSrP_float = tSrS_float;
+//         Tensor tdPrdS_float = tdPrdP_float;
+//
+//         for (int i=0; i<2; i++) {
+//             for (int j=0; j< tSrS_float(make_coord(_,i),_,_).size(); j++) {
+//                 tSrP_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
+//             }
 //         }
-
-        //convert P from fp32 to fp16
-        constexpr int num_element = decltype(size(tSrP_float))::value;
-
-        cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrP_float.data()));
-
-        Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
-
-
-        // convert dS from fp32 to fp16
-        constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
-
-        cutlass::NumericArrayConverter<half_t, float, num_element_dS> convert_op_dS;
-        auto frag_dS = convert_op_dS(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
-
-        Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
-
-
-        copy(tSrP, tSsP);
-        copy(tdPrdS, tdPsdS);
-
-
-        __syncthreads();
-
-
-        gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
-
-        __syncthreads();
+//
+// //         if (thread0()) {
+// //             print_tensor(tSrP_float);
+// //         }
+// //
+// //         if (thread0()) {
+// //             print_tensor(tdPrdP_float);
+// //         }
+//
+//         // compute dS = P \circ (dP - D)
+//         // tS has the same mma layout as tdP
+//         for (int i=0; i<2; i++) {
+//             for (int j=0; j< tdPrdP_float(make_coord(_,i),_,_).size(); j++) {
+//                 tdPrdS_float(make_coord(_,i),_,_)[j] = tSrP_float(make_coord(_,i),_,_)[j] * (tdPrdP_float(make_coord(_,i),_,_)[j] - rD[i]);
+//             }
+//         }
+//
+//
+// //         if (thread0()) {
+// //             print_tensor(tdPrdS_float);
+// //         }
+//
+//         //convert P from fp32 to fp16
+//         constexpr int num_element = decltype(size(tSrP_float))::value;
+//
+//         cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+//         auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrP_float.data()));
+//
+//         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
+//
+//
+//         // convert dS from fp32 to fp16
+//         constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
+//
+//         cutlass::NumericArrayConverter<half_t, float, num_element_dS> convert_op_dS;
+//         auto frag_dS = convert_op_dS(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
+//
+//         Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
+//
+//
+//         copy(tSrP, tSsP);
+//         copy(tdPrdS, tdPsdS);
+//
+//
+//         __syncthreads();
+//
+//
+//         gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
+//
+//         __syncthreads();
 
 
     }
