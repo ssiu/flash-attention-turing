@@ -143,7 +143,7 @@ void compute_dot_do_o(half_t* o_ptr,
 
 
 __global__ __launch_bounds__(64)
-void compute_dq_dk_dv_kernel_v2(
+void compute_dk_dv_kernel_v2(
     half_t const* q_ptr,
     half_t const* k_ptr,
     half_t const* v_ptr,
@@ -1000,8 +1000,8 @@ flash_bwd_v2(torch::Tensor q,
     dim3 dimBlock(64);
 
 
-    cudaFuncSetAttribute(compute_dq_dk_dv_kernel_v2, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    compute_dq_dk_dv_kernel_v2<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
+    cudaFuncSetAttribute(compute_dk_dv_kernel_v2, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    compute_dk_dv_kernel_v2<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
                                             k_ptr,
                                             v_ptr,
                                             l_ptr,
