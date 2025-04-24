@@ -988,8 +988,8 @@ flash_bwd_v2(torch::Tensor q,
                     batch_size, seq_len, num_heads, head_dim);
 
     // compute dQ
-    dim3 dimGrid_dq(batch_size, num_heads, seq_len / kBlockM);
-    dim3 dimBlock_dq(64);
+    dim3 dimGrid_dq(batch_size, num_heads, seq_len / 64);
+    dim3 dimBlock_dq(128);
     int maxbytes = 65536;
 
 
