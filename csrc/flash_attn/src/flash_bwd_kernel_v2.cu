@@ -142,6 +142,346 @@ void compute_dot_do_o(half_t* o_ptr,
 
 
 
+__global__ __launch_bounds__(128)
+void compute_dq_kernel_v2(
+    half_t const* q_ptr,
+    half_t const* k_ptr,
+    half_t const* v_ptr,
+    float const* l_ptr,
+    float const* d_ptr,
+    half_t const* do_ptr,
+    half_t* dq_ptr,
+    int batch_size, int seq_len, int num_heads, int head_dim
+)
+{
+    using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
+
+    using TiledMma_S = TiledMMA<
+        MMA_Atom_Arch,
+        Layout<Shape<_4,_1,_1>>,
+        Tile<_64, _32, _8>>;
+
+    using TiledMma_dP = TiledMMA<
+        MMA_Atom_Arch,
+        Layout<Shape<_8,_1,_1>>,
+        Tile<_64, _32, _8>>;
+
+    using TiledMma_dQ = TiledMMA<
+        MMA_Atom_Arch,
+        Layout<Shape<_8,_1,_1>>,
+        Tile<_64, _128, _8>>;
+
+    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
+
+    using GmemLayoutAtomQKV = Layout<Shape <_8, _8>, Stride<_8, _1>>;
+
+    using GmemTiledCopyQKV = decltype(
+                make_tiled_copy(Copy_Atom<Gmem_copy_struct, half_t>{},
+                                GmemLayoutAtomQKV{},
+                                Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
+
+
+    using SmemLayoutAtom = decltype(
+                    Layout<Shape<_64, _32>,
+                    Stride<_32, _1>>{});
+
+    using SmemLayoutAtomTranposed = decltype(
+                    Layout<Shape<_32, _64>,
+                    Stride<_1, _32>>{});
+
+    using SmemLayoutQ = decltype(
+                            Layout<Shape<_64, _128>,
+                            Stride<_128, _1>>{});
+
+    using SmemLayoutQTransposed = decltype(
+                                      Layout<Shape<_128, _64>,
+                                      Stride<_1, _128>>{});
+
+
+
+    using SmemLayoutKV = decltype(
+           Layout<Shape<_32, _128>,
+           Stride<_128, _1>>{});
+
+    using SmemLayoutKVTransposed = decltype(
+           Layout<Shape<_128, _32>,
+           Stride<_1, _128>>{});
+
+    constexpr int kBlockM = 64;
+    constexpr int kBlockN = 32;
+    constexpr int kHeadDim = 128;
+
+
+
+//     gmem_ptr[16b](0x2a78cd208000) o (_32,_128,4):(128,_1,4096)
+//     gmem_ptr[16b](0x2a78cd210000) o (_32,_128,4):(128,_1,4096)
+//     gmem_ptr[32b](0x2a78cd240200) o ((_32)):((_1))
+//     gmem_ptr[16b](0x2a78cd220200) o (_32,_128):(128,_1)
+//     gmem_ptr[16b](0x2a78cd228200) o (_32,_128):(128,_1)
+
+    // Q
+    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr),
+                            make_shape(batch_size, seq_len, num_heads, head_dim),
+                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gQ = local_tile(mQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(blockIdx.z, 0));
+
+    // K
+    Tensor mK = make_tensor(make_gmem_ptr(k_ptr),
+                            make_shape(batch_size, seq_len, num_heads, head_dim),
+                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+                           make_coord(_, 0));
+
+    // V
+    Tensor mV = make_tensor(make_gmem_ptr(v_ptr),
+                            make_shape(batch_size, seq_len, num_heads, head_dim),
+                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+                           make_coord(_, 0));
+
+    Tensor mL = make_tensor(make_gmem_ptr(l_ptr),
+                             make_shape(batch_size, num_heads, seq_len),
+                             make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
+
+    Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
+                           make_coord(blockIdx.z));
+
+    Tensor mD = make_tensor(make_gmem_ptr(d_ptr),
+                             make_shape(batch_size, num_heads, seq_len),
+                             make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
+
+    Tensor gD = local_tile(mD(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
+                           make_coord(blockIdx.z));
+
+    // dO
+    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr),
+                             make_shape(batch_size, seq_len, num_heads, head_dim),
+                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gdO = local_tile(mdO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(blockIdx.z, 0));
+
+
+
+    // dQ
+    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr),
+                            make_shape(batch_size, seq_len, num_heads, head_dim),
+                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gdQ = local_tile(mdQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(blockIdx.z, 0));
+
+    if (thread0()) {
+        print(gK);
+        print("\n");
+        print(gV);
+        print("\n");
+        print(gD);
+        print("\n");
+        print(gdO);
+        print("\n");
+        print(gdQ);
+        print("\n");
+        print("gD[0] = %f\n", gD((0)));
+        print("\n");
+    }
+
+    extern __shared__ char smem_[];
+
+    // 16KB
+    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
+    Tensor sQt = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQTransposed{});
+
+    // 8KB
+    Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});
+    Tensor sKt = make_tensor(sQ.data() + size(sQ), SmemLayoutKVTransposed{});
+
+    // 8KB
+    Tensor sV = make_tensor(sK.data() + size(sK), SmemLayoutKV{});
+
+    // 16KB
+    Tensor sdO = make_tensor(sV.data() + size(sV), SmemLayoutQ{});
+    Tensor sdOt = make_tensor(sV.data() + size(sV), SmemLayoutQTransposed{});
+
+    // 4KB
+    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});
+    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});
+
+    // 4KB
+    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
+    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});
+
+    int thread_id = threadIdx.x;
+    int lane_id = threadIdx.x % 32;
+    int warp_id = threadIdx.x / 32;
+
+    int thread_row = warp_id * 16 + lane_id / 4;
+
+    float rL[2];
+    float rD[2];
+
+    // Copy operation
+    GmemTiledCopyQKV gmem_tiled_copy_QKV;
+
+    ThrCopy thr_copy_QKV = gmem_tiled_copy_QKV.get_slice(threadIdx.x);
+
+    Tensor tQgQ = thr_copy_QKV.partition_S(gQ);
+    Tensor tQsQ = thr_copy_QKV.partition_D(sQ);
+
+    Tensor tKgK = thr_copy_QKV.partition_S(gK);
+    Tensor tKsK = thr_copy_QKV.partition_D(sK);
+
+    Tensor tVgV = thr_copy_QKV.partition_S(gV);
+    Tensor tVsV = thr_copy_QKV.partition_D(sV);
+
+    Tensor tdOgdO = thr_copy_QKV.partition_S(gdO);
+    Tensor tdOsdO = thr_copy_QKV.partition_D(sdO);
+
+    // S = QK^T
+    TiledMma_S tiled_mma_S;
+    ThrMMA thr_mma_S = tiled_mma_S.get_slice(threadIdx.x);
+    Tensor tSsQ = thr_mma_S.partition_A(sQ);
+    Tensor tSsK = thr_mma_S.partition_B(sK);
+    Tensor tSrS_float = partition_fragment_C(tiled_mma_S, Shape<Int<kBlockM>, Int<kBlockN>>{});
+    Tensor tSsP = thr_mma_S.partition_C(sP);
+
+
+    // dP = dOV^T
+    TiledMma_dP tiled_mma_dP;
+    ThrMMA thr_mma_dP = tiled_mma_dP.get_slice(threadIdx.x);
+    Tensor tdPgdO = thr_mma_dP.partition_A(gdO);
+    Tensor tdPsdO = thr_mma_dP.partition_A(sdO);
+    Tensor tdPgV = thr_mma_dP.partition_B(gV);
+    Tensor tdPsV = thr_mma_dP.partition_B(sV);
+    Tensor tdPrdP_float = partition_fragment_C(tiled_mma_dP, Shape<Int<kBlockM>, Int<kBlockN>>{});
+    Tensor tdPsdS = thr_mma_dP.partition_C(sdS);
+
+
+    // dQ = dSK
+    TiledMma_dQ tiled_mma_dQ;
+    ThrMMA thr_mma_dQ = tiled_mma_dQ.get_slice(threadIdx.x);
+    Tensor tdQsdS = thr_mma_dQ.partition_A(sdS);
+    Tensor tdQsKt = thr_mma_dQ.partition_B(sKt);
+    Tensor tdQrdQ_float = partition_fragment_C(tiled_mma_dQ, Shape<Int<kBlockM>, Int<kHeadDim>>{});
+    Tensor tdQgdQ = thr_mma_dP.partition_C(gdQ);
+
+
+
+    auto KV_TILE_MAX = size<3>(tKgK);
+
+    copy(gmem_tiled_copy_QKV, tQgQ, tQsQ);
+    copy(gmem_tiled_copy_QKV, tdOgdO, tdOsdO);
+
+
+    CUTE_NO_UNROLL
+    for (int kv_tile = 0; kv_tile < KV_TILE_MAX; ++kv_tile) {
+        clear(tSrS_float);
+        clear(tdPrdP_float);
+
+        copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile), tKsK);
+        copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile), tVsV);
+
+        __syncthreads();
+
+        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+        gemm(thr_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
+
+
+        __syncthreads();
+
+        // load rL, rD from gmem to rmem
+        for (int i=0; i<2; i++) {
+            rL[i] = gL((thread_row + 8 * i));
+            rD[i] = gD((thread_row + 8 * i));
+        }
+
+
+        // rescale S
+        for (int i=0;i< tSrS_float.size();i ++ ) {
+            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+        }
+
+        //copy(tSrS_float, tSsS_float);
+
+        // compute P = exp(S-l)
+
+        // P has size blockM x blockN, partitioned by mma_S
+        // gL has size (32), need to figure the L_i for each S_ij
+
+        Tensor tSrP_float = tSrS_float;
+        Tensor tdPrdS_float = tdPrdP_float;
+
+        for (int i=0; i<2; i++) {
+            for (int j=0; j< tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                tSrP_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
+            }
+        }
+
+        // compute dS = P \circ (dP - D)
+        // tS has the same mma layout as tdP
+        for (int i=0; i<2; i++) {
+            for (int j=0; j< tdPrdP_float(make_coord(_,i),_,_).size(); j++) {
+                tdPrdS_float(make_coord(_,i),_,_)[j] = tSrP_float(make_coord(_,i),_,_)[j] * (tdPrdP_float(make_coord(_,i),_,_)[j] - rD[i]);
+            }
+        }
+
+
+        //convert P from fp32 to fp16
+        constexpr int num_element = decltype(size(tSrP_float))::value;
+
+        cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrP_float.data()));
+
+        Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
+
+
+        // convert dS from fp32 to fp16
+        constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
+
+        cutlass::NumericArrayConverter<half_t, float, num_element_dS> convert_op_dS;
+        auto frag_dS = convert_op_dS(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
+
+        Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
+
+
+        copy(tSrP, tSsP);
+        copy(tdPrdS, tdPsdS);
+
+
+        __syncthreads();
+
+
+        gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
+
+        __syncthreads();
+
+
+    }
+
+
+
+    // rescale by head dim
+    for (int i=0;i< tdQrdQ_float.size();i ++ ) {
+        tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
+    }
+
+
+    constexpr int num_element_dQ = decltype(size(tdQrdQ_float))::value;
+
+    cutlass::NumericArrayConverter<half_t, float, num_element_dQ> convert_op_dQ;
+    auto frag_dQ = convert_op_dQ(*reinterpret_cast<const cutlass::Array<float, num_element_dQ> *>(tdQrdQ_float.data()));
+
+    Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag_dQ), tdQrdQ_float.layout());
+
+    copy(tdQrdQ, tdQgdQ);
+
+}
+
+
 __global__ __launch_bounds__(64)
 void compute_dk_dv_kernel_v2(
     half_t const* q_ptr,
@@ -598,337 +938,7 @@ void compute_dk_dv_kernel_v2(
 }
 
 
-__global__ __launch_bounds__(64)
-void compute_dq_kernel_v2(
-    half_t const* q_ptr,
-    half_t const* k_ptr,
-    half_t const* v_ptr,
-    float const* l_ptr,
-    float const* d_ptr,
-    half_t const* do_ptr,
-    half_t* dq_ptr,
-    int batch_size, int seq_len, int num_heads, int head_dim
-)
-{
-    using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
-    using TiledMma_S = TiledMMA<
-        MMA_Atom_Arch,
-        Layout<Shape<_2,_1,_1>>,
-        Tile<_32, _32, _8>>;
-
-    using TiledMma_dP = TiledMMA<
-        MMA_Atom_Arch,
-        Layout<Shape<_2,_1,_1>>,
-        Tile<_32, _32, _8>>;
-
-    using TiledMma_dQ = TiledMMA<
-        MMA_Atom_Arch,
-        Layout<Shape<_2,_1,_1>>,
-        Tile<_32, _128, _8>>;
-
-    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
-
-    using GmemLayoutAtomQKV = Layout<Shape <_8, _8>, Stride<_8, _1>>;
-
-    using GmemTiledCopyQKV = decltype(
-                make_tiled_copy(Copy_Atom<Gmem_copy_struct, half_t>{},
-                                GmemLayoutAtomQKV{},
-                                Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
-
-
-    using SmemLayoutAtom = decltype(
-                    Layout<Shape<_32, _32>,
-                    Stride<_32, _1>>{});
-
-    using SmemLayoutAtomTranposed = decltype(
-                    Layout<Shape<_32, _32>,
-                    Stride<_1, _32>>{});
-
-    using SmemLayoutQ = decltype(
-                            Layout<Shape<_32, _128>,
-                            Stride<_128, _1>>{});
-
-    using SmemLayoutQTransposed = decltype(
-                                      Layout<Shape<_128, _32>,
-                                      Stride<_1, _128>>{});
-
-
-
-    using SmemLayoutKV = decltype(
-           Layout<Shape<_32, _128>,
-           Stride<_128, _1>>{});
-
-    using SmemLayoutKVTransposed = decltype(
-           Layout<Shape<_128, _32>,
-           Stride<_1, _128>>{});
-
-    constexpr int kBlockM = 32;
-    constexpr int kBlockN = 32;
-    constexpr int kHeadDim = 128;
-
-
-
-//     gmem_ptr[16b](0x2a78cd208000) o (_32,_128,4):(128,_1,4096)
-//     gmem_ptr[16b](0x2a78cd210000) o (_32,_128,4):(128,_1,4096)
-//     gmem_ptr[32b](0x2a78cd240200) o ((_32)):((_1))
-//     gmem_ptr[16b](0x2a78cd220200) o (_32,_128):(128,_1)
-//     gmem_ptr[16b](0x2a78cd228200) o (_32,_128):(128,_1)
-
-    // Q
-    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
-
-    Tensor gQ = local_tile(mQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
-
-    // K
-    Tensor mK = make_tensor(make_gmem_ptr(k_ptr),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
-
-    Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
-                           make_coord(_, 0));
-
-    // V
-    Tensor mV = make_tensor(make_gmem_ptr(v_ptr),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
-
-    Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
-                           make_coord(_, 0));
-
-    Tensor mL = make_tensor(make_gmem_ptr(l_ptr),
-                             make_shape(batch_size, num_heads, seq_len),
-                             make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
-
-    Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
-                           make_coord(blockIdx.z));
-
-    Tensor mD = make_tensor(make_gmem_ptr(d_ptr),
-                             make_shape(batch_size, num_heads, seq_len),
-                             make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
-
-    Tensor gD = local_tile(mD(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
-                           make_coord(blockIdx.z));
-
-    // dO
-    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr),
-                             make_shape(batch_size, seq_len, num_heads, head_dim),
-                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
-
-    Tensor gdO = local_tile(mdO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
-
-
-
-    // dQ
-    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
-
-    Tensor gdQ = local_tile(mdQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
-
-//     if (thread0()) {
-//         print(gK);
-//         print("\n");
-//         print(gV);
-//         print("\n");
-//         print(gD);
-//         print("\n");
-//         print(gdO);
-//         print("\n");
-//         print(gdQ);
-//         print("\n");
-//         print("gD[0] = %f\n", gD((0)));
-//         print("\n");
-//     }
-
-    extern __shared__ char smem_[];
-
-    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});        // 8KB
-    Tensor sQt = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQTransposed{});
-    Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});   // 8KB
-    Tensor sKt = make_tensor(sQ.data() + size(sQ), SmemLayoutKVTransposed{});   // 8KB
-
-    Tensor sV = make_tensor(sK.data() + size(sK), SmemLayoutKV{});
-
-    Tensor sdO = make_tensor(sV.data() + size(sV), SmemLayoutQ{});                            // 8KB
-    Tensor sdOt = make_tensor(sV.data() + size(sV), SmemLayoutQTransposed{});                 // 8KB
-
-    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});                         // 2KB
-    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});               // 2KB
-
-    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});     // 2KB
-    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});     // 2KB
-
-    int thread_id = threadIdx.x;
-    int lane_id = threadIdx.x % 32;
-    int warp_id = threadIdx.x / 32;
-
-    int thread_row = warp_id * 16 + lane_id / 4;
-
-    float rL[2];
-    float rD[2];
-
-    // Copy operation
-    GmemTiledCopyQKV gmem_tiled_copy_QKV;
-
-    ThrCopy thr_copy_QKV = gmem_tiled_copy_QKV.get_slice(threadIdx.x);
-
-    Tensor tQgQ = thr_copy_QKV.partition_S(gQ);
-    Tensor tQsQ = thr_copy_QKV.partition_D(sQ);
-
-    Tensor tKgK = thr_copy_QKV.partition_S(gK);
-    Tensor tKsK = thr_copy_QKV.partition_D(sK);
-
-    Tensor tVgV = thr_copy_QKV.partition_S(gV);
-    Tensor tVsV = thr_copy_QKV.partition_D(sV);
-
-    Tensor tdOgdO = thr_copy_QKV.partition_S(gdO);
-    Tensor tdOsdO = thr_copy_QKV.partition_D(sdO);
-
-    // S = QK^T
-    TiledMma_S tiled_mma_S;
-    ThrMMA thr_mma_S = tiled_mma_S.get_slice(threadIdx.x);
-    Tensor tSsQ = thr_mma_S.partition_A(sQ);
-    Tensor tSsK = thr_mma_S.partition_B(sK);
-    Tensor tSrS_float = partition_fragment_C(tiled_mma_S, Shape<Int<kBlockM>, Int<kBlockN>>{});
-    Tensor tSsP = thr_mma_S.partition_C(sP);
-
-
-    // dP = dOV^T
-    TiledMma_dP tiled_mma_dP;
-    ThrMMA thr_mma_dP = tiled_mma_dP.get_slice(threadIdx.x);
-    Tensor tdPgdO = thr_mma_dP.partition_A(gdO);
-    Tensor tdPsdO = thr_mma_dP.partition_A(sdO);
-    Tensor tdPgV = thr_mma_dP.partition_B(gV);
-    Tensor tdPsV = thr_mma_dP.partition_B(sV);
-    Tensor tdPrdP_float = partition_fragment_C(tiled_mma_dP, Shape<Int<kBlockM>, Int<kBlockN>>{});
-    Tensor tdPsdS = thr_mma_dP.partition_C(sdS);
-
-
-    // dQ = dSK
-    TiledMma_dQ tiled_mma_dQ;
-    ThrMMA thr_mma_dQ = tiled_mma_dQ.get_slice(threadIdx.x);
-    Tensor tdQsdS = thr_mma_dQ.partition_A(sdS);
-    Tensor tdQsKt = thr_mma_dQ.partition_B(sKt);
-    Tensor tdQrdQ_float = partition_fragment_C(tiled_mma_dQ, Shape<Int<kBlockM>, Int<kHeadDim>>{});
-    Tensor tdQgdQ = thr_mma_dP.partition_C(gdQ);
-
-
-
-    auto KV_TILE_MAX = size<3>(tKgK);
-
-    copy(gmem_tiled_copy_QKV, tQgQ, tQsQ);
-    copy(gmem_tiled_copy_QKV, tdOgdO, tdOsdO);
-
-
-    CUTE_NO_UNROLL
-    for (int kv_tile = 0; kv_tile < KV_TILE_MAX; ++kv_tile) {
-        clear(tSrS_float);
-        clear(tdPrdP_float);
-
-        copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile), tKsK);
-        copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile), tVsV);
-
-        __syncthreads();
-
-        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
-        gemm(thr_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
-
-
-        __syncthreads();
-
-        // load rL, rD from gmem to rmem
-        for (int i=0; i<2; i++) {
-            rL[i] = gL((thread_row + 8 * i));
-            rD[i] = gD((thread_row + 8 * i));
-        }
-
-
-        // rescale S
-        for (int i=0;i< tSrS_float.size();i ++ ) {
-            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
-        }
-
-        //copy(tSrS_float, tSsS_float);
-
-        // compute P = exp(S-l)
-
-        // P has size blockM x blockN, partitioned by mma_S
-        // gL has size (32), need to figure the L_i for each S_ij
-
-        Tensor tSrP_float = tSrS_float;
-        Tensor tdPrdS_float = tdPrdP_float;
-
-        for (int i=0; i<2; i++) {
-            for (int j=0; j< tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                tSrP_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
-            }
-        }
-
-        // compute dS = P \circ (dP - D)
-        // tS has the same mma layout as tdP
-        for (int i=0; i<2; i++) {
-            for (int j=0; j< tdPrdP_float(make_coord(_,i),_,_).size(); j++) {
-                tdPrdS_float(make_coord(_,i),_,_)[j] = tSrP_float(make_coord(_,i),_,_)[j] * (tdPrdP_float(make_coord(_,i),_,_)[j] - rD[i]);
-            }
-        }
-
-
-        //convert P from fp32 to fp16
-        constexpr int num_element = decltype(size(tSrP_float))::value;
-
-        cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrP_float.data()));
-
-        Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
-
-
-        // convert dS from fp32 to fp16
-        constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
-
-        cutlass::NumericArrayConverter<half_t, float, num_element_dS> convert_op_dS;
-        auto frag_dS = convert_op_dS(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
-
-        Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
-
-
-        copy(tSrP, tSsP);
-        copy(tdPrdS, tdPsdS);
-
-
-        __syncthreads();
-
-
-        gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
-
-        __syncthreads();
-
-
-    }
-
-
-
-    // rescale by head dim
-    for (int i=0;i< tdQrdQ_float.size();i ++ ) {
-        tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
-    }
-
-
-    constexpr int num_element_dQ = decltype(size(tdQrdQ_float))::value;
-
-    cutlass::NumericArrayConverter<half_t, float, num_element_dQ> convert_op_dQ;
-    auto frag_dQ = convert_op_dQ(*reinterpret_cast<const cutlass::Array<float, num_element_dQ> *>(tdQrdQ_float.data()));
-
-    Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag_dQ), tdQrdQ_float.layout());
-
-    copy(tdQrdQ, tdQgdQ);
-
-}
 
 
 std::vector<torch::Tensor>
