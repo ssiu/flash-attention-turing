@@ -406,6 +406,7 @@ void compute_dq_kernel_v2(
         __syncthreads();
 
         if (thread0()) {
+            print(tSrS_float);
             print_tensor(tSrS_float);
         }
 
