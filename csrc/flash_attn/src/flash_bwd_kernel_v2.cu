@@ -408,9 +408,9 @@ void compute_dq_kernel_v2(
             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
 
-        if (thread0()) {
-            print_tensor(tSrS_float);
-        }
+//         if (thread0()) {
+//             print_tensor(tSrS_float);
+//         }
 
         //copy(tSrS_float, tSsS_float);
 
