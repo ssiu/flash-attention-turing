@@ -202,30 +202,30 @@ void compute_dq_dk_dv_kernel_v3(
 
 
     using SmemLayoutAtom = decltype(
-                    Layout<Shape<_32, _32>,
-                    Stride<_32, _1>>{});
+                    Layout<Shape<Int<kBlockM>, Int<kBlockN>>,
+                    Stride<Int<kBlockN>, _1>>{});
 
     using SmemLayoutAtomTranposed = decltype(
-                    Layout<Shape<_32, _32>,
-                    Stride<_1, _32>>{});
+                    Layout<Shape<Int<kBlockN>, Int<kBlockM>>,
+                    Stride<_1, Int<kBlockN>>>{});
     
     using SmemLayoutQ = decltype(
-                            Layout<Shape<_32, _128>,
-                            Stride<_128, _1>>{});
+                            Layout<Shape<Int<kBlockM>, Int<kHeadDim>>,
+                            Stride<Int<kHeadDim>, _1>>{});
 
     using SmemLayoutQTransposed = decltype(
-                                      Layout<Shape<_128, _32>,
-                                      Stride<_1, _128>>{});
+                                      Layout<Shape<Int<kHeadDim>, Int<kBlockM>>,
+                                      Stride<_1, Int<kHeadDim>>>{});
 
 
 
     using SmemLayoutKV = decltype(
-           Layout<Shape<_32, _128>,
-           Stride<_128, _1>>{});
+           Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
+           Stride<Int<kHeadDim>, _1>>{});
 
     using SmemLayoutKVTransposed = decltype(
-           Layout<Shape<_128, _32>,
-           Stride<_1, _128>>{});
+           Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
+           Stride<_1, Int<kHeadDim>>>{});
 
 
     // Q
