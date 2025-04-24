@@ -152,6 +152,7 @@ void compute_dq_dk_dv_kernel_v3(
     half_t const* do_ptr,
     half_t* dk_ptr,
     half_t* dv_ptr,
+    half_t* dq_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {   
@@ -660,6 +661,7 @@ flash_bwd_v3(torch::Tensor q,
                                             do_ptr,
                                             dk_ptr,
                                             dv_ptr,
+                                            dq_ptr,
                                             batch_size, seq_len, num_heads, head_dim);
 
     return { dq, dk, dv };
