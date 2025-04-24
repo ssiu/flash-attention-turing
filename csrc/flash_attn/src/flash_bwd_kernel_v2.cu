@@ -428,13 +428,13 @@ void compute_dq_kernel_v2(
             }
         }
 
-        if (thread0()) {
-            print_tensor(tSrP_float);
-        }
-
-        if (thread0()) {
-            print_tensor(tdPrdP_float);
-        }
+//         if (thread0()) {
+//             print_tensor(tSrP_float);
+//         }
+//
+//         if (thread0()) {
+//             print_tensor(tdPrdP_float);
+//         }
 
         // compute dS = P \circ (dP - D)
         // tS has the same mma layout as tdP
@@ -445,9 +445,9 @@ void compute_dq_kernel_v2(
         }
 
 
-        if (thread0()) {
-            print_tensor(tdPrdS_float);
-        }
+//         if (thread0()) {
+//             print_tensor(tdPrdS_float);
+//         }
 
         //convert P from fp32 to fp16
         constexpr int num_element = decltype(size(tSrP_float))::value;
