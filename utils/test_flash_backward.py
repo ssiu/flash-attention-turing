@@ -155,9 +155,9 @@ def main():
         print(f"i = {i}, dQ = {d_query[0,i,0,0]}, dQ_torch = {d_query_torch[0,i,0,0]}")
 
 
-    print("##################################################")
-    for i in range(128):
-        print(f"i = {i}, l = {l[0,0,i]}")
+    # print("##################################################")
+    # for i in range(128):
+    #     print(f"i = {i}, l = {l[0,0,i]}")
 
 if __name__ == "__main__":
     main()
