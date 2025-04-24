@@ -408,10 +408,10 @@ void compute_dq_kernel_v2(
 
         __syncthreads();
 
-        if (thread0()) {
-            print(tSrS_float);
-            print_tensor(tSrS_float);
-        }
+//         if (thread0() && kv_tile == 0) {
+//             print(tSrS_float);
+//             print_tensor(tSrS_float);
+//         }
 
         //convert P from fp32 to fp16
         constexpr int num_element = decltype(size(tSrS_float))::value;
@@ -424,22 +424,34 @@ void compute_dq_kernel_v2(
         copy(tSrS, tSsP);
         __syncthreads();
 
-        if (thread0()) {
-            print(tSrS_float);
+        if (thread0() && kv_tile==0) {
             print_tensor(sP);
         }
 
-//         // load rL, rD from gmem to rmem
-//         for (int i=0; i<2; i++) {
-//             rL[i] = gL((thread_row + 8 * i));
-//             rD[i] = gD((thread_row + 8 * i));
-//         }
-//
-//
-//         // rescale S
-//         for (int i=0;i< tSrS_float.size();i ++ ) {
-//             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
-//         }
+        // load rL, rD from gmem to rmem
+        for (int i=0; i<2; i++) {
+            rL[i] = gL((thread_row + 8 * i));
+            rD[i] = gD((thread_row + 8 * i));
+        }
+
+
+        // rescale S
+        for (int i=0;i< tSrS_float.size();i ++ ) {
+            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+        }
+
+
+        Tensor tSrS = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+
+        copy(tSrS, tSsP);
+        __syncthreads();
+
+        if (thread0() && kv_tile==0) {
+            print_tensor(sP);
+        }
+
+
+
 
 //         if (thread0()) {
 //             print_tensor(tSrS_float);
