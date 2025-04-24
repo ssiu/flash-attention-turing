@@ -166,28 +166,28 @@ void compute_dq_dk_dv_kernel_v3(
     
     using TiledMma_S = TiledMMA<
         MMA_Atom_Arch,
-        Layout<Shape<_2,_1,_1>>,
+        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
         Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
 
     using TiledMma_dP = TiledMMA<
         MMA_Atom_Arch,
-        Layout<Shape<_2,_1,_1>>,
+        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
         Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
 
     using TiledMma_dV = TiledMMA<
         MMA_Atom_Arch,
-        Layout<Shape<_2,_1,_1>>,
+        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
         Tile<Int<kBlockN>, Int<kHeadDim>, _8>>;
 
     using TiledMma_dK = TiledMMA<
         MMA_Atom_Arch,
-        Layout<Shape<_2,_1,_1>>,
+        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
         Tile<Int<kBlockN>, Int<kHeadDim>, _8>>;
 
 
     using TiledMma_dQ = TiledMMA<
         MMA_Atom_Arch,
-        Layout<Shape<_2,_1,_1>>,
+        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
         Tile<Int<kBlockM>, Int<kHeadDim>, _8>>;
 
 
