@@ -413,17 +413,17 @@ void compute_dq_kernel_v2(
             print_tensor(tSrS_float);
         }
 
-        // load rL, rD from gmem to rmem
-        for (int i=0; i<2; i++) {
-            rL[i] = gL((thread_row + 8 * i));
-            rD[i] = gD((thread_row + 8 * i));
-        }
-
-
-        // rescale S
-        for (int i=0;i< tSrS_float.size();i ++ ) {
-            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
-        }
+//         // load rL, rD from gmem to rmem
+//         for (int i=0; i<2; i++) {
+//             rL[i] = gL((thread_row + 8 * i));
+//             rD[i] = gD((thread_row + 8 * i));
+//         }
+//
+//
+//         // rescale S
+//         for (int i=0;i< tSrS_float.size();i ++ ) {
+//             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+//         }
 
 //         if (thread0()) {
 //             print_tensor(tSrS_float);
