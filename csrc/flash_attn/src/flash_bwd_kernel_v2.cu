@@ -441,9 +441,9 @@ void compute_dq_kernel_v2(
         }
 
 
-        Tensor tSrS = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+        Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
 
-        copy(tSrS, tSsP);
+        copy(tSrP, tSsP);
         __syncthreads();
 
         if (thread0() && kv_tile==0) {
