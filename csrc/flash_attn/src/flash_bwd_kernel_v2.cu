@@ -280,6 +280,8 @@ void compute_dq_kernel_v2(
         print("\n");
         print(gV);
         print("\n");
+        print(gL);
+        print("\n");
         print(gD);
         print("\n");
         print(gdO);
