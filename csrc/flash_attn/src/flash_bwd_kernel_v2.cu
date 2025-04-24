@@ -485,26 +485,26 @@ void compute_dq_kernel_v2(
 //         gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
 //
 //         __syncthreads();
-
-
-    }
-
-
-
-    // rescale by head dim
-    for (int i=0;i< tdQrdQ_float.size();i ++ ) {
-        tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
-    }
-
-
-    constexpr int num_element_dQ = decltype(size(tdQrdQ_float))::value;
-
-    cutlass::NumericArrayConverter<half_t, float, num_element_dQ> convert_op_dQ;
-    auto frag_dQ = convert_op_dQ(*reinterpret_cast<const cutlass::Array<float, num_element_dQ> *>(tdQrdQ_float.data()));
-
-    Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag_dQ), tdQrdQ_float.layout());
-
-    copy(tdQrdQ, tdQgdQ);
+//
+//
+//     }
+//
+//
+//
+//     // rescale by head dim
+//     for (int i=0;i< tdQrdQ_float.size();i ++ ) {
+//         tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
+//     }
+//
+//
+//     constexpr int num_element_dQ = decltype(size(tdQrdQ_float))::value;
+//
+//     cutlass::NumericArrayConverter<half_t, float, num_element_dQ> convert_op_dQ;
+//     auto frag_dQ = convert_op_dQ(*reinterpret_cast<const cutlass::Array<float, num_element_dQ> *>(tdQrdQ_float.data()));
+//
+//     Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag_dQ), tdQrdQ_float.layout());
+//
+//     copy(tdQrdQ, tdQgdQ);
 
 }
 
