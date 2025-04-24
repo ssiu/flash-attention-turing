@@ -400,6 +400,9 @@ void compute_dq_kernel_v2(
         __syncthreads();
 
         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+
+        __syncthreads();
+
         gemm(thr_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 
 
