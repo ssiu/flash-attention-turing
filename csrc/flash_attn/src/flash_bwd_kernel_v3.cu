@@ -644,7 +644,7 @@ flash_bwd_v3(torch::Tensor q,
                     d_ptr,
                     batch_size, seq_len, num_heads, head_dim);
 
-    
+    int maxbytes = 65536;
 
     // compute dK, dV
     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockN);
