@@ -413,6 +413,22 @@ void compute_dq_kernel_v2(
             print_tensor(tSrS_float);
         }
 
+        //convert P from fp32 to fp16
+        constexpr int num_element = decltype(size(tSrS_float))::value;
+
+        cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
+
+        Tensor tSrS = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+
+        copy(tSrS, tSsP);
+        __syncthreads();
+
+        if (thread0()) {
+            print(tSrS_float);
+            print_tensor(sP);
+        }
+
 //         // load rL, rD from gmem to rmem
 //         for (int i=0; i<2; i++) {
 //             rL[i] = gL((thread_row + 8 * i));
