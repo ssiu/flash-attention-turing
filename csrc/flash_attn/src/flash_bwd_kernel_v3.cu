@@ -156,13 +156,18 @@ void compute_dq_dk_dv_kernel_v3(
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {   
-    
+    constexpr int kBlockM = 32;
+    constexpr int kBlockN = 32;
+    constexpr int kHeadDim = 128;
+    constexpr int kNWarps = 2;
+    constexpr int kNThreads = kNWarps * 32;
+
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
     
     using TiledMma_S = TiledMMA<
         MMA_Atom_Arch,
         Layout<Shape<_2,_1,_1>>,
-        Tile<_32, _32, _8>>;
+        Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
 
     using TiledMma_dP = TiledMMA<
         MMA_Atom_Arch,
@@ -222,9 +227,7 @@ void compute_dq_dk_dv_kernel_v3(
            Layout<Shape<_128, _32>,
            Stride<_1, _128>>{});
 
-    constexpr int kBlockM = 32;
-    constexpr int kBlockN = 32;
-    constexpr int kHeadDim = 128;
+
     // Q
     Tensor mQ = make_tensor(make_gmem_ptr(q_ptr),
                             make_shape(batch_size, seq_len, num_heads, head_dim),
