@@ -142,7 +142,7 @@ void compute_dot_do_o(half_t* o_ptr,
 
 
 
-__global__ __launch_bounds__(64)
+__global__ __launch_bounds__(128)
 void compute_dq_kernel_v2(
     half_t const* q_ptr,
     half_t const* k_ptr,
@@ -159,17 +159,17 @@ void compute_dq_kernel_v2(
     using TiledMma_S = TiledMMA<
         MMA_Atom_Arch,
         Layout<Shape<_4,_1,_1>>,
-        Tile<_32, _32, _8>>;
+        Tile<_64, _32, _8>>;
 
     using TiledMma_dP = TiledMMA<
         MMA_Atom_Arch,
-        Layout<Shape<_8,_1,_1>>,
-        Tile<_32, _32, _8>>;
+        Layout<Shape<_4,_1,_1>>,
+        Tile<_64, _32, _8>>;
 
     using TiledMma_dQ = TiledMMA<
         MMA_Atom_Arch,
-        Layout<Shape<_8,_1,_1>>,
-        Tile<_32, _128, _8>>;
+        Layout<Shape<_4,_1,_1>>,
+        Tile<_64, _128, _8>>;
 
     using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
 
@@ -182,19 +182,19 @@ void compute_dq_kernel_v2(
 
 
     using SmemLayoutAtom = decltype(
-                    Layout<Shape<_32, _32>,
+                    Layout<Shape<_64, _32>,
                     Stride<_32, _1>>{});
 
     using SmemLayoutAtomTranposed = decltype(
-                    Layout<Shape<_32, _32>,
+                    Layout<Shape<_32, _64>,
                     Stride<_1, _32>>{});
 
     using SmemLayoutQ = decltype(
-                            Layout<Shape<_32, _128>,
+                            Layout<Shape<_64, _128>,
                             Stride<_128, _1>>{});
 
     using SmemLayoutQTransposed = decltype(
-                                      Layout<Shape<_128, _32>,
+                                      Layout<Shape<_128, _64>,
                                       Stride<_1, _128>>{});
 
 
@@ -207,7 +207,7 @@ void compute_dq_kernel_v2(
            Layout<Shape<_128, _32>,
            Stride<_1, _128>>{});
 
-    constexpr int kBlockM = 32;
+    constexpr int kBlockM = 64;
     constexpr int kBlockN = 32;
     constexpr int kHeadDim = 128;
 
@@ -990,8 +990,8 @@ flash_bwd_v2(torch::Tensor q,
                     batch_size, seq_len, num_heads, head_dim);
 
     // compute dQ
-    dim3 dimGrid_dq(batch_size, num_heads, seq_len / 32);
-    dim3 dimBlock_dq(64);
+    dim3 dimGrid_dq(batch_size, num_heads, seq_len / 64);
+    dim3 dimBlock_dq(128);
     int maxbytes = 65536;
 
 
