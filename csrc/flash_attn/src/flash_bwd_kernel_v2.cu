@@ -275,22 +275,6 @@ void compute_dq_kernel_v2(
     Tensor gdQ = local_tile(mdQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
-    if (thread0()) {
-        print(gK);
-        print("\n");
-        print(gV);
-        print("\n");
-        print(gL);
-        print("\n");
-        print(gD);
-        print("\n");
-        print(gdO);
-        print("\n");
-        print(gdQ);
-        print("\n");
-        print("gD[0] = %f\n", gD((0)));
-        print("\n");
-    }
 
     extern __shared__ char smem_[];
 
@@ -316,6 +300,30 @@ void compute_dq_kernel_v2(
     // 4KB
     Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
     Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});
+
+    if (thread0()) {
+        print(gK);
+        print("\n");
+        print(gV);
+        print("\n");
+        print(gL);
+        print("\n");
+        print(gD);
+        print("\n");
+        print(gdO);
+        print("\n");
+        print(gdQ);
+        print("\n");
+        print("gD[0] = %f\n", gD((0)));
+        print("\n");
+        print(sK);
+        print("\n");
+        print(sV);
+        print("\n");
+        print(sdO);
+        print("\n");
+    }
+
 
     int thread_id = threadIdx.x;
     int lane_id = threadIdx.x % 32;
