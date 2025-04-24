@@ -387,6 +387,9 @@ void compute_dq_kernel_v2(
     copy(gmem_tiled_copy_QKV, tdOgdO, tdOsdO);
     clear(tdQrdQ_float);
 
+    if (thread0()) {
+        print_tensor(tSrS_float);
+    }
 
 //     CUTE_NO_UNROLL
 //     for (int kv_tile = 0; kv_tile < KV_TILE_MAX; ++kv_tile) {
