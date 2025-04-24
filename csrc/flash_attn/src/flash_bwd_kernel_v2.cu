@@ -408,6 +408,10 @@ void compute_dq_kernel_v2(
             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
 
+        if (thread0()) {
+            print_tensor(tSrS_float);
+        }
+
         //copy(tSrS_float, tSsS_float);
 
         // compute P = exp(S-l)
@@ -424,6 +428,14 @@ void compute_dq_kernel_v2(
             }
         }
 
+        if (thread0()) {
+            print_tensor(tSrP_float);
+        }
+
+        if (thread0()) {
+            print_tensor(tdPrdP_float);
+        }
+
         // compute dS = P \circ (dP - D)
         // tS has the same mma layout as tdP
         for (int i=0; i<2; i++) {
@@ -432,6 +444,10 @@ void compute_dq_kernel_v2(
             }
         }
 
+
+        if (thread0()) {
+            print_tensor(tdPrdS_float);
+        }
 
         //convert P from fp32 to fp16
         constexpr int num_element = decltype(size(tSrP_float))::value;
