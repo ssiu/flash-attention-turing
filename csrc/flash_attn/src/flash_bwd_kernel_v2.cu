@@ -377,6 +377,7 @@ void compute_dq_kernel_v2(
 
     copy(gmem_tiled_copy_QKV, tQgQ, tQsQ);
     copy(gmem_tiled_copy_QKV, tdOgdO, tdOsdO);
+    clear(tdQrdQ_float);
 
 
     CUTE_NO_UNROLL
