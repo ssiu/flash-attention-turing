@@ -607,8 +607,8 @@ flash_bwd_v3(torch::Tensor q,
           int batch_size, int seq_len, int num_heads, int head_dim)
 {
 
-    constexpr int kBlockM = 32;
-    constexpr int kBlockN = 32;
+    constexpr int kBlockM = 64;
+    constexpr int kBlockN = 64;
     constexpr int kHeadDim = 128;
 
     torch::Tensor dq = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
