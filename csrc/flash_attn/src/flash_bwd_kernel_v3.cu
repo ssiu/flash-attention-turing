@@ -515,6 +515,10 @@ void compute_dq_dk_dv_kernel_v3(
 
         __syncthreads();
 
+        if (thread0()) {
+            print_tensor(sP);
+            print("\n");
+        }
 
 
         // dV += P^TdO
