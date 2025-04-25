@@ -381,6 +381,12 @@ void compute_dq_dk_dv_kernel_v3(
     copy(gmem_tiled_copy_QKV, tKgK, tKsK);
     copy(gmem_tiled_copy_QKV, tVgV, tVsV);
 
+    __syncthreads();
+
+    if (thread0()){
+        print_tensor(sK);
+        print("\n");
+    }
 
     //clear(tdVrdV_float);
     clear(tSrS_float);
