@@ -363,8 +363,6 @@ void compute_dq_dk_dv_kernel_v3(
         print("\n");
         print(gdO);
         print("\n");
-        print(gdQ);
-        print("\n");
         print("gD[0] = %f\n", gD((0)));
         print("\n");
         print(sK);
