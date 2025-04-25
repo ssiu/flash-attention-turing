@@ -374,16 +374,16 @@ void compute_dq_dk_dv_kernel_v3(
     }
 
 
-//     auto Q_TILE_MAX = size<3>(tSgQ);
-//
-//     // load K, V, dK, dV tiles
-//
-//     copy(gmem_tiled_copy_QKV, tKgK, tKsK);
-//     copy(gmem_tiled_copy_QKV, tVgV, tVsV);
-//
-//
-//     //clear(tdVrdV_float);
-//     clear(tSrS_float);
+    auto Q_TILE_MAX = size<3>(tSgQ);
+
+    // load K, V, dK, dV tiles
+
+    copy(gmem_tiled_copy_QKV, tKgK, tKsK);
+    copy(gmem_tiled_copy_QKV, tVgV, tVsV);
+
+
+    //clear(tdVrdV_float);
+    clear(tSrS_float);
 //     CUTE_NO_UNROLL
 //
 //
