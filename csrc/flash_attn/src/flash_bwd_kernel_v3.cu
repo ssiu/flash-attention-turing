@@ -421,6 +421,12 @@ void compute_dq_dk_dv_kernel_v3(
 
         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
         //copy(tSrS_float, tSsS_float);
+
+        if (thread0()){
+            print_tensor(tSrS_float);
+            print("\n");
+        }
+
         __syncthreads();
 
 
