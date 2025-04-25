@@ -295,8 +295,8 @@ void compute_dq_dk_dv_kernel_v3(
     int warp_offset = (warp_id % 2) * 16;
     int thread_offset = lane_id / 4;
 
-    float rL[2][2];
-    float rD[2][2];
+    float rL[2][2] = {0};
+    float rD[2][2] = {0};
 
     // Copy operation
     GmemTiledCopyQKV gmem_tiled_copy_QKV;
@@ -431,16 +431,13 @@ void compute_dq_dk_dv_kernel_v3(
 
 
         // load rL, rD from gmem to rmem
-        for (int i=0;i<2;i++) {
-            for (int j=0;j<2;j++) {
-                rL[i][j] = gL((warp_offset + thread_offset + 8 * j + 32 * i), q_tile);
-                rD[i][j] = gD((warp_offset + thread_offset + 8 * j + 32 * i), q_tile);
-            }
-        }
-//         rL[0] = gL((warp_offset + thread_offset), q_tile);
-//         rL[1] = gL((warp_offset + thread_offset + 8), q_tile);
-//         rL[2] = gL((warp_offset + thread_offset + 32), q_tile);
-//         rL[3] = gL((warp_offset + thread_offset + 8 + 32), q_tile);
+//         for (int i=0;i<2;i++) {
+//             for (int j=0;j<2;j++) {
+//                 rL[i][j] = gL((warp_offset + thread_offset + 8 * j + 32 * i), q_tile);
+//                 rD[i][j] = gD((warp_offset + thread_offset + 8 * j + 32 * i), q_tile);
+//             }
+//         }
+
 
 //         for (int i=0; i<2; i++) {
 //             rL[i] = gL((thread_row + 8 * i), q_tile);
