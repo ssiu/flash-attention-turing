@@ -375,6 +375,8 @@ void compute_dq_dk_dv_kernel_v3(
         print("\n");
         print(sdO);
         print("\n");
+        print(tSgQ);
+        print("\n");
     }
 
 
