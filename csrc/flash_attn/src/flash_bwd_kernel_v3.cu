@@ -641,7 +641,7 @@ flash_bwd_v3(torch::Tensor q,
 
     // compute dK, dV
     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockN);
-    dim3 dimBlock(64);
+    dim3 dimBlock(256);
 
 
     cudaFuncSetAttribute(compute_dq_dk_dv_kernel_v3, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
