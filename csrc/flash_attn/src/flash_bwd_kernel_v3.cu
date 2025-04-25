@@ -418,23 +418,25 @@ void compute_dq_dk_dv_kernel_v3(
 //
 //
 //
-// //         if (thread0()) {
-// //             print(tdQrdQ_float);
-// //             //print(tdQgdQ_float);
-// //             //print_tensor(tdQrdQ);
-// //         }
-//
         __syncthreads();
+
+        if (thread0()) {
+            print_tensor(sQ);
+            //print(tdQgdQ_float);
+            //print_tensor(tdQrdQ);
+        }
+//
+//
         // compute S=QK^T
-        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+//        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
 //
 //         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 //         //copy(tSrS_float, tSsS_float);
 //
-        if (thread0()){
-            print_tensor(tSrS_float);
-            print("\n");
-        }
+//         if (thread0()){
+//             print_tensor(tSrS_float);
+//             print("\n");
+//         }
 
         __syncthreads();
 //
