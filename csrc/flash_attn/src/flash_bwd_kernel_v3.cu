@@ -405,7 +405,7 @@ void compute_dq_dk_dv_kernel_v3(
 //         copy(tSgQ(_,_,_,q_tile), tSsQ);
 //         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
         copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,q_tile), tQsQ);
-        copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile), tdOsdO);
+        //copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile), tdOsdO);
 
         // load gdQ to tdQrdQ
         //copy(tdQgdQ(_,_,_,q_tile), tdQrdQ);
