@@ -384,31 +384,31 @@ void compute_dq_dk_dv_kernel_v3(
 
     __syncthreads();
 
-    if (thread0()){
-        print_tensor(sK);
-        print("\n");
-    }
+//     if (thread0()){
+//         print_tensor(sK);
+//         print("\n");
+//     }
 
     //clear(tdVrdV_float);
     clear(tSrS_float);
-//     CUTE_NO_UNROLL
-//
-//
-//
-//
-//     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
-//
-//         clear(tSrS_float);
-//         clear(tdPrdP_float);
-//
-//         // load gQ to sQ
-// //         copy(tSgQ(_,_,_,q_tile), tSsQ);
-// //         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
-//         copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,q_tile), tQsQ);
-//         copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile), tdOsdO);
-//
-//         // load gdQ to tdQrdQ
-//         //copy(tdQgdQ(_,_,_,q_tile), tdQrdQ);
+    CUTE_NO_UNROLL
+
+
+
+
+    for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
+
+        clear(tSrS_float);
+        clear(tdPrdP_float);
+
+        // load gQ to sQ
+//         copy(tSgQ(_,_,_,q_tile), tSsQ);
+//         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
+        copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,q_tile), tQsQ);
+        copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile), tdOsdO);
+
+        // load gdQ to tdQrdQ
+        //copy(tdQgdQ(_,_,_,q_tile), tdQrdQ);
 //
 //
 //
@@ -418,19 +418,19 @@ void compute_dq_dk_dv_kernel_v3(
 // //             //print_tensor(tdQrdQ);
 // //         }
 //
-//         __syncthreads();
-//         // compute S=QK^T
-//         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+        __syncthreads();
+        // compute S=QK^T
+        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
 //
 //         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 //         //copy(tSrS_float, tSsS_float);
 //
-//         if (thread0()){
-//             print_tensor(tSrS_float);
-//             print("\n");
-//         }
-//
-//         __syncthreads();
+        if (thread0()){
+            print_tensor(tSrS_float);
+            print("\n");
+        }
+
+        __syncthreads();
 //
 //
 //         // load rL, rD from gmem to rmem
@@ -555,7 +555,7 @@ void compute_dq_dk_dv_kernel_v3(
 //         //convert dQ from float to fp16
 //
 //
-//     }
+    }
 //
 //
 //     // dV
