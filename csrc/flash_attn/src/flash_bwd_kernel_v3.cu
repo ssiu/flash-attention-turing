@@ -353,6 +353,8 @@ void compute_dq_dk_dv_kernel_v3(
 
 
     if (thread0()) {
+        print(gQ);
+        print("\n");
         print(gK);
         print("\n");
         print(gV);
@@ -364,6 +366,8 @@ void compute_dq_dk_dv_kernel_v3(
         print(gdO);
         print("\n");
         print("gD[0] = %f\n", gD((0)));
+        print("\n");
+        print(sQ);
         print("\n");
         print(sK);
         print("\n");
