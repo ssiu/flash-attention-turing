@@ -86,63 +86,63 @@ def main():
 
     print(d_query.size())
 
-
-    query_torch = query.permute(0, 2, 1, 3).contiguous().clone()
-    key_torch = key.permute(0, 2, 1, 3).contiguous().clone()
-    value_torch = value.permute(0, 2, 1, 3).contiguous().clone()
-    d_output_torch = d_output.permute(0, 2, 1, 3).contiguous().clone()
-
-    query_torch.requires_grad = True
-    key_torch.requires_grad = True
-    value_torch.requires_grad = True
-
-    output_torch = F.scaled_dot_product_attention(query_torch, key_torch, value_torch)
-
-
-    output_torch.backward(d_output_torch)
-    output_torch = output_torch.permute(0, 2, 1, 3).contiguous().clone()
-
-    d_query_torch = query_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
-    d_key_torch = key_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
-    d_value_torch = value_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
-
-
-    print("Comparing O")
-    sum_error, avg_error, max_error, output_value, output_torch_value = \
-        get_error(output, output_torch, batch_size, seq_len, num_heads, head_dim)
-
-    print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
-
-
-    print("==========")
-
-
-    print("Comparing dV")
-
-    sum_error, avg_error, max_error, output_value, output_torch_value = \
-        get_error(d_value, d_value_torch, batch_size, seq_len, num_heads, head_dim)
-
-    print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
-
-
-    print("==========")
-
-    print("Comparing dK")
-
-    sum_error, avg_error, max_error, output_value, output_torch_value = \
-        get_error(d_key, d_key_torch, batch_size, seq_len, num_heads, head_dim)
-
-    print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
-
-
-    print("==========")
-
-    print("Comparing dQ")
-
-    sum_error, avg_error, max_error, output_value, output_torch_value = \
-        get_error(d_query, d_query_torch, batch_size, seq_len, num_heads, head_dim)
-
-    print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
+    #
+    # query_torch = query.permute(0, 2, 1, 3).contiguous().clone()
+    # key_torch = key.permute(0, 2, 1, 3).contiguous().clone()
+    # value_torch = value.permute(0, 2, 1, 3).contiguous().clone()
+    # d_output_torch = d_output.permute(0, 2, 1, 3).contiguous().clone()
+    #
+    # query_torch.requires_grad = True
+    # key_torch.requires_grad = True
+    # value_torch.requires_grad = True
+    #
+    # output_torch = F.scaled_dot_product_attention(query_torch, key_torch, value_torch)
+    #
+    #
+    # output_torch.backward(d_output_torch)
+    # output_torch = output_torch.permute(0, 2, 1, 3).contiguous().clone()
+    #
+    # d_query_torch = query_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
+    # d_key_torch = key_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
+    # d_value_torch = value_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
+    #
+    #
+    # print("Comparing O")
+    # sum_error, avg_error, max_error, output_value, output_torch_value = \
+    #     get_error(output, output_torch, batch_size, seq_len, num_heads, head_dim)
+    #
+    # print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
+    #
+    #
+    # print("==========")
+    #
+    #
+    # print("Comparing dV")
+    #
+    # sum_error, avg_error, max_error, output_value, output_torch_value = \
+    #     get_error(d_value, d_value_torch, batch_size, seq_len, num_heads, head_dim)
+    #
+    # print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
+    #
+    #
+    # print("==========")
+    #
+    # print("Comparing dK")
+    #
+    # sum_error, avg_error, max_error, output_value, output_torch_value = \
+    #     get_error(d_key, d_key_torch, batch_size, seq_len, num_heads, head_dim)
+    #
+    # print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
+    #
+    #
+    # print("==========")
+    #
+    # print("Comparing dQ")
+    #
+    # sum_error, avg_error, max_error, output_value, output_torch_value = \
+    #     get_error(d_query, d_query_torch, batch_size, seq_len, num_heads, head_dim)
+    #
+    # print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
 
 
     # print("==========")
