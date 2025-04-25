@@ -378,7 +378,8 @@ void compute_dq_dk_dv_kernel_v3(
 
     // load K, V, dK, dV tiles
 
-    copy(gmem_tiled_copy_QKV, tKgK, tKsK);
+    //copy(gmem_tiled_copy_QKV, tKgK, tKsK);
+    copy(tSgK, tSsK);
     copy(gmem_tiled_copy_QKV, tVgV, tVsV);
 
     __syncthreads();
