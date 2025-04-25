@@ -515,15 +515,15 @@ void compute_dq_dk_dv_kernel_v3(
 
         __syncthreads();
 
-        if (thread0()) {
-            for (int i=0;i<2;i++) {
-                for (int j=0;j<2;j++) {
-                    print("%d\n", warp_offset + thread_offset + 8 * j + 32 * i);
-                }
-            }
-            print_tensor(sP);
-            print("\n");
-        }
+//         if (thread0()) {
+//             for (int i=0;i<2;i++) {
+//                 for (int j=0;j<2;j++) {
+//                     print("%d\n", warp_offset + thread_offset + 8 * j + 32 * i);
+//                 }
+//             }
+//             print_tensor(sP);
+//             print("\n");
+//         }
 
 
         // dV += P^TdO
