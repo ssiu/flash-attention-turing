@@ -54,7 +54,7 @@ void compute_dot_do_o(half_t* o_ptr,
     for (int i=0;i<4;i++) {
         rO[i] = o_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];
         rdO[i] = do_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];
-
+    }
 
     // thread reduction
     for (int i=0;i<4;i ++) {
