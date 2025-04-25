@@ -422,9 +422,9 @@ void compute_dq_dk_dv_kernel_v3(
 
         if (thread0()) {
             print_tensor(tQgQ(_,_,_,q_tile));
-            print("====================")
+            print("====================");
             print_tensor(sQ);
-            print("####################")
+            print("####################");
             //print(tdQgdQ_float);
             //print_tensor(tdQrdQ);
         }
