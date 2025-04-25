@@ -353,19 +353,26 @@ void compute_dq_dk_dv_kernel_v3(
 
 
     if (thread0()) {
-        printf("gdQ is %f\n", dq_ptr[0]);
+        print(gK);
+        print("\n");
+        print(gV);
+        print("\n");
+        print(gL);
+        print("\n");
+        print(gD);
+        print("\n");
+        print(gdO);
         print("\n");
         print(gdQ);
         print("\n");
-        print(tdQgdQ_float);
+        print("gD[0] = %f\n", gD((0)));
         print("\n");
-        print(tdQgdQ_float(_,_,_,0));
+        print(sK);
         print("\n");
-        print(tdQrdQ_float);
+        print(sV);
         print("\n");
-        print_tensor(tdQrdQ_float);
-        copy(tdQgdQ_float(_,_,_,0), tdQrdQ_float);
-        print_tensor(tdQrdQ_float);
+        print(sdO);
+        print("\n");
     }
 
 
