@@ -18,7 +18,6 @@
 
 using namespace cute;
 
-#define FLOAT2(value) reinterpret_cast<float2*>(&(value))[0]
 
 __global__ __launch_bounds__(1024)
 void compute_dot_do_o(half_t* o_ptr,
@@ -52,70 +51,16 @@ void compute_dot_do_o(half_t* o_ptr,
     int thread_row = warp_id;
     int thread_col = lane_id * 4;
 
-
-    // for (int i = 0; i < 4; i++) {
-    //     FLOAT4(tQ[i][0]) = FLOAT4(gQ(thread_row + i, thread_col));
-    //     FLOAT4(tQ[i+4][0]) = FLOAT4(gQ(thread_row + i + 8, thread_col));
-    // }
-
-
-
-    // load O to register
-//     FLOAT2(rO[0]) = FLOAT2(o_ptr[do_o_offset + thread_row + thread_col]);
-//     FLOAT2(rdO[0]) = FLOAT2(do_ptr[do_o_offset + thread_row + thread_col]);
-
     for (int i=0;i<4;i++) {
         rO[i] = o_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];
         rdO[i] = do_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];
 
-//         if (warp_id == 1 && lane_id == 0 && blockIdx.z == 0) {
-//             printf("do_o_offset = %d, thread_row = %d, thread_col = %d, addr = %d\n", do_o_offset, thread_row, thread_col, do_o_offset + thread_row * num_heads * head_dim + thread_col + i);
-//             printf("thread reduction, sum is %f\n",  sum);
-//             for (int i=0;i<4;i++) {
-//                 printf("i = %d, rO[i] = %f, rdO[i] = %f\n", i, static_cast<float>(rO[i]), static_cast<float>(rdO[i]));
-//             }
-//            //d_ptr[0] = sum;
-//         }
-
-    }
-
-//     if (thread0()) {
-//         for (int i=0;i<128;i++) {
-//             printf("row = 0, col = %d, o = %f, do = %f\n", i, static_cast<float>(o_ptr[i]), static_cast<float>(do_ptr[i]));
-//         }
-//     }
-
-
-//     if (blockIdx.x == 0 and thread_id < 32) {
-//         for (int i=0;i<4;i++) {
-//             printf("thread id = %d, i = %d, rdO = %f, rO = %f\n", thread_id, i, static_cast<float>(rO[i]), static_cast<float>(rdO[i]));
-//         }
-//     }
-
-
-
-
-//     if (thread0()) {
-//         for (int i=0;i<4;i++) {
-//             printf("%f\n", static_cast<float>(rO[i]));
-//         }
-//     }
-
-
-
-
 
     // thread reduction
     for (int i=0;i<4;i ++) {
-//         sum += __half2float(rO[i]) * __half2float(rdO[i]);
         sum += static_cast<float>(rO[i]) * static_cast<float>(rdO[i]);
 
     }
-
-
-
-
-
 
 
     // warp reduction
@@ -125,18 +70,7 @@ void compute_dot_do_o(half_t* o_ptr,
 
     if (lane_id == 0) {
        d_ptr[d_offset + thread_row] = sum;
-       //printf("warp id = %d, sum is %f\n", warp_id, sum);
-       //d_ptr[0] = sum;
     }
-
-//     if (thread0()) {
-//         for (int i=0; i<4; i++) {
-//             for (int j=0;j<128;j++) {
-//                 print("i = %d, j = %d, do = %f\n", i, j, static_cast<float>(do_ptr[128 * i + j]));
-//             }
-//         }
-//     }
-
 
 }
 
@@ -163,7 +97,22 @@ void compute_dq_dk_dv_kernel_v3(
     constexpr int kNThreads = kNWarps * 32;
 
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
-    
+
+    // for 8 warps, the 32x32 tiled mmas is like
+    // -------------------------------------
+    // | Warp 0 | Warp 2 | Warp 4 | Warp 6 |
+    // -------------------------------------
+    // | Warp 1 | Warp 3 | Warp 5 | Warp 7 |
+    // -------------------------------------
+    // for 64 x 64 tiledmma, each thread computes 16 numbers and each row can be accessed by
+    // print(tc);
+    // print_tensor(tc);
+    // for (int i=0;i<2;i++) {
+    //     for (int j=0;j<2;j++) {
+    //         print_tensor(tc(make_coord(_,i),j,_));
+    //     }
+    // }
+
     using TiledMma_S = TiledMMA<
         MMA_Atom_Arch,
         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
