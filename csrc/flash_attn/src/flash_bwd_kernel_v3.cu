@@ -76,7 +76,7 @@ void compute_dot_do_o(half_t* o_ptr,
 
 
 
-__global__ __launch_bounds__(64)
+__global__ __launch_bounds__(256)
 void compute_dq_dk_dv_kernel_v3(
     half_t const* q_ptr,
     half_t const* k_ptr,
@@ -90,10 +90,10 @@ void compute_dq_dk_dv_kernel_v3(
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {   
-    constexpr int kBlockM = 32;
-    constexpr int kBlockN = 32;
+    constexpr int kBlockM = 64;
+    constexpr int kBlockN = 64;
     constexpr int kHeadDim = 128;
-    constexpr int kNWarps = 2;
+    constexpr int kNWarps = 8;
     constexpr int kNThreads = kNWarps * 32;
 
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
@@ -249,22 +249,32 @@ void compute_dq_dk_dv_kernel_v3(
 
     extern __shared__ char smem_[];
 
-    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});        // 8KB
+
+    // 64 * 128 = 16KB
+    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
     Tensor sQt = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQTransposed{});
     //Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
-    Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});   // 8KB
-    Tensor sKt = make_tensor(sQ.data() + size(sQ), SmemLayoutKVTransposed{});   // 8KB
 
-    Tensor sV = make_tensor(sK.data() + size(sK), SmemLayoutKV{});
+    // 64 * 128 = 16KB
+    Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});
+    Tensor sKt = make_tensor(sQ.data() + size(sQ), SmemLayoutKVTransposed{});
 
-    Tensor sdO = make_tensor(sV.data() + size(sV), SmemLayoutQ{});                            // 8KB
-    Tensor sdOt = make_tensor(sV.data() + size(sV), SmemLayoutQTransposed{});                 // 8KB
+    // 64 * 128 = 16KB
+    Tensor sdO = make_tensor(sK.data() + size(sK), SmemLayoutQ{});
+    Tensor sdOt = make_tensor(sK.data() + size(sK), SmemLayoutQTransposed{});
 
-    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});                         // 2KB
-    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});               // 2KB
 
-    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});     // 2KB
-    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});     // 2KB
+    // 64 * 128 = 16KB
+    Tensor sV = make_tensor(sdO.data() + size(sdO), SmemLayoutKV{});
+
+
+    // 64 * 64 = 8KB
+    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});
+    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});
+
+    // 64 * 64 = 8KB
+    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
+    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});
 
     //Tensor sdV = make_tensor(sdS.data() + size(sdS), SmemLayoutKV{});                            // 2KB
 
@@ -281,10 +291,12 @@ void compute_dq_dk_dv_kernel_v3(
     int lane_id = threadIdx.x % 32;
     int warp_id = threadIdx.x / 32;
 
-    int thread_row = warp_id * 16 + lane_id / 4;
+    //int thread_row = warp_id * 16 + lane_id / 4;
+    int warp_offset = (warp_id % 2) * 16;
+    int thread_offset = lane_id / 4;
 
-    float rL[2];
-    float rD[2];
+    float rL[2][2];
+    float rD[2][2];
 
     // Copy operation
     GmemTiledCopyQKV gmem_tiled_copy_QKV;
@@ -413,10 +425,21 @@ void compute_dq_dk_dv_kernel_v3(
 
 
         // load rL, rD from gmem to rmem
-        for (int i=0; i<2; i++) {
-            rL[i] = gL((thread_row + 8 * i), q_tile);
-            rD[i] = gD((thread_row + 8 * i), q_tile);
+        for (int i=0;i<2;i++) {
+            for (int j=0;j<2;j++) {
+                rL[i][j] = gL((warp_offset + thread_offset + 8 * j + 32 * i), q_tile);
+                rD[i][j] = gD((warp_offset + thread_offset + 8 * j + 32 * i), q_tile);
+            }
         }
+//         rL[0] = gL((warp_offset + thread_offset), q_tile);
+//         rL[1] = gL((warp_offset + thread_offset + 8), q_tile);
+//         rL[2] = gL((warp_offset + thread_offset + 32), q_tile);
+//         rL[3] = gL((warp_offset + thread_offset + 8 + 32), q_tile);
+
+//         for (int i=0; i<2; i++) {
+//             rL[i] = gL((thread_row + 8 * i), q_tile);
+//             rD[i] = gD((thread_row + 8 * i), q_tile);
+//         }
 
 
         // rescale S
@@ -426,26 +449,33 @@ void compute_dq_dk_dv_kernel_v3(
 
         //copy(tSrS_float, tSsS_float);
 
-        // compute P = exp(S-l)
-
-        // P has size blockM x blockN, partitioned by mma_S
-        // gL has size (32), need to figure the L_i for each S_ij
-
         Tensor tSrP_float = tSrS_float;
         Tensor tdPrdS_float = tdPrdP_float;
 
+        // ptr[32b](0x7ea2408d8910) o ((_2,_2),_2,_2):((_1,_512),_2048,_32)
+        // for (int i=0;i<2;i++) {
+        //     for (int j=0;j<2;j++) {
+        //         print_tensor(tc(make_coord(_,j),i,_));
+        //     }
+
+        // compute P = exp(S-l)
         for (int i=0; i<2; i++) {
-            for (int j=0; j< tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                tSrP_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rL[i]);
+            for (int j=0;j<2;j++) {
+                for (int k=0; k< tSrS_float(make_coord(_,j),i,_).size(); k++) {
+                    tSrP_float(make_coord(_,j),i,_)[k] = expf(tSrS_float(make_coord(_,j),i,_)[k] - rL[i][j]);
+                }
             }
         }
 
         // compute dS = P \circ (dP - D)
         // tS has the same mma layout as tdP
         for (int i=0; i<2; i++) {
-            for (int j=0; j< tdPrdP_float(make_coord(_,i),_,_).size(); j++) {
-                tdPrdS_float(make_coord(_,i),_,_)[j] = tSrP_float(make_coord(_,i),_,_)[j] * (tdPrdP_float(make_coord(_,i),_,_)[j] - rD[i]);
+            for (int j=0;j<2;j++) {
+                for (int k=0; k< tdPrdP_float(make_coord(_,j),i,_).size(); k++) {
+                    tdPrdS_float(make_coord(_,j),i,_)[k] = tSrP_float(make_coord(_,j),i,_)[k] * (tdPrdP_float(make_coord(_,j),i,_)[k] - rD[i][j]);
+                }
             }
+
         }
 
 //         if (thread0()) {
