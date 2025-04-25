@@ -107,9 +107,10 @@ void compute_dq_dk_dv_kernel_v3(
     // for 64 x 64 tiledmma, each thread computes 16 numbers and each row can be accessed by
     // print(tc);
     // print_tensor(tc);
+    // ptr[32b](0x7ea2408d8910) o ((_2,_2),_2,_2):((_1,_512),_2048,_32)
     // for (int i=0;i<2;i++) {
     //     for (int j=0;j<2;j++) {
-    //         print_tensor(tc(make_coord(_,i),j,_));
+    //         print_tensor(tc(make_coord(_,j),i,_));
     //     }
     // }
 
