@@ -307,9 +307,9 @@ void compute_dq_dk_dv_kernel_v3(
 
 //     Tensor tVgV = thr_copy_QKV.partition_S(gV);
 //     Tensor tVsV = thr_copy_QKV.partition_D(sV);
-//
-//     Tensor tdOgdO = thr_copy_QKV.partition_S(gdO);
-//     Tensor tdOsdO = thr_copy_QKV.partition_D(sdO);
+
+    Tensor tdOgdO = thr_copy_QKV.partition_S(gdO);
+    Tensor tdOsdO = thr_copy_QKV.partition_D(sdO);
 
 
     // S = QK^T
