@@ -18,6 +18,9 @@
 
 using namespace cute;
 
+#define K_BLOCK_M 32
+#define K_BLOCK_N 32
+
 
 __global__ __launch_bounds__(1024)
 void compute_dot_do_o(half_t* o_ptr,
@@ -90,7 +93,7 @@ void compute_dq_dk_dv_kernel_v3(
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {   
-    constexpr int kBlockM = 64;
+    constexpr int kBlockM = 32;
     constexpr int kBlockN = 32;
     constexpr int kHeadDim = 128;
     constexpr int kNWarps = 8;
@@ -694,7 +697,7 @@ flash_bwd_v3(torch::Tensor q,
     int maxbytes = 65536;
 
     // compute dK, dV
-    dim3 dimGrid(batch_size, num_heads, seq_len / kBlockN);
+    dim3 dimGrid(batch_size, num_heads, seq_len / K_BLOCK_N);
     dim3 dimBlock(256);
 
 
