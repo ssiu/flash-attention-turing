@@ -491,8 +491,8 @@ void compute_dq_dk_dv_kernel_v3(
         copy(tSsQ, tSrQ);
         copy(tSsK, tSrK);
 
-        gemm(tiled_mma_S, tSrQ, tSrK, tSrS_float);
-        //gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+        //gemm(tiled_mma_S, tSrQ, tSrK, tSrS_float);
+        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
 
 
         if (thread0()) {
