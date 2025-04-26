@@ -20,7 +20,7 @@ using namespace cute;
 
 // kBlockN = 64 works
 // kBlockM = 64 doesnt work
-#define K_BLOCK_M 32
+#define K_BLOCK_M 64
 #define K_BLOCK_N 32
 
 
@@ -382,6 +382,8 @@ void compute_dq_dk_dv_kernel_v3(
         print("\n");
         print(tSgQ);
         print("\n");
+        print(tSsQ);
+        print("\n");
     }
 
 
@@ -464,16 +466,16 @@ void compute_dq_dk_dv_kernel_v3(
 //             gemm(tiled_mma_S, tSsQ(_,_,qk_block), tSsK(_,_,qk_block), tSrS_float);
 //         }
 
-        if (thread0()) {
-            print_tensor(tSrS_float);
-            print("\n=========================\n");
-        }
-        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
-
-        if (thread0()) {
-            print_tensor(tSrS_float);
-            print("\n=========================\n");
-        }
+//         if (thread0()) {
+//             print_tensor(tSrS_float);
+//             print("\n=========================\n");
+//         }
+//         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+//
+//         if (thread0()) {
+//             print_tensor(tSrS_float);
+//             print("\n=========================\n");
+//         }
 //
 //         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 //         //copy(tSrS_float, tSsS_float);
