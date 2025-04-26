@@ -117,7 +117,7 @@ void compute_dq_dk_dv_kernel_v3(
     using TiledMma_S = TiledMMA<
         MMA_Atom_Arch,
         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-        Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
+        Tile<Int<kBlockM>, Int<kBlockN>, _128>>;
 
     using TiledMma_dP = TiledMMA<
         MMA_Atom_Arch,
