@@ -431,8 +431,12 @@ void compute_dq_dk_dv_kernel_v3(
             print("\n");
             print("====================");
             print("\n");
-            print("gQ(_,_,_,q_tile)\n");
-            print(gQ(_,_,_,q_tile));
+            print("gQ\n");
+            print(gQ);
+            print("====================");
+            print("\n");
+            print("tQgQ\n");
+            print(tQgQ);
             print("\n");
             print("====================");
             print("\n");
