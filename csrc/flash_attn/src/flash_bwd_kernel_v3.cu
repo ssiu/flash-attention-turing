@@ -361,34 +361,40 @@ void compute_dq_dk_dv_kernel_v3(
 //     Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
 
 
-//     if (thread0()) {
-//         print(gQ);
-//         print("\n");
-//         print(gK);
-//         print("\n");
-//         print(gV);
-//         print("\n");
-//         print(gL);
-//         print("\n");
-//         print(gD);
-//         print("\n");
-//         print(gdO);
-//         print("\n");
-//         print("gD[0] = %f\n", gD((0)));
-//         print("\n");
-//         print(sQ);
-//         print("\n");
-//         print(sK);
-//         print("\n");
+    if (thread0()) {
+        print(gQ);
+        print("\n");
+        print(gK);
+        print("\n");
+        print(gV);
+        print("\n");
+        print(gL);
+        print("\n");
+        print(gD);
+        print("\n");
+        print(gdO);
+        print("\n");
+        print("gD[0] = %f\n", gD((0)));
+        print("\n");
+        print(sQ);
+        print("\n");
+        print(sK);
+        print("\n");
 //         print(sV);
 //         print("\n");
 //         print(sdO);
 //         print("\n");
 //         print(tSgQ);
 //         print("\n");
-//         print(tSsQ);
-//         print("\n");
-//     }
+        print(tSsQ);
+        print("\n");
+        print(tSsK);
+        print("\n");
+        print(tSrQ);
+        print("\n");
+        print(tSrK);
+        print("\n");
+    }
 
 
     auto Q_TILE_MAX = size<3>(tSgQ);
@@ -485,7 +491,9 @@ void compute_dq_dk_dv_kernel_v3(
         copy(tSsQ, tSrQ);
         copy(tSsK, tSrK);
 
-        gemm(tiled_mma_S, tSrQ, tSrK, tSrS_float);
+        //gemm(tiled_mma_S, tSrQ, tSrK, tSrS_float);
+        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+
 
         if (thread0()) {
             print("after\n");
