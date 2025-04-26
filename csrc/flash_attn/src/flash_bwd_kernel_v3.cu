@@ -19,7 +19,7 @@
 using namespace cute;
 
 #define K_BLOCK_M 32
-#define K_BLOCK_N 32
+#define K_BLOCK_N 64
 
 
 __global__ __launch_bounds__(1024)
@@ -93,8 +93,8 @@ void compute_dq_dk_dv_kernel_v3(
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {   
-    constexpr int kBlockM = 32;
-    constexpr int kBlockN = 32;
+    constexpr int kBlockM = K_BLOCK_M;
+    constexpr int kBlockN = K_BLOCK_N;
     constexpr int kHeadDim = 128;
     constexpr int kNWarps = 8;
     constexpr int kNThreads = kNWarps * 32;
