@@ -386,14 +386,14 @@ void compute_dq_dk_dv_kernel_v3(
 //         print("\n");
 //         print(tSgQ);
 //         print("\n");
-        print(tSsQ);
-        print("\n");
-        print(tSsK);
-        print("\n");
-        print(tSrQ);
-        print("\n");
-        print(tSrK);
-        print("\n");
+//         print(tSsQ);
+//         print("\n");
+//         print(tSsK);
+//         print("\n");
+//         print(tSrQ);
+//         print("\n");
+//         print(tSrK);
+//         print("\n");
     }
 
 
