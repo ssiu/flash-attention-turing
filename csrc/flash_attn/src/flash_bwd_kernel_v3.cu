@@ -90,7 +90,7 @@ void compute_dq_dk_dv_kernel_v3(
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {   
-    constexpr int kBlockM = 32;
+    constexpr int kBlockM = 64;
     constexpr int kBlockN = 32;
     constexpr int kHeadDim = 128;
     constexpr int kNWarps = 8;
@@ -117,7 +117,7 @@ void compute_dq_dk_dv_kernel_v3(
     using TiledMma_S = TiledMMA<
         MMA_Atom_Arch,
         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-        Tile<Int<kBlockM>, Int<kBlockN>, _128>>;
+        Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
 
     using TiledMma_dP = TiledMMA<
         MMA_Atom_Arch,
@@ -399,10 +399,6 @@ void compute_dq_dk_dv_kernel_v3(
     //clear(tdVrdV_float);
     clear(tSrS_float);
     CUTE_NO_UNROLL
-
-
-
-
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
 
         clear(tSrS_float);
