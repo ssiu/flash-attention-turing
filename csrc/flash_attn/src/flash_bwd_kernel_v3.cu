@@ -459,9 +459,9 @@ void compute_dq_dk_dv_kernel_v3(
 //
 //
         // compute S=QK^T
-        for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
-            gemm(tiled_mma_S, tSsQ(_,_,qk_block), tSsK(_,_,qk_block), tSrS_float);
-        }
+//         for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
+//             gemm(tiled_mma_S, tSsQ(_,_,qk_block), tSsK(_,_,qk_block), tSrS_float);
+//         }
 
         if (thread0()) {
             print_tensor(tSrS_float);
