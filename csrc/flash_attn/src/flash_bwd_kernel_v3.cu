@@ -317,11 +317,11 @@ void compute_dq_dk_dv_kernel_v3(
     ThrMMA thr_mma_S = tiled_mma_S.get_slice(threadIdx.x);
     Tensor tSgQ = thr_mma_S.partition_A(gQ);
     Tensor tSsQ = thr_mma_S.partition_A(sQ);
-    Tensor tSrQ = make_fragment_like(tSsQ(_,_,0));
+    Tensor tSrQ = thr_mma_S.make_fragment_A(tSsQ);
 
     Tensor tSgK = thr_mma_S.partition_B(gK);
     Tensor tSsK = thr_mma_S.partition_B(sK);
-    Tensor tSrK = make_fragment_like(tSsK(_,_,0));
+    Tensor tSrK = thr_mma_S.make_fragment_B(tSsK);
 
     Tensor tSrS_float = partition_fragment_C(tiled_mma_S, Shape<Int<kBlockM>, Int<kBlockN>>{});
     Tensor tSsP = thr_mma_S.partition_C(sP);
@@ -361,34 +361,34 @@ void compute_dq_dk_dv_kernel_v3(
 //     Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
 
 
-    if (thread0()) {
-        print(gQ);
-        print("\n");
-        print(gK);
-        print("\n");
-        print(gV);
-        print("\n");
-        print(gL);
-        print("\n");
-        print(gD);
-        print("\n");
-        print(gdO);
-        print("\n");
-        print("gD[0] = %f\n", gD((0)));
-        print("\n");
-        print(sQ);
-        print("\n");
-        print(sK);
-        print("\n");
-        print(sV);
-        print("\n");
-        print(sdO);
-        print("\n");
-        print(tSgQ);
-        print("\n");
-        print(tSsQ);
-        print("\n");
-    }
+//     if (thread0()) {
+//         print(gQ);
+//         print("\n");
+//         print(gK);
+//         print("\n");
+//         print(gV);
+//         print("\n");
+//         print(gL);
+//         print("\n");
+//         print(gD);
+//         print("\n");
+//         print(gdO);
+//         print("\n");
+//         print("gD[0] = %f\n", gD((0)));
+//         print("\n");
+//         print(sQ);
+//         print("\n");
+//         print(sK);
+//         print("\n");
+//         print(sV);
+//         print("\n");
+//         print(sdO);
+//         print("\n");
+//         print(tSgQ);
+//         print("\n");
+//         print(tSsQ);
+//         print("\n");
+//     }
 
 
     auto Q_TILE_MAX = size<3>(tSgQ);
@@ -477,14 +477,18 @@ void compute_dq_dk_dv_kernel_v3(
 
         if (thread0()) {
 
-            print("before\n")
+            print("before\n");
             print_tensor(tSrS_float);
             print("\n=========================\n");
         }
-        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+
+        copy(tSsQ, tSrQ);
+        copy(tSsK, tSrK);
+
+        gemm(tiled_mma_S, tSrQ, tSrK, tSrS_float);
 
         if (thread0()) {
-            print("after\n")
+            print("after\n");
             print_tensor(tSrS_float);
             print("\n=========================\n");
         }
