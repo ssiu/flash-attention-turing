@@ -429,7 +429,7 @@ void compute_dq_dk_dv_kernel_v3(
             print("\n");
             print("====================");
             print("\n");
-            print(gQ);
+            print(gQ(_,_,_,q_tile));
             print("\n");
             print("====================");
             print("\n");
