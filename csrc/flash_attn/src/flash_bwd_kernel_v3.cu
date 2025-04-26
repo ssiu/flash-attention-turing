@@ -324,7 +324,7 @@ void compute_dq_dk_dv_kernel_v3(
     Tensor tSrK = thr_mma_S.make_fragment_B(tSsK);
 
     Tensor tSrS_float = partition_fragment_C(tiled_mma_S, Shape<Int<kBlockM>, Int<kBlockN>>{});
-//     Tensor tSsP = thr_mma_S.partition_C(sP);
+    Tensor tSsP = thr_mma_S.partition_C(sP);
     //Tensor tSsS_float = thr_mma_S.partition_C(sS);
 
 
