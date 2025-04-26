@@ -361,7 +361,7 @@ void compute_dq_dk_dv_kernel_v3(
 //     Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
 
 
-//     if (thread0()) {
+    if (thread0() && q_tile==0) {
 //         print(gQ);
 //         print("\n");
 //         print(gK);
@@ -376,10 +376,10 @@ void compute_dq_dk_dv_kernel_v3(
 //         print("\n");
 //         print("gD[0] = %f\n", gD((0)));
 //         print("\n");
-//         print(sQ);
-//         print("\n");
-//         print(sK);
-//         print("\n");
+        print(sQ);
+        print("\n");
+        print(sK);
+        print("\n");
 //         print(sV);
 //         print("\n");
 //         print(sdO);
@@ -394,7 +394,7 @@ void compute_dq_dk_dv_kernel_v3(
 //         print("\n");
 //         print(tSrK);
 //         print("\n");
-//     }
+    }
 
 
     auto Q_TILE_MAX = size<3>(tSgQ);
