@@ -529,13 +529,13 @@ void compute_dq_dk_dv_kernel_v3(
 //
 //
 //
-//         //convert P from fp32 to fp16
-//         constexpr int num_element = decltype(size(tSrP_float))::value;
-//
-//         cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-//         auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrP_float.data()));
-//
-//         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
+        //convert P from fp32 to fp16
+        constexpr int num_element = decltype(size(tSrP_float))::value;
+
+        cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrP_float.data()));
+
+        Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
 //
 //
 //         // convert dS from fp32 to fp16
@@ -547,11 +547,11 @@ void compute_dq_dk_dv_kernel_v3(
 //         Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
 //
 //
-//         copy(tSrP, tSsP);
+        copy(tSrP, tSsP);
 //         copy(tdPrdS, tdPsdS);
 //
 //
-//         __syncthreads();
+        __syncthreads();
 //
 // //         if (thread0()) {
 // //             for (int i=0;i<2;i++) {
@@ -564,8 +564,8 @@ void compute_dq_dk_dv_kernel_v3(
 // //         }
 //
 //
-//         // dV += P^TdO
-//         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
+        // dV += P^TdO
+        gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 //
 //         // dK += dS^TQ
 //         gemm(tiled_mma_dK, tdKsdSt, tdKsQt, tdKrdK_float);
@@ -582,7 +582,7 @@ void compute_dq_dk_dv_kernel_v3(
 // //
 // //             print(tdQrdQ_float);
 // //         }
-//         __syncthreads();
+        __syncthreads();
 //
 //         //convert dQ from float to fp16
 //
@@ -590,15 +590,15 @@ void compute_dq_dk_dv_kernel_v3(
     }
 //
 //
-//     // dV
-//     constexpr int num_element = decltype(size(tdVrdV_float))::value;
-//
-//     cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-//     auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdVrdV_float.data()));
-//
-//     Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
-//
-//     copy(tdVrdV, tdVgdV);
+    // dV
+    constexpr int num_element = decltype(size(tdVrdV_float))::value;
+
+    cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+    auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdVrdV_float.data()));
+
+    Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
+
+    copy(tdVrdV, tdVgdV);
 //
 //
 //     // dK
