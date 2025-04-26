@@ -448,6 +448,14 @@ void compute_dq_dk_dv_kernel_v3(
             //print(tdQgdQ_float);
             //print_tensor(tdQrdQ);
         }
+
+        if (thread0() && q_tile==1) {
+            print_tensor(gQ(_,_,1));
+            print("=========================\n")
+            print_tensor(sQ);
+            print("=========================\n")
+        }
+
 //
 //
         // compute S=QK^T
