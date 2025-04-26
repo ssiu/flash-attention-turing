@@ -173,7 +173,7 @@ void compute_dq_kernel_v2(
 
     using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
 
-    using GmemLayoutAtomQKV = Layout<Shape <_8, _8>, Stride<_8, _1>>;
+    using GmemLayoutAtomQKV = Layout<Shape <_16, _8>, Stride<_8, _1>>;
 
     using GmemTiledCopyQKV = decltype(
                 make_tiled_copy(Copy_Atom<Gmem_copy_struct, half_t>{},
