@@ -421,44 +421,52 @@ void compute_dq_dk_dv_kernel_v3(
 //
         __syncthreads();
 
-        if (thread0()) {
-            print("tSsK\n");
-            print(tSsK);
-            print("\n");
-            print("====================");
-            print("tSsQ\n");
-            print(tSsQ);
-            print("\n");
-            print("====================");
-            print("\n");
-            print("gQ\n");
-            print(gQ);
-            print("====================");
-            print("\n");
-            print("tQgQ\n");
-            print(tQgQ);
-            print("\n");
-            print("====================");
-            print("\n");
-            print("sQ\n");
-            print(sQ);
-            print("\n");
-            print("####################");
-            print("\n");
-            //print(tdQgdQ_float);
-            //print_tensor(tdQrdQ);
-        }
-
-        if (thread0() && q_tile==1) {
-            print_tensor(gQ(_,_,1));
-            print("=========================\n");
-            print_tensor(sQ);
-            print("=========================\n");
-        }
+//         if (thread0()) {
+//             print("tSsK\n");
+//             print(tSsK);
+//             print("\n");
+//             print("====================");
+//             print("tSsQ\n");
+//             print(tSsQ);
+//             print("\n");
+//             print("====================");
+//             print("\n");
+//             print("gQ\n");
+//             print(gQ);
+//             print("====================");
+//             print("\n");
+//             print("tQgQ\n");
+//             print(tQgQ);
+//             print("\n");
+//             print("====================");
+//             print("\n");
+//             print("sQ\n");
+//             print(sQ);
+//             print("\n");
+//             print("####################");
+//             print("\n");
+//             //print(tdQgdQ_float);
+//             //print_tensor(tdQrdQ);
+//         }
+//
+//         if (thread0() && q_tile==1) {
+//             print_tensor(gQ(_,_,1));
+//             print("=========================\n");
+//             print_tensor(sQ);
+//             print("=========================\n");
+//         }
 
 //
 //
         // compute S=QK^T
+        for (qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
+            gemm(tiled_mma_S, tSsQ(_,_,qk_block), tSsK(_,_,qk_block), tSrS_float);
+        }
+
+        if (thread0()) {
+            print_tensor(tSrS_float);
+            print("\n=========================\n");
+        }
 //        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
 //
 //         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
