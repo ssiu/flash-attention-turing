@@ -488,7 +488,7 @@ void compute_dq_dk_dv_kernel_v3(
 //         //copy(tSrS_float, tSsS_float);
 //
         Tensor tSrP_float = tSrS_float;
-        Tensor tdPrdS_float = tdPrdP_float;
+//        Tensor tdPrdS_float = tdPrdP_float;
 
         // ptr[32b](0x7ea2408d8910) o ((_2,_2),_2,_2):((_1,_512),_2048,_32)
         // for (int i=0;i<2;i++) {
