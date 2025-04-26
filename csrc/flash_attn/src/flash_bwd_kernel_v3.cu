@@ -352,7 +352,7 @@ void compute_dq_dk_dv_kernel_v3(
     Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
 
 
-    if (thread0()) {
+    if (thread0() && q_tile==0) {
         print(gQ);
         print("\n");
         print(gK);
