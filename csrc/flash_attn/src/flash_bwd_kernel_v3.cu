@@ -352,7 +352,7 @@ void compute_dq_dk_dv_kernel_v3(
     Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
 
 
-    if (thread0() && q_tile==0) {
+    if (thread0()) {
         print(gQ);
         print("\n");
         print(gK);
@@ -459,7 +459,7 @@ void compute_dq_dk_dv_kernel_v3(
 //
 //
         // compute S=QK^T
-        for (qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
+        for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
             gemm(tiled_mma_S, tSsQ(_,_,qk_block), tSsK(_,_,qk_block), tSrS_float);
         }
 
