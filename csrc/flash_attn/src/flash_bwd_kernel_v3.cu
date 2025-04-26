@@ -381,6 +381,7 @@ void compute_dq_dk_dv_kernel_v3(
 
 
     auto Q_TILE_MAX = size<3>(tSgQ);
+    auto QK_BLOCK_MAX = size<2>(tSsK);
 
     // load K, V, dK, dV tiles
 
@@ -421,15 +422,18 @@ void compute_dq_dk_dv_kernel_v3(
         __syncthreads();
 
         if (thread0()) {
-            print_tensor(tSsQ);
+            print(tSsK);
+            print("\n");
+            print("====================");
+            print(tSsQ);
             print("\n");
             print("====================");
             print("\n");
-            print_tensor(gQ);
+            print(gQ);
             print("\n");
             print("====================");
             print("\n");
-            print_tensor(sQ);
+            print(sQ);
             print("\n");
             print("####################");
             print("\n");
