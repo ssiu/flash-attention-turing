@@ -422,17 +422,21 @@ void compute_dq_dk_dv_kernel_v3(
         __syncthreads();
 
         if (thread0()) {
+            print("tSsK\n");
             print(tSsK);
             print("\n");
             print("====================");
+            print("tSsQ\n");
             print(tSsQ);
             print("\n");
             print("====================");
             print("\n");
+            print("gQ(_,_,_,q_tile)\n");
             print(gQ(_,_,_,q_tile));
             print("\n");
             print("====================");
             print("\n");
+            print("sQ\n");
             print(sQ);
             print("\n");
             print("####################");
