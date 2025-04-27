@@ -13,6 +13,7 @@ nvcc_flags = ["-std=c++17",
               "--expt-relaxed-constexpr",
               "-arch=sm_75",
               "-O3",
+              "--use_fast_math",
               "-lineinfo"]
 
 setup(
