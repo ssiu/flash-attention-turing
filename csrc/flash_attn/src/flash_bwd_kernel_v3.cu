@@ -342,8 +342,7 @@ void compute_dq_kernel_v3(
 //         print("\n");
 //     }
 
-    clear(tdVrdV_float);
-    clear(tdKrdK_float);
+
 
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
