@@ -579,9 +579,9 @@ void compute_dq_dk_dv_kernel_v3(
         }
 
         if (thread0()) {
-            print("tdQrdQ_float\n")
+            print("tdQrdQ_float\n");
             print_tensor(tdQrdQ_float);
-            print("\n")
+            print("\n");
         }
 
 // //
