@@ -505,7 +505,7 @@ void compute_dq_kernel_v3(
         tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
     }
 
-    // dV
+    // dQ
     constexpr int num_element = decltype(size(tdQrdQ_float))::value;
 
     cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
