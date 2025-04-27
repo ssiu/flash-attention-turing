@@ -414,12 +414,12 @@ void compute_dq_dk_dv_kernel_v3(
 //     }
 
     //clear(tdVrdV_float);
-    clear(tSrS_float);
+
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
 
         clear(tSrS_float);
-       // clear(tdPrdP_float);
+        clear(tdPrdP_float);
 
         // load gQ to sQ
 //         copy(tSgQ(_,_,_,q_tile), tSsQ);
@@ -485,7 +485,7 @@ void compute_dq_dk_dv_kernel_v3(
 //         //copy(tSrS_float, tSsS_float);
 //
         Tensor tSrP_float = tSrS_float;
-//        Tensor tdPrdS_float = tdPrdP_float;
+        Tensor tdPrdS_float = tdPrdP_float;
 
         // ptr[32b](0x7ea2408d8910) o ((_2,_2),_2,_2):((_1,_512),_2048,_32)
         // for (int i=0;i<2;i++) {
@@ -502,16 +502,15 @@ void compute_dq_dk_dv_kernel_v3(
             }
         }
 //
-//         // compute dS = P \circ (dP - D)
-//         // tS has the same mma layout as tdP
-//         for (int i=0; i<2; i++) {
-//             for (int j=0;j<2;j++) {
-//                 for (int k=0; k< tdPrdP_float(make_coord(_,j),i,_).size(); k++) {
-//                     tdPrdS_float(make_coord(_,j),i,_)[k] = tSrP_float(make_coord(_,j),i,_)[k] * (tdPrdP_float(make_coord(_,j),i,_)[k] - rD[i][j]);
-//                 }
-//             }
-//
-//         }
+        // compute dS = P \circ (dP - D)
+        // tS has the same mma layout as tdP
+        for (int i=0; i<2; i++) {
+            for (int j=0;j<2;j++) {
+                for (int k=0; k< tdPrdP_float(make_coord(_,j),i,_).size(); k++) {
+                    tdPrdS_float(make_coord(_,j),i,_)[k] = tSrP_float(make_coord(_,j),i,_)[k] * (tdPrdP_float(make_coord(_,j),i,_)[k] - rD[i][j]);
+                }
+            }
+        }
 //
 // //         if (thread0()) {
 // //             print_tensor(tSrS_float);
@@ -535,17 +534,17 @@ void compute_dq_dk_dv_kernel_v3(
         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
 //
 //
-//         // convert dS from fp32 to fp16
-//         constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
-//
-//         cutlass::NumericArrayConverter<half_t, float, num_element_dS> convert_op_dS;
-//         auto frag_dS = convert_op_dS(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
-//
-//         Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
+        // convert dS from fp32 to fp16
+        constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
+
+        cutlass::NumericArrayConverter<half_t, float, num_element_dS> convert_op_dS;
+        auto frag_dS = convert_op_dS(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
+
+        Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
 //
 //
         copy(tSrP, tSsP);
-//         copy(tdPrdS, tdPsdS);
+        copy(tdPrdS, tdPsdS);
 //
 //
         __syncthreads();
@@ -564,8 +563,8 @@ void compute_dq_dk_dv_kernel_v3(
         // dV += P^TdO
         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 //
-//         // dK += dS^TQ
-//         gemm(tiled_mma_dK, tdKsdSt, tdKsQt, tdKrdK_float);
+        // dK += dS^TQ
+        gemm(tiled_mma_dK, tdKsdSt, tdKsQt, tdKrdK_float);
 //
 //
 //         // dQ += dSK
@@ -598,22 +597,22 @@ void compute_dq_dk_dv_kernel_v3(
     copy(tdVrdV, tdVgdV);
 //
 //
-//     // dK
-//
-//     // rescale by head dim
-//     for (int i=0;i< tdKrdK_float.size();i ++ ) {
-//         tdKrdK_float[i] *= 1.0f / sqrtf(kHeadDim);
-//     }
-//
-//
-//     constexpr int num_element_dK = decltype(size(tdKrdK_float))::value;
-//
-//     cutlass::NumericArrayConverter<half_t, float, num_element_dK> convert_op_dK;
-//     auto frag_dK = convert_op_dK(*reinterpret_cast<const cutlass::Array<float, num_element_dK> *>(tdKrdK_float.data()));
-//
-//     Tensor tdKrdK = make_tensor(make_rmem_ptr<half_t>(&frag_dK), tdKrdK_float.layout());
-//
-//     copy(tdKrdK, tdKgdK);
+    // dK
+
+    // rescale by head dim
+    for (int i=0;i< tdKrdK_float.size();i ++ ) {
+        tdKrdK_float[i] *= 1.0f / sqrtf(kHeadDim);
+    }
+
+
+    constexpr int num_element_dK = decltype(size(tdKrdK_float))::value;
+
+    cutlass::NumericArrayConverter<half_t, float, num_element_dK> convert_op_dK;
+    auto frag_dK = convert_op_dK(*reinterpret_cast<const cutlass::Array<float, num_element_dK> *>(tdKrdK_float.data()));
+
+    Tensor tdKrdK = make_tensor(make_rmem_ptr<half_t>(&frag_dK), tdKrdK_float.layout());
+
+    copy(tdKrdK, tdKgdK);
 //
 //
 // //     if (thread0()){
