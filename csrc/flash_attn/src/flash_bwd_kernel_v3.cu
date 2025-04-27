@@ -249,7 +249,13 @@ void compute_dq_dk_dv_kernel_v3(
     Tensor gdK = local_tile(mdK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
+    // dQ
+    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr),
+                            make_shape(batch_size, seq_len, num_heads, head_dim),
+                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
+    Tensor gdQ = local_tile(mdQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(_, 0));
 
 
     extern __shared__ char smem_[];
