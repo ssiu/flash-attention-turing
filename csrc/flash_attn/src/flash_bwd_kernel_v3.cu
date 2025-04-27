@@ -284,7 +284,6 @@ void compute_dq_kernel_v3(
 
     Tensor tVgV = thr_copy_QKV.partition_S(gV);
     Tensor tVsV = thr_copy_QKV.partition_D(sV);
-    Tensor tVrV = make_fragment_like(tVsV);
 
     Tensor tdOgdO = thr_copy_QKV.partition_S(gdO);
     Tensor tdOsdO = thr_copy_QKV.partition_D(sdO);
