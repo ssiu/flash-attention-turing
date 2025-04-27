@@ -571,7 +571,7 @@ void compute_dq_dk_dv_kernel_v3(
         Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag_dQ), tdQrdQ_float.layout());
 
         //for (int i = 0; i < size(tdKrdK_atomic); ++i) { atomicAdd(&tdKgdK_atomic(i), tdKrdK_atomic(i)); }
-        for (int i=0;i< tdQrdQ.size();i ++ ) {
+        for (int i=0;i< size(tdQrdQ);i ++ ) {
             //atomicAdd(&tdQgdQ[i], tdQrdQ[i]);
             atomicAdd(&tdQgdQ(i), tdQrdQ(i));
             //atomicAdd(reinterpret_cast<__half*>(&tdQgdQ[i]), static_cast<__half>(tdQrdQ[i]));
