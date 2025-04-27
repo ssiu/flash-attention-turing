@@ -352,13 +352,13 @@ void compute_dq_dk_dv_kernel_v3(
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
 //
-//     // dK += dS^TQ
-//     TiledMma_dK tiled_mma_dK;
-//     ThrMMA thr_mma_dK = tiled_mma_dK.get_slice(threadIdx.x);
-//     Tensor tdKsdSt = thr_mma_dK.partition_A(sdSt);
-//     Tensor tdKsQt = thr_mma_dK.partition_B(sQt);
-//     Tensor tdKrdK_float = partition_fragment_C(tiled_mma_dK, Shape<Int<kBlockN>, Int<kHeadDim>>{});
-//     Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
+    // dK += dS^TQ
+    TiledMma_dK tiled_mma_dK;
+    ThrMMA thr_mma_dK = tiled_mma_dK.get_slice(threadIdx.x);
+    Tensor tdKsdSt = thr_mma_dK.partition_A(sdSt);
+    Tensor tdKsQt = thr_mma_dK.partition_B(sQt);
+    Tensor tdKrdK_float = partition_fragment_C(tiled_mma_dK, Shape<Int<kBlockN>, Int<kHeadDim>>{});
+    Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
 
 
 //    if (thread0()) {
