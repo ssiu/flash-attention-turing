@@ -545,7 +545,7 @@ void compute_dq_dk_dv_kernel_v3(
         Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
 //
 //
-        copy(gmem_tiled_copy_QKV, tVrV, tVsV);
+        copy(gmem_tiled_copy_QKV, tVsV, tVrV);
         __syncthreads();
 
         copy(tSrP, tSsP);
