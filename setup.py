@@ -14,7 +14,7 @@ nvcc_flags = ["-std=c++17",
               "-arch=sm_75",
               "-O3",
               "--use_fast_math",
-              "--ptxas-options=-v",
+              # "--ptxas-options=-v",
               "-lineinfo"]
 
 setup(
