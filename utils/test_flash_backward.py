@@ -135,16 +135,16 @@ def main():
     print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
 
 
-    # print("==========")
-    #
-    # print("Comparing dQ")
-    #
-    # sum_error, avg_error, max_error, output_value, output_torch_value = \
-    #     get_error(d_query, d_query_torch, batch_size, seq_len, num_heads, head_dim)
-    #
-    # print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
-    #
-    #
+    print("==========")
+
+    print("Comparing dQ")
+
+    sum_error, avg_error, max_error, output_value, output_torch_value = \
+        get_error(d_query, d_query_torch, batch_size, seq_len, num_heads, head_dim)
+
+    print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
+
+
     # print("==========")
     #
     # for i in range(128):
