@@ -783,7 +783,7 @@ void compute_dk_dv_kernel_v4(
     Tensor tdVrdOt = thr_mma_dV.partition_fragment_B(sdOt);
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
-//
+
     // dK += dS^TQ
     TiledMma_dK tiled_mma_dK;
     ThrMMA thr_mma_dK = tiled_mma_dK.get_slice(threadIdx.x);
@@ -802,12 +802,6 @@ void compute_dk_dv_kernel_v4(
     //copy(tSgK, tSsK);
     copy(gmem_tiled_copy_QKV, tVgV, tVrV);
 
-
-//     if (thread0()){
-//         print_tensor(sK);
-//         print("\n");
-//     }
-
     clear(tdVrdV_float);
     clear(tdKrdK_float);
 
@@ -820,46 +814,22 @@ void compute_dk_dv_kernel_v4(
 
 
         // load gQ to sQ
-//         copy(tSgQ(_,_,_,q_tile), tSsQ);
-//         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
         copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,q_tile), tQsQ);
         copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile), tdOsdO);
 
-        // load gdQ to tdQrdQ
-        //copy(tdQgdQ(_,_,_,q_tile), tdQrdQ);
-//
-//
-//
+
+
+
         __syncthreads();
-//
-//
+
         // compute S=QK^T
-//         copy(tSsQ(_,_,0), tSrQ);
-//         copy(tSsK(_,_,0), tSrK);
-//         gemm(tiled_mma_S, tSrQ, tSrK, tSrS_float);
 
-
-//         for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
-//             gemm(tiled_mma_S, tSsQ(_,_,qk_block), tSsK(_,_,qk_block), tSrS_float);
-//         }
-
-        //gemm(tiled_mma_S, tSrQ, tSrK, tSrS_float);
         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
-
-
-
-//
         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
-//         //copy(tSrS_float, tSsS_float);
-//
-//         if (thread0()){
-//             print_tensor(tSrS_float);
-//             print("\n");
-//         }
+
 
         __syncthreads();
-//
-//
+
         // load rL, rD from gmem to rmem
         for (int i=0;i<2;i++) {
             for (int j=0;j<2;j++) {
@@ -867,29 +837,15 @@ void compute_dk_dv_kernel_v4(
                 rD[i][j] = gD((warp_offset + thread_offset + 8 * j + 32 * i), q_tile);
             }
         }
-//
-//
-// //         for (int i=0; i<2; i++) {
-// //             rL[i] = gL((thread_row + 8 * i), q_tile);
-// //             rD[i] = gD((thread_row + 8 * i), q_tile);
-// //         }
-//
-//
+
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
-//
-//         //copy(tSrS_float, tSsS_float);
-//
+
+
         Tensor tSrP_float = tSrS_float;
         Tensor tdPrdS_float = tdPrdP_float;
-
-        // ptr[32b](0x7ea2408d8910) o ((_2,_2),_2,_2):((_1,_512),_2048,_32)
-        // for (int i=0;i<2;i++) {
-        //     for (int j=0;j<2;j++) {
-        //         print_tensor(tc(make_coord(_,j),i,_));
-        //     }
 
         // compute P = exp(S-l)
         for (int i=0; i<2; i++) {
@@ -975,13 +931,7 @@ void compute_dk_dv_kernel_v4(
     Tensor tdKrdK = make_tensor(make_rmem_ptr<half_t>(&frag_dK), tdKrdK_float.layout());
 
     copy(tdKrdK, tdKgdK);
-//
-//
-// //     if (thread0()){
-// //         for (int i =0;i<128;i++) {
-// //             printf("i = %d, d[i] = %f\n", i, d_ptr[i]);
-// //         }
-// //     }
+
 
 
 }
