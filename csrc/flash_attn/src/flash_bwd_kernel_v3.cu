@@ -91,7 +91,7 @@ void compute_dq_dk_dv_kernel_v3(
     half_t const* do_ptr,
     half_t* dk_ptr,
     half_t* dv_ptr,
-    half_t* dq_ptr,
+    float* dq_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {   
@@ -562,18 +562,18 @@ void compute_dq_dk_dv_kernel_v3(
             tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
 
-
-        constexpr int num_element_dQ = decltype(size(tdQrdQ_float))::value;
-
-        cutlass::NumericArrayConverter<half_t, float, num_element_dQ> convert_op_dQ;
-        auto frag_dQ = convert_op_dQ(*reinterpret_cast<const cutlass::Array<float, num_element_dQ> *>(tdQrdQ_float.data()));
-
-        Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag_dQ), tdQrdQ_float.layout());
+//
+//         constexpr int num_element_dQ = decltype(size(tdQrdQ_float))::value;
+//
+//         cutlass::NumericArrayConverter<half_t, float, num_element_dQ> convert_op_dQ;
+//         auto frag_dQ = convert_op_dQ(*reinterpret_cast<const cutlass::Array<float, num_element_dQ> *>(tdQrdQ_float.data()));
+//
+//         Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag_dQ), tdQrdQ_float.layout());
 
         //for (int i = 0; i < size(tdKrdK_atomic); ++i) { atomicAdd(&tdKgdK_atomic(i), tdKrdK_atomic(i)); }
-        for (int i=0;i< size(tdQrdQ);i ++ ) {
+        for (int i=0; i< tdQrdQ_float.size();i ++ ) {
             //atomicAdd(&tdQgdQ[i], tdQrdQ[i]);
-            atomicAdd(&tdQgdQ(i), tdQrdQ(i));
+            atomicAdd(&tdQgdQ(i), tdQrdQ_float(i));
             //atomicAdd(reinterpret_cast<__half*>(&tdQgdQ[i]), static_cast<__half>(tdQrdQ[i]));
             //atomicAdd(reinterpret_cast<__half*>(&tdQgdQ[i]), static_cast<__half>(tdQrdQ[i]));
         }
@@ -645,7 +645,7 @@ flash_bwd_v3(torch::Tensor q,
     constexpr int kBlockN = 64;
     constexpr int kHeadDim = 128;
 
-    torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
+    torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat32));
     torch::Tensor dk = torch::empty(k.sizes(), k.options().dtype(torch::kFloat16));
     torch::Tensor dv = torch::empty(v.sizes(), v.options().dtype(torch::kFloat16));
     torch::Tensor d = torch::empty(l.sizes(), l.options());
@@ -658,7 +658,7 @@ flash_bwd_v3(torch::Tensor q,
     float* d_ptr = reinterpret_cast<float*>(d.data_ptr());
     half_t* do_ptr = reinterpret_cast<half_t*>(d_o.data_ptr());
 
-    half_t* dq_ptr = reinterpret_cast<half_t*>(dq.data_ptr());
+    float* dq_ptr = reinterpret_cast<float*>(dq.data_ptr());
     half_t* dk_ptr = reinterpret_cast<half_t*>(dk.data_ptr());
     half_t* dv_ptr = reinterpret_cast<half_t*>(dv.data_ptr());
 
