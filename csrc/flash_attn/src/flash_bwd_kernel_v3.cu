@@ -1047,11 +1047,11 @@ flash_bwd_v3(torch::Tensor q,
     int maxbytes = 65536;
 
     // compute dQ
-    dim3 dimGrid(batch_size, num_heads, seq_len / kBlockM);
-    dim3 dimBlock(256);
+    dim3 dimGrid_dq(batch_size, num_heads, seq_len / kBlockM);
+    dim3 dimBlock_dq(256);
 
     cudaFuncSetAttribute(compute_dq_kernel_v3, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    compute_dq_kernel_v3<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
+    compute_dq_kernel_v3<<<dimGrid_dq, dimBlock_dq, maxbytes>>>(q_ptr,
                                             k_ptr,
                                             v_ptr,
                                             l_ptr,
