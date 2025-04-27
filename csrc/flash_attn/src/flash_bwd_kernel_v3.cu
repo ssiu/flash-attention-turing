@@ -343,11 +343,8 @@ void compute_dq_kernel_v3(
 
     CUTE_NO_UNROLL
     for (int kv_tile = 0; kv_tile < KV_TILE_MAX; ++kv_tile) {
-
-
         clear(tSrS_float);
         clear(tdPrdP_float);
-        clear(tdQrdQ_float);
 
         // load gQ to sQ
 //         copy(tSgQ(_,_,_,q_tile), tSsQ);
@@ -375,9 +372,6 @@ void compute_dq_kernel_v3(
 
         //gemm(tiled_mma_S, tSrQ, tSrK, tSrS_float);
         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
-
-
-
 //
         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 //         //copy(tSrS_float, tSsS_float);
