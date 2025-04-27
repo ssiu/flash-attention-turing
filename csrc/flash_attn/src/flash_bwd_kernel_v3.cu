@@ -406,14 +406,14 @@ void compute_dq_dk_dv_kernel_v3(
     //copy(tSgK, tSsK);
     copy(gmem_tiled_copy_QKV, tVgV, tVsV);
 
-    __syncthreads();
 
 //     if (thread0()){
 //         print_tensor(sK);
 //         print("\n");
 //     }
 
-    //clear(tdVrdV_float);
+    clear(tdVrdV_float);
+    clear(tdKrdK_float);
 
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
