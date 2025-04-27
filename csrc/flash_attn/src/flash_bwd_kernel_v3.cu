@@ -548,7 +548,7 @@ void compute_dq_kernel_v3(
 }
 
 __global__ __launch_bounds__(256)
-void compute_dq_dk_dv_kernel_v3(
+void compute_dk_dv_kernel_v3(
     half_t const* q_ptr,
     half_t const* k_ptr,
     half_t const* v_ptr,
@@ -1116,8 +1116,8 @@ flash_bwd_v3(torch::Tensor q,
           int batch_size, int seq_len, int num_heads, int head_dim)
 {
 
-    constexpr int kBlockM = 64;
-    constexpr int kBlockN = 64;
+    constexpr int kBlockM = K_BLOCK_M;
+    constexpr int kBlockN = K_BLOCK_N;
     constexpr int kHeadDim = 128;
 
     torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat32));
@@ -1155,12 +1155,12 @@ flash_bwd_v3(torch::Tensor q,
     int maxbytes = 65536;
 
     // compute dK, dV
-    dim3 dimGrid(batch_size, num_heads, seq_len / K_BLOCK_N);
+    dim3 dimGrid(batch_size, num_heads, seq_len / kBlockN);
     dim3 dimBlock(256);
 
 
-    cudaFuncSetAttribute(compute_dq_dk_dv_kernel_v3, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    compute_dq_dk_dv_kernel_v3<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
+    cudaFuncSetAttribute(compute_dk_dv_kernel_v3, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    compute_dk_dv_kernel_v3<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
                                             k_ptr,
                                             v_ptr,
                                             l_ptr,
