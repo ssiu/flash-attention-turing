@@ -393,7 +393,7 @@ void compute_dq_dk_dv_kernel_v3(
 
     clear(tdVrdV_float);
     clear(tdKrdK_float);
-
+    clear(tdQrdQ_float);
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
         copy(gmem_tiled_copy_QKV, tVrV, tVsV);
