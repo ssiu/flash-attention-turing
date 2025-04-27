@@ -557,7 +557,6 @@ void compute_dk_dv_kernel_v3(
     half_t const* do_ptr,
     half_t* dk_ptr,
     half_t* dv_ptr,
-    float* dq_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {   
@@ -606,10 +605,6 @@ void compute_dk_dv_kernel_v3(
         Tile<Int<kBlockN>, Int<kHeadDim>, _8>>;
 
 
-    using TiledMma_dQ = TiledMMA<
-        MMA_Atom_Arch,
-        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-        Tile<Int<kBlockM>, Int<kHeadDim>, _8>>;
 
 
     using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
@@ -715,13 +710,6 @@ void compute_dk_dv_kernel_v3(
     Tensor gdK = local_tile(mdK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
-    // dQ
-    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
-
-    Tensor gdQ = local_tile(mdQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                           make_coord(_, 0));
 
 
     extern __shared__ char smem_[];
@@ -834,14 +822,6 @@ void compute_dk_dv_kernel_v3(
     Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
 
 
-    TiledMma_dQ tiled_mma_dQ;
-    ThrMMA thr_mma_dQ = tiled_mma_dQ.get_slice(threadIdx.x);
-    Tensor tdQsdS = thr_mma_dQ.partition_A(sdS);
-    Tensor tdQsKt = thr_mma_dQ.partition_B(sKt);
-    Tensor tdQrdQ_float = partition_fragment_C(tiled_mma_dQ, Shape<Int<kBlockM>, Int<kHeadDim>>{});
-    Tensor tdQgdQ = thr_mma_dP.partition_C(gdQ);
-
-
     auto Q_TILE_MAX = size<3>(tSgQ);
     auto QK_BLOCK_MAX = size<2>(tSsK);
 
@@ -866,7 +846,7 @@ void compute_dk_dv_kernel_v3(
 
         clear(tSrS_float);
         clear(tdPrdP_float);
-        clear(tdQrdQ_float);
+
 
         // load gQ to sQ
 //         copy(tSgQ(_,_,_,q_tile), tSsQ);
@@ -958,20 +938,7 @@ void compute_dk_dv_kernel_v3(
                 }
             }
         }
-//
-// //         if (thread0()) {
-// //             print_tensor(tSrS_float);
-// //             print("\n");
-// //             print_tensor(tSrP_float);
-// //             print("\n");
-// //             print_tensor(tdPrdP_float);
-// //             print("\n");
-// //             print_tensor(tdPrdS_float);
-// //             print("\n");
-// //         }
-//
-//
-//
+
         //convert P from fp32 to fp16
         constexpr int num_element = decltype(size(tSrP_float))::value;
 
@@ -998,72 +965,18 @@ void compute_dk_dv_kernel_v3(
 //
 //
         __syncthreads();
-//
-// //         if (thread0()) {
-// //             for (int i=0;i<2;i++) {
-// //                 for (int j=0;j<2;j++) {
-// //                     print("%d\n", warp_offset + thread_offset + 8 * j + 32 * i);
-// //                 }
-// //             }
-// //             print_tensor(sP);
-// //             print("\n");
-// //         }
-//
-//
+
         // dV += P^TdO
         gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 //
         // dK += dS^TQ
         gemm(tiled_mma_dK, tdKsdSt, tdKsQt, tdKrdK_float);
-//
-//
-        // dQ += dSK
-        //copy(tdQgdQ_float(_,_,_,0), tdQrdQ_float);
 
-        //print_tensor(tdQrdQ_float);
 
-        gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
-
-        // rescale by head dim
-        for (int i=0;i< tdQrdQ_float.size();i ++ ) {
-            tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
-        }
-
-//
-//         constexpr int num_element_dQ = decltype(size(tdQrdQ_float))::value;
-//
-//         cutlass::NumericArrayConverter<half_t, float, num_element_dQ> convert_op_dQ;
-//         auto frag_dQ = convert_op_dQ(*reinterpret_cast<const cutlass::Array<float, num_element_dQ> *>(tdQrdQ_float.data()));
-//
-//         Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag_dQ), tdQrdQ_float.layout());
-
-        //for (int i = 0; i < size(tdKrdK_atomic); ++i) { atomicAdd(&tdKgdK_atomic(i), tdKrdK_atomic(i)); }
-        for (int i=0; i< size(tdQrdQ_float);i ++ ) {
-            //atomicAdd(&tdQgdQ[i], tdQrdQ[i]);
-            atomicAdd(&tdQgdQ(i), tdQrdQ_float(i));
-            //atomicAdd(reinterpret_cast<__half*>(&tdQgdQ[i]), static_cast<__half>(tdQrdQ[i]));
-            //atomicAdd(reinterpret_cast<__half*>(&tdQgdQ[i]), static_cast<__half>(tdQrdQ[i]));
-        }
-
-//         if (thread0()) {
-//             print("tdQrdQ_float\n");
-//             print_tensor(tdQrdQ_float);
-//             print("\n");
-//         }
-
-// //
-// //         if (thread0()) {
-// //
-// //             print(tdQrdQ_float);
-// //         }
         __syncthreads();
-//
-//         //convert dQ from float to fp16
-//
-//
+
     }
-//
-//
+
     // dV
     constexpr int num_element = decltype(size(tdVrdV_float))::value;
 
@@ -1168,7 +1081,6 @@ flash_bwd_v3(torch::Tensor q,
                                             do_ptr,
                                             dk_ptr,
                                             dv_ptr,
-                                            dq_ptr,
                                             batch_size, seq_len, num_heads, head_dim);
 
     return { dq, dk, dv };
