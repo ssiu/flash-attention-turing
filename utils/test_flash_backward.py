@@ -55,14 +55,14 @@ def main():
 
 
     device = torch.device('cuda')
-    query = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
-    key = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
-    value = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+    # query = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+    # key = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+    # value = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
 
 
-    # query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    # key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    # value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
 
     # o = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # l = torch.randn(batch_size, num_heads, seq_len, dtype=torch.float).to("cuda")
@@ -77,10 +77,10 @@ def main():
     # print("=====")
 
 
-    d_output = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+    #d_output = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
     #d_output = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
 
-    #d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
+    d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
 
     d_query, d_key, d_value = flash_attn_backward_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim)
 
