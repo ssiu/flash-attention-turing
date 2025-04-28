@@ -428,8 +428,8 @@ void compute_dq_kernel_v4(
 //             copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
             copy(tSsQ(_,_,qk_block), tSrQ(_,_,qk_block));
             copy(tSsK(_,_,qk_block), tSrK(_,_,qk_block));
-            if (thread0 && kv_tile==0 && qk_block==0) {
-                print(tSrK(_,_,qk_block));
+            if (thread0() && kv_tile==0 && qk_block==0) {
+                print(tSrK(_,_,0));
             }
             //gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
         }
