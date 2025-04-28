@@ -159,9 +159,10 @@ void compute_dq_kernel_v4(
     using SmemLayoutAtomQKV = decltype(composition(Swizzle<3, 3, 3>{},
                                 Layout<Shape<_16,_64>,
                                 Stride<_64, _1>>{}));
+
     using SmemLayoutAtomQKVTransposed = decltype(composition(Swizzle<3, 3, 3>{},
                                 Layout<Shape<_64,_16>,
-                                Stride<_64, _1>>{}));
+                                Stride<_1, _64>>{}));
 
     using SmemLayoutQ = decltype(tile_to_shape(
         SmemLayoutAtomQKV{},
