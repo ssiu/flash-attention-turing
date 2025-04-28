@@ -143,6 +143,12 @@ void compute_dq_kernel_v4(
                                 Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
 
     // Smem layout
+
+//     using SmemLayoutAtomQK = decltype(
+//             composition(Swizzle<3, 3, 3>{},
+//                         Layout<Shape<_16, _64>,
+//                         Stride<_64, _1>>{}));
+
     using SmemLayoutAtom = decltype(
                     Layout<Shape<Int<kBlockM>, Int<kBlockN>>,
                     Stride<Int<kBlockN>, _1>>{});
@@ -150,6 +156,10 @@ void compute_dq_kernel_v4(
     using SmemLayoutAtomTranposed = decltype(
                     Layout<Shape<Int<kBlockN>, Int<kBlockM>>,
                     Stride<_1, Int<kBlockN>>>{});
+
+//     using SmemLayoutQ = decltype(tile_to_shape(
+//         SmemLayoutAtomQK{},
+//         Shape<Int<kBlockM>, Int<kHeadDim>>{}));
 
     using SmemLayoutQ = decltype(
                             Layout<Shape<Int<kBlockM>, Int<kHeadDim>>,
