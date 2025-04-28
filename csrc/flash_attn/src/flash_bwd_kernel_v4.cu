@@ -411,6 +411,13 @@ void compute_dq_kernel_v4(
 
         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
 
+        if (thread0()) {
+            print_tensor(tSrQ);
+            print_tensor(tSrK);
+        }
+
+
+
 //         CUTE_UNROLL
 //         for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
 //             copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
