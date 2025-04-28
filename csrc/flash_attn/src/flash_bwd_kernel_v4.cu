@@ -307,12 +307,12 @@ void compute_dq_kernel_v4(
     Tensor tSsP = thr_mma_S.partition_C(sP);
 
 
-    auto smem_tiled_copy_Q = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, mma_S);
+    auto smem_tiled_copy_Q = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, TiledMma_S);
     auto smem_thr_copy_Q = smem_tiled_copy_Q.get_slice(threadIdx.x);
     auto tSsQ_copy_view = smem_thr_copy_Q.partition_S(sQ);
     auto tSrQ_copy_view = smem_thr_copy_Q.retile_D(tSrQ);
 
-    auto smem_tiled_copy_K = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, mma_S);
+    auto smem_tiled_copy_K = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, TiledMma_S);
     auto smem_thr_copy_K = smem_tiled_copy_K.get_slice(threadIdx.x);
     auto tSsK_copy_view = smem_thr_copy_K.partition_S(sK);
     auto tSrK_copy_view = smem_thr_copy_K.retile_D(tSrK);
