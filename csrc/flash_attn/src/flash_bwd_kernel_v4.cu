@@ -174,13 +174,13 @@ void compute_dq_kernel_v4(
                                           Shape<Int<kHeadDim>, Int<kBlockM>>{}));
 
     // swizzle K
-//     using SmemLayoutK = decltype(tile_to_shape(
-//         SmemLayoutAtomQKV{},
-//         Shape<Int<kBlockN>, Int<kHeadDim>>{}));
-//
-//     using SmemLayoutKTransposed = decltype(tile_to_shape(
-//                                           SmemLayoutAtomQKVTransposed{},
-//                                           Shape<Int<kHeadDim>, Int<kBlockN>>{}));
+    using SmemLayoutK = decltype(tile_to_shape(
+        SmemLayoutAtomQKV{},
+        Shape<Int<kBlockN>, Int<kHeadDim>>{}));
+
+    using SmemLayoutKTransposed = decltype(tile_to_shape(
+                                          SmemLayoutAtomQKVTransposed{},
+                                          Shape<Int<kHeadDim>, Int<kBlockN>>{}));
 
     // original
 
@@ -195,13 +195,13 @@ void compute_dq_kernel_v4(
 
 
     // original K
-    using SmemLayoutK = decltype(
-           Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
-           Stride<Int<kHeadDim>, _1>>{});
-
-    using SmemLayoutKTransposed = decltype(
-           Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
-           Stride<_1, Int<kHeadDim>>>{});
+//     using SmemLayoutK = decltype(
+//            Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
+//            Stride<Int<kHeadDim>, _1>>{});
+//
+//     using SmemLayoutKTransposed = decltype(
+//            Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
+//            Stride<_1, Int<kHeadDim>>>{});
 
 
     using SmemLayoutV = decltype(
@@ -409,19 +409,19 @@ void compute_dq_kernel_v4(
         __syncthreads();
 
 
-        //gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
 
-        CUTE_UNROLL
-        for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
-            copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
-            copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
+//         CUTE_UNROLL
+//         for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
+//             copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
+//             copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
+//
+//             gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
+//         }
 
-            gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
-        }
-
-        if (thread0()) {
-            print_tensor(tSrS_float);
-        }
+//         if (thread0()) {
+//             print_tensor(tSrS_float);
+//         }
 
         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 
