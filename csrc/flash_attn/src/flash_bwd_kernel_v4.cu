@@ -169,10 +169,7 @@ void compute_dq_kernel_v4(
            Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
            Stride<_1, Int<kHeadDim>>>{});
 
-    // Smem tiled copy
-    using SmemTiledCopyQ = decltype(make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, TiledMma_S));
 
-    using SmemTiledCopyK = decltype(make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, TiledMma_S));
 
 
     // Q
@@ -310,15 +307,16 @@ void compute_dq_kernel_v4(
     Tensor tSsP = thr_mma_S.partition_C(sP);
 
 
-    SmemTiledCopyQ smem_tiled_copy_Q;
-    ThrCopy smem_thr_copy_Q = smem_tiled_copy_Q.get_slice(threadIdx.x);
-    Tensor tSsQ_copy_view = smem_thr_copy_Q.partition_S(sQ);
-    Tensor tSrQ_copy_view = smem_thr_copy_Q.retile_D(tSrQ);
+    auto smem_tiled_copy_Q = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, mma_S);
+    auto smem_thr_copy_Q = smem_tiled_copy_Q.get_slice(threadIdx.x);
+    auto tSsQ_copy_view = smem_thr_copy_Q.partition_S(sQ);
+    auto tSrQ_copy_view = smem_thr_copy_Q.retile_D(tSrQ);
 
-    SmemTiledCopyK smem_tiled_copy_K;
-    ThrCopy smem_thr_copy_K = smem_tiled_copy_K.get_slice(threadIdx.x);
-    Tensor tSsK_copy_view = smem_thr_copy_K.partition_S(sK);
-    Tensor tSrK_copy_view = smem_thr_copy_K.retile_D(tSrK);
+    auto smem_tiled_copy_K = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, mma_S);
+    auto smem_thr_copy_K = smem_tiled_copy_K.get_slice(threadIdx.x);
+    auto tSsK_copy_view = smem_thr_copy_K.partition_S(sK);
+    auto tSrK_copy_view = smem_thr_copy_K.retile_D(tSrK);
+
 
 
     // dP = dOV^T
@@ -371,6 +369,14 @@ void compute_dq_kernel_v4(
 
 
         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+
+        CUTE_UNROLL
+        for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
+            copy(s2r_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
+            copy(s2r_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
+
+            gemm(mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
+        }
 
         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 
