@@ -182,6 +182,10 @@ void compute_dq_kernel_v4(
                                           SmemLayoutAtomQKVTransposed{},
                                           Shape<Int<kHeadDim>, Int<kBlockN>>{}));
 
+
+
+
+
     // original
 
     // original Q
@@ -424,7 +428,7 @@ void compute_dq_kernel_v4(
 //             copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
             copy(tSsQ(_,_,qk_block), tSrQ(_,_,qk_block));
             copy(tSsK(_,_,qk_block), tSrK(_,_,qk_block));
-            gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
+            //gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
         }
 
 //         if (thread0()) {
