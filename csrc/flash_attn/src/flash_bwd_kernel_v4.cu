@@ -409,22 +409,23 @@ void compute_dq_kernel_v4(
         __syncthreads();
 
 
-        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+//         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+//
+//         if (thread0()) {
+//             print_tensor(tSrQ);
+//             print_tensor(tSrK);
+//         }
 
-        if (thread0()) {
-            print_tensor(tSrQ);
-            print_tensor(tSrK);
-        }
 
 
-
-//         CUTE_UNROLL
-//         for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
+        CUTE_UNROLL
+        for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
 //             copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
 //             copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
-//
-//             gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
-//         }
+            copy(tSsQ(_,_,qk_block), tSrQ(_,_,qk_block));
+            copy(tSsK(_,_,qk_block), tSrK(_,_,qk_block));
+            gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
+        }
 
 //         if (thread0()) {
 //             print_tensor(tSrS_float);
