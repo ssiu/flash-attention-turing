@@ -175,11 +175,11 @@ void compute_dq_kernel_v4(
 
     // swizzle K
     using SmemLayoutK = decltype(tile_to_shape(
-        SmemLayoutAtomQK{},
+        SmemLayoutAtomQKV{},
         Shape<Int<kBlockN>, Int<kHeadDim>>{}));
 
     using SmemLayoutKTransposed = decltype(tile_to_shape(
-                                          SmemLayoutAtomQKTransposed{},
+                                          SmemLayoutAtomQKVTransposed{},
                                           Shape<Int<kHeadDim>, Int<kBlockN>>{}));
 
     // original
