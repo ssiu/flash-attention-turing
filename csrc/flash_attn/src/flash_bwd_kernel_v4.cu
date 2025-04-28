@@ -115,6 +115,7 @@ void compute_dq_kernel_v4(
     //     }
     // }
 
+    // MMA
     using TiledMma_S = TiledMMA<
         MMA_Atom_Arch,
         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
@@ -131,7 +132,7 @@ void compute_dq_kernel_v4(
         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
         Tile<Int<kBlockM>, Int<kHeadDim>, _8>>;
 
-
+    // Gmem tiled copy
     using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
 
     using GmemLayoutAtomQKV = Layout<Shape <Int<kNThreads / 8>, _8>, Stride<_8, _1>>;
@@ -141,7 +142,7 @@ void compute_dq_kernel_v4(
                                 GmemLayoutAtomQKV{},
                                 Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
 
-
+    // Smem layout
     using SmemLayoutAtom = decltype(
                     Layout<Shape<Int<kBlockM>, Int<kBlockN>>,
                     Stride<Int<kBlockN>, _1>>{});
@@ -167,6 +168,11 @@ void compute_dq_kernel_v4(
     using SmemLayoutKVTransposed = decltype(
            Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
            Stride<_1, Int<kHeadDim>>>{});
+
+    // Smem tiled copy
+    using SmemTiledCopyQ = decltype(make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, TiledMma_S));
+
+    using SmemTiledCopyK = decltype(make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, TiledMma_S));
 
 
     // Q
@@ -302,7 +308,17 @@ void compute_dq_kernel_v4(
 
     Tensor tSrS_float = partition_fragment_C(tiled_mma_S, Shape<Int<kBlockM>, Int<kBlockN>>{});
     Tensor tSsP = thr_mma_S.partition_C(sP);
-    //Tensor tSsS_float = thr_mma_S.partition_C(sS);
+
+
+    SmemTiledCopyQ smem_tiled_copy_Q;
+    ThrCopy smem_thr_copy_Q = smem_tiled_copy_Q.get_slice(threadIdx.x);
+    Tensor tSsQ_copy_view = smem_thr_copy_Q.partition_S(sQ);
+    Tensor tSrQ_copy_view = smem_thr_copy_Q.retile_D(tSrQ);
+
+    SmemTiledCopyK smem_tiled_copy_K;
+    ThrCopy smem_thr_copy_K = smem_tiled_copy_K.get_slice(threadIdx.x);
+    Tensor tSsK_copy_view = smem_thr_copy_K.partition_S(sK);
+    Tensor tSrK_copy_view = smem_thr_copy_K.retile_D(tSrK);
 
 
     // dP = dOV^T
@@ -347,39 +363,18 @@ void compute_dq_kernel_v4(
         clear(tdPrdP_float);
 
         // load gQ to sQ
-//         copy(tSgQ(_,_,_,q_tile), tSsQ);
-//         copy(tdVgdO(_,_,_,q_tile), tdVsdO);
         copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile), tKsK);
         copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile), tVsV);
 
-        // load gdQ to tdQrdQ
-        //copy(tdQgdQ(_,_,_,q_tile), tdQrdQ);
-//
-//
-//
+
         __syncthreads();
-//
-//
-        // compute S=QK^T
-//         copy(tSsQ(_,_,0), tSrQ);
-//         copy(tSsK(_,_,0), tSrK);
-//         gemm(tiled_mma_S, tSrQ, tSrK, tSrS_float);
 
 
-//         for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
-//             gemm(tiled_mma_S, tSsQ(_,_,qk_block), tSsK(_,_,qk_block), tSrS_float);
-//         }
-
-        //gemm(tiled_mma_S, tSrQ, tSrK, tSrS_float);
         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
-//
+
         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
-//         //copy(tSrS_float, tSsS_float);
-//
-//         if (thread0()){
-//             print_tensor(tSrS_float);
-//             print("\n");
-//         }
+
+
 
         __syncthreads();
 //
