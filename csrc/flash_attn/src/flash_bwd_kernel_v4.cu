@@ -156,7 +156,7 @@ void compute_dq_kernel_v4(
 
 
     // QKV
-    // swizzle
+    // swizzle atom
     using SmemLayoutAtomQKV = decltype(composition(Swizzle<3, 3, 3>{},
                                 Layout<Shape<_16,_64>,
                                 Stride<_64, _1>>{}));
@@ -164,7 +164,7 @@ void compute_dq_kernel_v4(
     using SmemLayoutAtomQKVTransposed = decltype(composition(Swizzle<3, 3, 3>{},
                                 Layout<Shape<_64,_16>,
                                 Stride<_1, _64>>{}));
-
+    // swizzle Q
     using SmemLayoutQ = decltype(tile_to_shape(
         SmemLayoutAtomQKV{},
         Shape<Int<kBlockM>, Int<kHeadDim>>{}));
@@ -173,7 +173,7 @@ void compute_dq_kernel_v4(
                                           SmemLayoutAtomQKVTransposed{},
                                           Shape<Int<kHeadDim>, Int<kBlockM>>{}));
 
-
+    // swizzle KV
 //     using SmemLayoutKV = decltype(tile_to_shape(
 //         SmemLayoutAtomQKV{},
 //         Shape<Int<kBlockN>, Int<kHeadDim>>{}));
@@ -183,6 +183,8 @@ void compute_dq_kernel_v4(
 //                                           Shape<Int<kHeadDim>, Int<kBlockN>>{}));
 
     // original
+
+    // original Q
 //     using SmemLayoutQ = decltype(
 //                             Layout<Shape<Int<kBlockM>, Int<kHeadDim>>,
 //                             Stride<Int<kHeadDim>, _1>>{});
@@ -192,7 +194,7 @@ void compute_dq_kernel_v4(
 //                                       Stride<_1, Int<kHeadDim>>>{});
 
 
-
+    // original K
     using SmemLayoutKV = decltype(
            Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
            Stride<Int<kHeadDim>, _1>>{});
@@ -399,15 +401,15 @@ void compute_dq_kernel_v4(
         __syncthreads();
 
 
-        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+        //gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
 
-//         CUTE_UNROLL
-//         for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
-//             copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
-//             copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
-//
-//             gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
-//         }
+        CUTE_UNROLL
+        for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
+            copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
+            copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
+
+            gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
+        }
 
         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 
