@@ -21,7 +21,7 @@ using namespace cute;
 // kBlockN = 64 works
 // kBlockM = 64 doesnt work
 #define K_BLOCK_M 64
-#define K_BLOCK_N 128
+#define K_BLOCK_N 64
 
 
 __global__ __launch_bounds__(1024)
