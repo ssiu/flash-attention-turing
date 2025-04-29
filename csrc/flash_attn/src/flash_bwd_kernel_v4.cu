@@ -559,8 +559,11 @@ void compute_dq_kernel_v4(
 
         if (thread(0)) {
             printf("kv_tile = %d\n", kv_tile);
+            printf("sdS\n");
             print_tensor(tdQsdS);
+            printf("sKt\n");
             print_tensor(tdQsKt);
+            printf("rdQ\n");
             print_tensor(tdQrdQ_float);
 
         }
