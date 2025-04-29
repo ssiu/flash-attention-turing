@@ -537,6 +537,7 @@ void compute_dq_kernel_v4(
         if (thread(0) && kv_tile == 0) {
             print_tensor(sP);
             print_tensor(sdS);
+            print_tensor(tdQsKt);
         }
 //
 // //         if (thread0()) {
