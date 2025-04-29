@@ -398,7 +398,7 @@ void compute_dq_kernel_v4(
 //         print("\n");
 //     }
 
-
+    clear(tdQrdQ_float);
 
     CUTE_NO_UNROLL
     for (int kv_tile = 0; kv_tile < KV_TILE_MAX; ++kv_tile) {
@@ -534,11 +534,7 @@ void compute_dq_kernel_v4(
 //
         __syncthreads();
 
-        if (thread(0) && kv_tile == 0) {
-            print_tensor(sP);
-            print_tensor(sdS);
-            print_tensor(tdQsKt);
-        }
+
 //
 // //         if (thread0()) {
 // //             for (int i=0;i<2;i++) {
@@ -560,6 +556,13 @@ void compute_dq_kernel_v4(
 
         gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
 
+
+        if (thread(0) && kv_tile == 0) {
+            print_tensor(tdQsdS);
+            print_tensor(tdQsKt);
+            print_tensor(tdQrdQ_float);
+
+        }
 
         __syncthreads();
 
