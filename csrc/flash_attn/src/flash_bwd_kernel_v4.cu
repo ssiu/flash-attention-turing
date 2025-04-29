@@ -434,6 +434,7 @@ void compute_dq_kernel_v4(
             gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
         }
 
+            print("HGELLO\n");
 //         if (thread0()) {
 //             print_tensor(tSrS_float);
 //         }
