@@ -434,9 +434,9 @@ void compute_dq_kernel_v4(
             gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
         }
 
-//         if (thread0()) {
-//             print_tensor(tSrS_float);
-//         }
+        if (thread(0) && kv_tile==0) {
+            print_tensor(tSrS_float);
+        }
 
         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 
