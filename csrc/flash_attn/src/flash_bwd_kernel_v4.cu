@@ -434,9 +434,9 @@ void compute_dq_kernel_v4(
             gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
         }
 
-        if (thread(0) && kv_tile==0) {
-            print_tensor(tSrS_float);
-        }
+//         if (thread(0) && kv_tile==0) {
+//             print_tensor(tSrS_float);
+//         }
 
         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 
@@ -557,7 +557,8 @@ void compute_dq_kernel_v4(
         gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
 
 
-        if (thread(0) && kv_tile == 0) {
+        if (thread(0)) {
+            printf("kv_tile = %d\n", kv_tile);
             print_tensor(tdQsdS);
             print_tensor(tdQsKt);
             print_tensor(tdQrdQ_float);
@@ -568,12 +569,24 @@ void compute_dq_kernel_v4(
 
     }
 
+    if (thread(0)) {
+        print("final, before rescaling\n");
+        print_tensor(tdQrdQ_float);
+
+    }
 
 
     // rescale by head dim
     for (int i=0;i< tdQrdQ_float.size();i ++ ) {
         tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
     }
+
+    if (thread(0)) {
+        print("final\n");
+        print_tensor(tdQrdQ_float);
+
+    }
+
 
     // dQ
     constexpr int num_element = decltype(size(tdQrdQ_float))::value;
@@ -582,6 +595,12 @@ void compute_dq_kernel_v4(
     auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdQrdQ_float.data()));
 
     Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag), tdQrdQ_float.layout());
+
+    if (thread(0)) {
+        print("final, fp16\n");
+        print_tensor(tdQrdQ);
+
+    }
 
     copy(tdQrdQ, tdQgdQ);
 
