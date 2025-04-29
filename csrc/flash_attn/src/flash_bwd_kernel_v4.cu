@@ -533,6 +533,10 @@ void compute_dq_kernel_v4(
 //
 //
         __syncthreads();
+
+        if (thread(0) && kv_tile == 0) {
+            print_tensor(sP);
+        }
 //
 // //         if (thread0()) {
 // //             for (int i=0;i<2;i++) {
