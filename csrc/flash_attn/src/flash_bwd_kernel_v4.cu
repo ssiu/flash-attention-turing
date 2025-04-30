@@ -401,7 +401,7 @@ void compute_dq_kernel_v4(
     auto smem_tiled_copy_V = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, tiled_mma_S);
     auto smem_thr_copy_V = smem_tiled_copy_V.get_slice(threadIdx.x);
     auto tdPsV_copy_view = smem_thr_copy_V.partition_S(sV);
-    auto tdPrV_copy_view = smem_thr_copy_V.retile_D(tSrV);
+    auto tdPrV_copy_view = smem_thr_copy_V.retile_D(tdPrV);
 
 
     TiledMma_dQ tiled_mma_dQ;
