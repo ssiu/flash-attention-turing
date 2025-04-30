@@ -673,6 +673,9 @@ void compute_dq_kernel_v4(
 
     //copy(tdQrdQ, tdQgdQ);
     copy(tdQrdQ, tdQsdQ);
+
+    __syncthreads();
+
     copy(gmem_tiled_copy_QKV, tdQsdQ_copy, tdQgdQ_copy);
 
 }
