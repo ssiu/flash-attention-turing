@@ -675,7 +675,9 @@ void compute_dq_kernel_v4(
     copy(tdQrdQ, tdQsdQ);
 
     if (thread(0)) {
-        print_tensor(sdQ);
+        print_tensor(tdQrdQ);
+        print_tensor(tdQsdQ);
+        //print_tensor(sdQ);
     }
 
     __syncthreads();
