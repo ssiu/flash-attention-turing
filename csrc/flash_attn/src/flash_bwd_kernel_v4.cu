@@ -419,7 +419,7 @@ void compute_dq_kernel_v4(
 
     Tensor tdQrdQ_float = partition_fragment_C(tiled_mma_dQ, Shape<Int<kBlockM>, Int<kHeadDim>>{});
     Tensor tdQsdQ = thr_mma_dQ.partition_C(sdQ);
-
+    Tensor tdQgdQ = thr_mma_dQ.partition_C(gdQ);
 
     auto smem_tiled_copy_dS = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, tiled_mma_dQ);
     auto smem_thr_copy_dS = smem_tiled_copy_dS.get_slice(threadIdx.x);
