@@ -381,12 +381,27 @@ void compute_dq_kernel_v4(
     // dP = dOV^T
     TiledMma_dP tiled_mma_dP;
     ThrMMA thr_mma_dP = tiled_mma_dP.get_slice(threadIdx.x);
+
     Tensor tdPgdO = thr_mma_dP.partition_A(gdO);
     Tensor tdPsdO = thr_mma_dP.partition_A(sdO);
+    Tensor tdPrdO = thr_mma_dP.make_fragment_A(tdPsdO);
+
     Tensor tdPgV = thr_mma_dP.partition_B(gV);
     Tensor tdPsV = thr_mma_dP.partition_B(sV);
+    Tensor tdPrV = thr_mma_dP.make_fragment_B(tdPsV);
+
     Tensor tdPrdP_float = partition_fragment_C(tiled_mma_dP, Shape<Int<kBlockM>, Int<kBlockN>>{});
     Tensor tdPsdS = thr_mma_dP.partition_C(sdS);
+
+    auto smem_tiled_copy_dO = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, tiled_mma_dP);
+    auto smem_thr_copy_dO = smem_tiled_copy_dO.get_slice(threadIdx.x);
+    auto tdPsdO_copy_view = smem_thr_copy_dP.partition_S(sdO);
+    auto tdPrdO_copy_view = smem_thr_copy_dP.retile_D(tdPrdO);
+
+    auto smem_tiled_copy_V = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, tiled_mma_S);
+    auto smem_thr_copy_V = smem_tiled_copy_V.get_slice(threadIdx.x);
+    auto tdPsV_copy_view = smem_thr_copy_V.partition_S(sV);
+    auto tdPrV_copy_view = smem_thr_copy_V.retile_D(tSrV);
 
 
     TiledMma_dQ tiled_mma_dQ;
@@ -440,19 +455,22 @@ void compute_dq_kernel_v4(
         for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
             copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
             copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
+            copy(smem_tiled_copy_dO, tdPsdO_copy_view(_,_,qk_block), tdPrdO_copy_view(_,_,qk_block));
+            copy(smem_tiled_copy_V, tdPsV_copy_view(_,_,qk_block), tdPrV_copy_view(_,_,qk_block));
 //             copy(tSsQ(_,_,qk_block), tSrQ(_,_,qk_block));
 //             copy(tSsK(_,_,qk_block), tSrK(_,_,qk_block));
 //             if (thread0() && kv_tile==0 && qk_block==0) {
 //                 print_tensor(tSrK);
 //             }
             gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
+            gemm(tiled_mma_dP, tdPrdO(_,_,qk_block), tdPrV(_,_,qk_block), tdPrdP_float);
         }
 
 //         if (thread(0) && kv_tile==0) {
 //             print_tensor(tSrS_float);
 //         }
+        //gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 
-        gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 
 
 
