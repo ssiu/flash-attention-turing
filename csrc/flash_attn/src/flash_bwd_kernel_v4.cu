@@ -613,7 +613,7 @@ void compute_dq_kernel_v4(
             copy(smem_tiled_copy_Kt, tdQsKt_copy_view(_,_,dskt_block), tdQrKt_copy_view(_,_,dskt_block));
 
 
-            gemm(tiled_mma_dQ, tdQsdS(_,_,dskt_block), tdQsKt(_,_,dskt_block), tdQrdQ_float);
+            gemm(tiled_mma_dQ, tdQrdS(_,_,dskt_block), tdQrKt(_,_,dskt_block), tdQrdQ_float);
 
         }
 
