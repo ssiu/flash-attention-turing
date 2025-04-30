@@ -174,14 +174,18 @@ void compute_dq_kernel_v4(
                                           Shape<Int<kHeadDim>, Int<kBlockM>>{}));
 
     // swizzle K
-//     using SmemLayoutK = decltype(tile_to_shape(
-//         SmemLayoutAtomQKV{},
-//         Shape<Int<kBlockN>, Int<kHeadDim>>{}));
-//
-//     using SmemLayoutKTransposed = decltype(tile_to_shape(
-//                                           SmemLayoutAtomQKVTransposed{},
-//                                           Shape<Int<kHeadDim>, Int<kBlockN>>{}));
+    using SmemLayoutAtomKV = decltype(
+        composition(Swizzle<3, 3, 3>{},
+                    Layout<Shape<Int<16>, Int<64>>,
+                           Stride<Int<64>, _1>>{}));
 
+    using SmemLayoutKV = decltype(tile_to_shape(
+        // SmemLayoutAtomQdO{},
+        SmemLayoutAtomKV{},
+        make_shape(Int<kBlockN>{}, Int<kHeadDim>{})));
+
+    using SmemLayoutKtransposed = decltype(
+        composition(SmemLayoutKV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
 
 
 
@@ -287,8 +291,8 @@ void compute_dq_kernel_v4(
     //Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
 
     // 64 * 128 = 16KB
-    Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutK{});
-    Tensor sKt = make_tensor(sQ.data() + size(sQ), SmemLayoutKTransposed{});
+    Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});
+    Tensor sKt = make_tensor(sQ.data() + size(sQ), SmemLayoutKVTransposed{});
 
     // 64 * 128 = 16KB
     Tensor sdO = make_tensor(sK.data() + size(sK), SmemLayoutQ{});
