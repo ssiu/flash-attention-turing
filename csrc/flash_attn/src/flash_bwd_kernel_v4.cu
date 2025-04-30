@@ -300,7 +300,7 @@ void compute_dq_kernel_v4(
 //
 //
 //     // 64 * 128 = 16KB
-    Tensor sV = make_tensor(sdO.data() + size(sdO), SmemLayoutV{});
+    Tensor sV = make_tensor(sdO.data() + size(sdO), SmemLayoutKV{});
 //
 //
     // 64 * 64 = 8KB
@@ -561,16 +561,16 @@ void compute_dq_kernel_v4(
         gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
 
 
-        if (thread(0)) {
-            printf("kv_tile = %d\n", kv_tile);
-            printf("sdS\n");
-            print_tensor(tdQsdS);
-            printf("sKt\n");
-            print_tensor(tdQsKt);
-            printf("rdQ\n");
-            print_tensor(tdQrdQ_float);
-
-        }
+//         if (thread(0)) {
+//             printf("kv_tile = %d\n", kv_tile);
+//             printf("sdS\n");
+//             print_tensor(tdQsdS);
+//             printf("sKt\n");
+//             print_tensor(tdQsKt);
+//             printf("rdQ\n");
+//             print_tensor(tdQrdQ_float);
+//
+//         }
 
         __syncthreads();
 
