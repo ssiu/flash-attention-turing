@@ -398,7 +398,7 @@ void compute_dq_kernel_v4(
     auto tdPsdO_copy_view = smem_thr_copy_dO.partition_S(sdO);
     auto tdPrdO_copy_view = smem_thr_copy_dO.retile_D(tdPrdO);
 
-    auto smem_tiled_copy_V = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, tiled_mma_S);
+    auto smem_tiled_copy_V = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, tiled_mma_dP);
     auto smem_thr_copy_V = smem_tiled_copy_V.get_slice(threadIdx.x);
     auto tdPsV_copy_view = smem_thr_copy_V.partition_S(sV);
     auto tdPrV_copy_view = smem_thr_copy_V.retile_D(tdPrV);
@@ -412,8 +412,22 @@ void compute_dq_kernel_v4(
     Tensor tdQgdQ = thr_mma_dP.partition_C(gdQ);
 
 
+    auto smem_tiled_copy_dS = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, tiled_mma_dQ);
+    auto smem_thr_copy_dS = smem_tiled_copy_dS.get_slice(threadIdx.x);
+    auto tdQsdS_copy_view = smem_thr_copy_dS.partition_S(sdS);
+    auto tdQrdS_copy_view = smem_thr_copy_dS.retile_D(tdQrdS);
+
+    auto smem_tiled_copy_Kt = make_tiled_copy_B(Copy_Atom<SM75_U16x4_LDSM_T, half_t>{}, tiled_mma_dQ);
+    auto smem_thr_copy_Kt = smem_tiled_copy_Kt.get_slice(threadIdx.x);
+    auto tdQsKt_copy_view = smem_thr_copy_Kt.partition_S(sKt);
+    auto tdQrKt_copy_view = smem_thr_copy_Kt.retile_D(tdPrKt);
+
+
+
     auto KV_TILE_MAX = size<3>(tSgK);
     auto QK_BLOCK_MAX = size<2>(tSsK);
+    auto dSKt_BLOCK_MAX = size<2>(tdQsdS);
+
 
     // load K, V, dK, dV tiles
 
@@ -558,7 +572,7 @@ void compute_dq_kernel_v4(
         Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
 //
 //
-        __syncthreads();
+
 
         //copy(tSrP, tSsP);
         copy(tdPrdS, tdPsdS);
@@ -587,6 +601,17 @@ void compute_dq_kernel_v4(
         //print_tensor(tdQrdQ_float);
 
         gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
+
+
+        CUTE_UNROLL
+        for (int dskt_block = 0; dskt_block < dSKt_BLOCK_MAX; dskt_block++) {
+            copy(smem_tiled_copy_dS, tdQsdS_copy_view(_,_,dskt_block), tdQrdS_copy_view(_,_,dskt_block));
+            copy(smem_tiled_copy_Kt, tdQsKt_copy_view(_,_,dskt_block), tdQrKt_copy_view(_,_,dskt_block));
+
+
+            gemm(tiled_mma_dQ, tdQsdS(_,_,dskt_block), tdQsKt(_,_,dskt_block), tdQrdQ_float);
+
+        }
 
 
 //         if (thread(0)) {
