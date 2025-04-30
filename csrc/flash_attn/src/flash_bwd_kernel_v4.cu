@@ -395,8 +395,8 @@ void compute_dq_kernel_v4(
 
     auto smem_tiled_copy_dO = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, tiled_mma_dP);
     auto smem_thr_copy_dO = smem_tiled_copy_dO.get_slice(threadIdx.x);
-    auto tdPsdO_copy_view = smem_thr_copy_dP.partition_S(sdO);
-    auto tdPrdO_copy_view = smem_thr_copy_dP.retile_D(tdPrdO);
+    auto tdPsdO_copy_view = smem_thr_copy_dO.partition_S(sdO);
+    auto tdPrdO_copy_view = smem_thr_copy_dO.retile_D(tdPrdO);
 
     auto smem_tiled_copy_V = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, tiled_mma_S);
     auto smem_thr_copy_V = smem_tiled_copy_V.get_slice(threadIdx.x);
