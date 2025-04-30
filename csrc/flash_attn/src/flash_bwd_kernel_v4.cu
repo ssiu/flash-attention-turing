@@ -144,13 +144,18 @@ void compute_dq_kernel_v4(
 
     // Smem layout
     // S and dP
-    using SmemLayoutAtom = decltype(
-                    Layout<Shape<Int<kBlockM>, Int<kBlockN>>,
-                    Stride<Int<kBlockN>, _1>>{});
 
-    using SmemLayoutAtomTransposed = decltype(
-                    Layout<Shape<Int<kBlockN>, Int<kBlockM>>,
-                    Stride<_1, Int<kBlockN>>>{});
+    using SmemLayoutAtom = decltype(
+        composition(Swizzle<3, 3, 3>{},
+                    Layout<Shape<Int<16>, Int<kBlockN>>,
+                           Stride<Int<kBlockN>, _1>>{}));
+
+    using SmemLayout = decltype(tile_to_shape(
+        SmemLayoutAtom{},
+        make_shape(Int<kBlockM>{}, Int<kBlockN>{})));
+
+    using SmemLayoutTransposed = decltype(
+        composition(SmemLayout{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
 
 
 
@@ -307,14 +312,14 @@ void compute_dq_kernel_v4(
     // 64 * 64 = 8KB
 //     Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});
 //     Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});
-    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});
-    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTransposed{});
+    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayout{});
+    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutTransposed{});
 //
     // 64 * 64 = 8KB
 //     Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
 //     Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});
-    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
-    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTransposed{});
+    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayout{});
+    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutTransposed{});
 
 
     int thread_id = threadIdx.x;
