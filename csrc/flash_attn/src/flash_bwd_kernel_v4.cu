@@ -321,6 +321,8 @@ void compute_dq_kernel_v4(
     Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayout{});
     Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutTransposed{});
 
+    Tensor sdQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
+
 
     int thread_id = threadIdx.x;
     int lane_id = threadIdx.x % 32;
@@ -349,6 +351,9 @@ void compute_dq_kernel_v4(
 
     Tensor tdOgdO = thr_copy_QKV.partition_S(gdO);
     Tensor tdOsdO = thr_copy_QKV.partition_D(sdO);
+
+    Tensor tdQgdQ_copy = thr_copy_QKV.partition_S(sdQ);
+    Tensor tdQsdQ_copy = thr_copy_QKV.partition_D(gdQ);
 
 
     // S = QK^T
@@ -413,7 +418,7 @@ void compute_dq_kernel_v4(
     Tensor tdQrKt = thr_mma_dP.make_fragment_B(tdQsKt);
 
     Tensor tdQrdQ_float = partition_fragment_C(tiled_mma_dQ, Shape<Int<kBlockM>, Int<kHeadDim>>{});
-    Tensor tdQgdQ = thr_mma_dP.partition_C(gdQ);
+    Tensor tdQsdQ = thr_mma_dP.partition_C(sdQ);
 
 
     auto smem_tiled_copy_dS = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, tiled_mma_dQ);
@@ -666,8 +671,9 @@ void compute_dq_kernel_v4(
 //
 //     }
 
-    copy(tdQrdQ, tdQgdQ);
-
+    //copy(tdQrdQ, tdQgdQ);
+    copy(tdQrdQ, tdQsdQ);
+    copy(gmem_tiled_copy_QKV, tdQsdQ_copy, tdQgdQ_copy);
 
 }
 
