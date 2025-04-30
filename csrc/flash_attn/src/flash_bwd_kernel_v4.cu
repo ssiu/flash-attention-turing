@@ -665,24 +665,28 @@ void compute_dq_kernel_v4(
 
     Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag), tdQrdQ_float.layout());
 
-//     if (thread(0)) {
-//         print("final, fp16\n");
-//         print_tensor(tdQrdQ);
-//
-//     }
-
-//    copy(tdQrdQ, tdQgdQ);
-    copy(tdQrdQ, tdQsdQ);
-
     if (thread(0)) {
+        print("final, fp16\n");
         print_tensor(tdQrdQ);
-        print_tensor(tdQsdQ);
-        print_tensor(sdQ);
+
     }
 
-    __syncthreads();
+   copy(tdQrdQ, tdQgdQ);
 
-    copy(gmem_tiled_copy_QKV, tdQsdQ_copy, tdQgdQ_copy);
+
+
+
+//     copy(tdQrdQ, tdQsdQ);
+//
+//     if (thread(0)) {
+//         print_tensor(tdQrdQ);
+//         print_tensor(tdQsdQ);
+//         print_tensor(sdQ);
+//     }
+//
+//     __syncthreads();
+//
+//     copy(gmem_tiled_copy_QKV, tdQsdQ_copy, tdQgdQ_copy);
 
 }
 
