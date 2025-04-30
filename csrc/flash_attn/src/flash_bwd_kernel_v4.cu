@@ -184,7 +184,7 @@ void compute_dq_kernel_v4(
         SmemLayoutAtomKV{},
         make_shape(Int<kBlockN>{}, Int<kHeadDim>{})));
 
-    using SmemLayoutKtransposed = decltype(
+    using SmemLayoutKVTransposed = decltype(
         composition(SmemLayoutKV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
 
 
@@ -203,13 +203,13 @@ void compute_dq_kernel_v4(
 
 
     // original K
-    using SmemLayoutK = decltype(
-           Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
-           Stride<Int<kHeadDim>, _1>>{});
-
-    using SmemLayoutKTransposed = decltype(
-           Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
-           Stride<_1, Int<kHeadDim>>>{});
+//     using SmemLayoutK = decltype(
+//            Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
+//            Stride<Int<kHeadDim>, _1>>{});
+//
+//     using SmemLayoutKTransposed = decltype(
+//            Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
+//            Stride<_1, Int<kHeadDim>>>{});
 
 
     using SmemLayoutV = decltype(
