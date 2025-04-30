@@ -600,7 +600,7 @@ void compute_dq_kernel_v4(
 
         //print_tensor(tdQrdQ_float);
 
-        gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
+        //gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
 
 
         CUTE_UNROLL
