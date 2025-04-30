@@ -404,10 +404,14 @@ void compute_dq_kernel_v4(
     auto tdPrV_copy_view = smem_thr_copy_V.retile_D(tdPrV);
 
 
+
     TiledMma_dQ tiled_mma_dQ;
     ThrMMA thr_mma_dQ = tiled_mma_dQ.get_slice(threadIdx.x);
     Tensor tdQsdS = thr_mma_dQ.partition_A(sdS);
+    Tensor tdQrdS = thr_mma_dQ.make_fragment_A(tdQsdS);
     Tensor tdQsKt = thr_mma_dQ.partition_B(sKt);
+    Tensor tdQrKt = thr_mma_dP.make_fragment_B(tdQsKt);
+
     Tensor tdQrdQ_float = partition_fragment_C(tiled_mma_dQ, Shape<Int<kBlockM>, Int<kHeadDim>>{});
     Tensor tdQgdQ = thr_mma_dP.partition_C(gdQ);
 
