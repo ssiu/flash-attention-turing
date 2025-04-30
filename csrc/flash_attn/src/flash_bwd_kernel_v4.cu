@@ -164,6 +164,7 @@ void compute_dq_kernel_v4(
     using SmemLayoutAtomQKVTransposed = decltype(composition(Swizzle<3, 3, 3>{},
                                 Layout<Shape<_64,_16>,
                                 Stride<_1, _64>>{}));
+
     // swizzle Q
     using SmemLayoutQ = decltype(tile_to_shape(
         SmemLayoutAtomQKV{},
@@ -212,13 +213,13 @@ void compute_dq_kernel_v4(
 //            Stride<_1, Int<kHeadDim>>>{});
 
 
-    using SmemLayoutV = decltype(
-           Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
-           Stride<Int<kHeadDim>, _1>>{});
-
-    using SmemLayoutVTransposed = decltype(
-           Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
-           Stride<_1, Int<kHeadDim>>>{});
+//     using SmemLayoutV = decltype(
+//            Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
+//            Stride<Int<kHeadDim>, _1>>{});
+//
+//     using SmemLayoutVTransposed = decltype(
+//            Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
+//            Stride<_1, Int<kHeadDim>>>{});
 
 
 
@@ -304,12 +305,16 @@ void compute_dq_kernel_v4(
 //
 //
     // 64 * 64 = 8KB
-    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});
-    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});
+//     Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});
+//     Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});
+    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomQKV{});
+    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomQKVTranposed{});
 //
     // 64 * 64 = 8KB
-    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
-    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});
+//     Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
+//     Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});
+    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtomQKV{});
+    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomQKVTranposed{});
 
 
     int thread_id = threadIdx.x;
@@ -576,11 +581,11 @@ void compute_dq_kernel_v4(
 
     }
 
-    if (thread(0)) {
-        print("final, before rescaling\n");
-        print_tensor(tdQrdQ_float);
-
-    }
+//     if (thread(0)) {
+//         print("final, before rescaling\n");
+//         print_tensor(tdQrdQ_float);
+//
+//     }
 
 
     // rescale by head dim
@@ -588,11 +593,11 @@ void compute_dq_kernel_v4(
         tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
     }
 
-    if (thread(0)) {
-        print("final\n");
-        print_tensor(tdQrdQ_float);
-
-    }
+//     if (thread(0)) {
+//         print("final\n");
+//         print_tensor(tdQrdQ_float);
+//
+//     }
 
 
     // dQ
@@ -603,11 +608,11 @@ void compute_dq_kernel_v4(
 
     Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag), tdQrdQ_float.layout());
 
-    if (thread(0)) {
-        print("final, fp16\n");
-        print_tensor(tdQrdQ);
-
-    }
+//     if (thread(0)) {
+//         print("final, fp16\n");
+//         print_tensor(tdQrdQ);
+//
+//     }
 
     copy(tdQrdQ, tdQgdQ);
 
