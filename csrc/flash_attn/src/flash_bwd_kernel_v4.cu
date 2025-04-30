@@ -308,13 +308,13 @@ void compute_dq_kernel_v4(
 //     Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});
 //     Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});
     Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomQKV{});
-    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomQKVTranposed{});
+    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomQKVTransposed{});
 //
     // 64 * 64 = 8KB
 //     Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
 //     Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});
     Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtomQKV{});
-    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomQKVTranposed{});
+    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomQKVTransposed{});
 
 
     int thread_id = threadIdx.x;
