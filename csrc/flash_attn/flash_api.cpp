@@ -21,7 +21,7 @@ std::vector<torch::Tensor> flash_fwd(torch::Tensor q,
 //                                     int head_dim);
 
 
-std::vector<torch::Tensor> flash_bwd_v4(torch::Tensor q,
+std::vector<torch::Tensor> flash_bwd_v5(torch::Tensor q,
                                      torch::Tensor k,
                                      torch::Tensor v,
                                      torch::Tensor o,
