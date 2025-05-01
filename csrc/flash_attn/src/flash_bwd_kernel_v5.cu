@@ -540,7 +540,7 @@ void compute_dq_kernel_v5(
 
         }
 
-        if (thread(0) && q_tile == 0 ) {
+        if (thread(0) && kv_tile == 0 ) {
             printf("tdQsdS\n");
             print_tensor(tdQsdS);
             printf("tdQrdS\n");
