@@ -648,31 +648,83 @@ void compute_dk_dv_kernel_v4(
                                 Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
 
 
+    // Smem layout
+    // S and dP
+
     using SmemLayoutAtom = decltype(
-                    Layout<Shape<Int<kBlockM>, Int<kBlockN>>,
-                    Stride<Int<kBlockN>, _1>>{});
+        composition(Swizzle<3, 3, 3>{},
+                    Layout<Shape<Int<16>, Int<kBlockN>>,
+                           Stride<Int<kBlockN>, _1>>{}));
 
-    using SmemLayoutAtomTranposed = decltype(
-                    Layout<Shape<Int<kBlockN>, Int<kBlockM>>,
-                    Stride<_1, Int<kBlockN>>>{});
-    
-    using SmemLayoutQ = decltype(
-                            Layout<Shape<Int<kBlockM>, Int<kHeadDim>>,
-                            Stride<Int<kHeadDim>, _1>>{});
+    using SmemLayout = decltype(tile_to_shape(
+        SmemLayoutAtom{},
+        make_shape(Int<kBlockM>{}, Int<kBlockN>{})));
 
-    using SmemLayoutQTransposed = decltype(
-                                      Layout<Shape<Int<kHeadDim>, Int<kBlockM>>,
-                                      Stride<_1, Int<kHeadDim>>>{});
+    using SmemLayoutTransposed = decltype(
+        composition(SmemLayout{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
 
 
 
-    using SmemLayoutKV = decltype(
-           Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
-           Stride<Int<kHeadDim>, _1>>{});
+
+    // QKV
+    // swizzle atom
+    using SmemLayoutAtomQKV = decltype(composition(Swizzle<3, 3, 3>{},
+                                Layout<Shape<_16,_64>,
+                                Stride<_64, _1>>{}));
+
+    using SmemLayoutAtomQKVTransposed = decltype(composition(Swizzle<3, 3, 3>{},
+                                Layout<Shape<_64,_16>,
+                                Stride<_1, _64>>{}));
+
+    // swizzle Q
+    using SmemLayoutQ = decltype(tile_to_shape(
+        SmemLayoutAtomQKV{},
+        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
+
+    using SmemLayoutQTransposed = decltype(tile_to_shape(
+                                          SmemLayoutAtomQKVTransposed{},
+                                          Shape<Int<kHeadDim>, Int<kBlockM>>{}));
+
+    // swizzle K and V
+    using SmemLayoutAtomKV = decltype(
+        composition(Swizzle<3, 3, 3>{},
+                    Layout<Shape<Int<16>, Int<64>>,
+                           Stride<Int<64>, _1>>{}));
+
+    using SmemLayoutKV = decltype(tile_to_shape(
+        // SmemLayoutAtomQdO{},
+        SmemLayoutAtomKV{},
+        make_shape(Int<kBlockN>{}, Int<kHeadDim>{})));
 
     using SmemLayoutKVTransposed = decltype(
-           Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
-           Stride<_1, Int<kHeadDim>>>{});
+        composition(SmemLayoutKV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
+
+
+//     using SmemLayoutAtom = decltype(
+//                     Layout<Shape<Int<kBlockM>, Int<kBlockN>>,
+//                     Stride<Int<kBlockN>, _1>>{});
+//
+//     using SmemLayoutAtomTranposed = decltype(
+//                     Layout<Shape<Int<kBlockN>, Int<kBlockM>>,
+//                     Stride<_1, Int<kBlockN>>>{});
+//
+//     using SmemLayoutQ = decltype(
+//                             Layout<Shape<Int<kBlockM>, Int<kHeadDim>>,
+//                             Stride<Int<kHeadDim>, _1>>{});
+//
+//     using SmemLayoutQTransposed = decltype(
+//                                       Layout<Shape<Int<kHeadDim>, Int<kBlockM>>,
+//                                       Stride<_1, Int<kHeadDim>>>{});
+//
+//
+//
+//     using SmemLayoutKV = decltype(
+//            Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
+//            Stride<Int<kHeadDim>, _1>>{});
+//
+//     using SmemLayoutKVTransposed = decltype(
+//            Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
+//            Stride<_1, Int<kHeadDim>>>{});
 
 
     // Q
@@ -745,32 +797,55 @@ void compute_dk_dv_kernel_v4(
 
     extern __shared__ char smem_[];
 
+        // 64 * 128 = 16KB
+        Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
+        Tensor sQt = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQTransposed{});
 
-    // 64 * 128 = 16KB
-    Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
-    Tensor sQt = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQTransposed{});
-    //Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
+        // 64 * 128 = 16KB
+        Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});
+        Tensor sKt = make_tensor(sQ.data() + size(sQ), SmemLayoutKVTransposed{});
 
-    // 64 * 128 = 16KB
-    Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});
-    Tensor sKt = make_tensor(sQ.data() + size(sQ), SmemLayoutKVTransposed{});
+        // 64 * 128 = 16KB
+        Tensor sdO = make_tensor(sK.data() + size(sK), SmemLayoutQ{});
+        Tensor sdOt = make_tensor(sK.data() + size(sK), SmemLayoutQTransposed{});
 
-    // 64 * 128 = 16KB
-    Tensor sdO = make_tensor(sK.data() + size(sK), SmemLayoutQ{});
-    Tensor sdOt = make_tensor(sK.data() + size(sK), SmemLayoutQTransposed{});
-//
+        // 64 * 128 = 16KB
+        Tensor sV = make_tensor(sdO.data() + size(sdO), SmemLayoutKV{});
+
+        // 64 * 64 = 8KB
+        Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayout{});
+        Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutTransposed{});
+
+        // 64 * 64 = 8KB
+        Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayout{});
+        Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutTransposed{});
+
+
+//     // 64 * 128 = 16KB
+//     Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
+//     Tensor sQt = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQTransposed{});
+//     //Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
 //
 //     // 64 * 128 = 16KB
-    Tensor sV = make_tensor(sdO.data() + size(sdO), SmemLayoutKV{});
+//     Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});
+//     Tensor sKt = make_tensor(sQ.data() + size(sQ), SmemLayoutKVTransposed{});
 //
-//
-    // 64 * 64 = 8KB
-    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});
-    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});
-//
-    // 64 * 64 = 8KB
-    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
-    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});
+//     // 64 * 128 = 16KB
+//     Tensor sdO = make_tensor(sK.data() + size(sK), SmemLayoutQ{});
+//     Tensor sdOt = make_tensor(sK.data() + size(sK), SmemLayoutQTransposed{});
+// //
+// //
+// //     // 64 * 128 = 16KB
+//     Tensor sV = make_tensor(sdO.data() + size(sdO), SmemLayoutKV{});
+// //
+// //
+//     // 64 * 64 = 8KB
+//     Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayout{});
+//     Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});
+// //
+//     // 64 * 64 = 8KB
+//     Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
+//     Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});
 
 
 
