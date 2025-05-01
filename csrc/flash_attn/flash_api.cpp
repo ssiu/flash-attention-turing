@@ -34,5 +34,5 @@ std::vector<torch::Tensor> flash_bwd_v5(torch::Tensor q,
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("flash_attn_func", &flash_fwd, "flash_fwd");
-    m.def("flash_attn_backward_func", &flash_bwd_v4, "flash_bwd");
+    m.def("flash_attn_backward_func", &flash_bwd_v5, "flash_bwd");
 }
