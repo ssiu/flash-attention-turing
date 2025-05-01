@@ -352,8 +352,8 @@ void compute_dq_kernel_v4(
     Tensor tdOgdO = thr_copy_QKV.partition_S(gdO);
     Tensor tdOsdO = thr_copy_QKV.partition_D(sdO);
 
-    Tensor tdQgdQ_copy = thr_copy_QKV.partition_S(sdQ);
-    Tensor tdQsdQ_copy = thr_copy_QKV.partition_D(gdQ);
+    Tensor tdQsdQ_copy = thr_copy_QKV.partition_S(sdQ);
+    Tensor tdQgdQ_copy = thr_copy_QKV.partition_D(gdQ);
 
 
     // S = QK^T
