@@ -345,9 +345,11 @@ void compute_dq_kernel_v4(
 
     Tensor tKgK = thr_copy_QKV.partition_S(gK);
     Tensor tKsK = thr_copy_QKV.partition_D(sK);
+    Tensor tKrK = make_fragment_like(tKsK);
 
     Tensor tVgV = thr_copy_QKV.partition_S(gV);
     Tensor tVsV = thr_copy_QKV.partition_D(sV);
+    Tensor tVrV = make_fragment_like(tVsV);
 
     Tensor tdOgdO = thr_copy_QKV.partition_S(gdO);
     Tensor tdOsdO = thr_copy_QKV.partition_D(sdO);
@@ -444,6 +446,11 @@ void compute_dq_kernel_v4(
     //copy(tSgK, tSsK);
     copy(gmem_tiled_copy_QKV, tdOgdO, tdOsdO);
 
+    copy(gmem_tiled_copy_QKV, tKgK(_,_,_,0), tKrK);
+    copy(gmem_tiled_copy_QKV, tVgV(_,_,_,0), tVrV);
+
+
+
 
 //     if (thread0()){
 //         print_tensor(sK);
@@ -458,8 +465,10 @@ void compute_dq_kernel_v4(
         clear(tdPrdP_float);
 
         // load gQ to sQ
-        copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile), tKsK);
-        copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile), tVsV);
+//         copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile), tKsK);
+//         copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile), tVsV);
+        copy(gmem_tiled_copy_QKV, tKrK, tKsK);
+        copy(gmem_tiled_copy_QKV, tVrV, tVsV);
 
 
         __syncthreads();
@@ -471,6 +480,11 @@ void compute_dq_kernel_v4(
 //             print_tensor(tSrQ);
 //             print_tensor(tSrK);
 //         }
+
+        if (kv_tile + 1 < KV_TILE_MAX) {
+            copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile + 1), tKrK);
+            copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile + 1), tVrV);
+        }
 
 
 
