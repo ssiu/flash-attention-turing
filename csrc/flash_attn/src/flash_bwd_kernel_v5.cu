@@ -538,7 +538,7 @@ void compute_dq_kernel_v5(
 //             printf("tdQrKt\n");
 //             print_tensor(tdQrKt);
             printf("tdQsdS_copy_view\n");
-            print(layout(tdQsdS_copy_view));
+            print(tdQsdS_copy_view.layout());
 //             printf("tdQrdS_copy_view\n");
 //             print_tensor(tdQrdS_copy_view);
 //             printf("tdQsKt_copy_view\n");
