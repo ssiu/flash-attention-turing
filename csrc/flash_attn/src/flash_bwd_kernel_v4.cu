@@ -841,7 +841,7 @@ void compute_dk_dv_kernel_v4(
 //
 //
     // 64 * 64 = 8KB
-    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayout{});
+    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});
     Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});
 //
     // 64 * 64 = 8KB
