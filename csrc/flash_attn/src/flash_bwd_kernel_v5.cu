@@ -888,18 +888,47 @@ void compute_dk_dv_kernel_v5(
 
     Tensor tSrS_float = partition_fragment_C(tiled_mma_S, Shape<Int<kBlockM>, Int<kBlockN>>{});
     Tensor tSsP = thr_mma_S.partition_C(sP);
-    //Tensor tSsS_float = thr_mma_S.partition_C(sS);
+
+    auto smem_tiled_copy_Q = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, tiled_mma_S);
+    auto smem_thr_copy_Q = smem_tiled_copy_Q.get_slice(threadIdx.x);
+    auto tSsQ_copy_view = smem_thr_copy_Q.partition_S(sQ);
+    auto tSrQ_copy_view = smem_thr_copy_Q.retile_D(tSrQ);
+
+    auto smem_tiled_copy_K = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, tiled_mma_S);
+    auto smem_thr_copy_K = smem_tiled_copy_K.get_slice(threadIdx.x);
+    auto tSsK_copy_view = smem_thr_copy_K.partition_S(sK);
+    auto tSrK_copy_view = smem_thr_copy_K.retile_D(tSrK);
+
+
+
+
 
 
     // dP = dOV^T
     TiledMma_dP tiled_mma_dP;
     ThrMMA thr_mma_dP = tiled_mma_dP.get_slice(threadIdx.x);
+
     Tensor tdPgdO = thr_mma_dP.partition_A(gdO);
     Tensor tdPsdO = thr_mma_dP.partition_A(sdO);
+    Tensor tdPrdO = thr_mma_dP.make_fragment_A(tdPsdO);
+
     Tensor tdPgV = thr_mma_dP.partition_B(gV);
     Tensor tdPsV = thr_mma_dP.partition_B(sV);
+    Tensor tdPrV = thr_mma_dP.make_fragment_B(tdPsV);
+
     Tensor tdPrdP_float = partition_fragment_C(tiled_mma_dP, Shape<Int<kBlockM>, Int<kBlockN>>{});
     Tensor tdPsdS = thr_mma_dP.partition_C(sdS);
+
+    auto smem_tiled_copy_dO = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, tiled_mma_dP);
+    auto smem_thr_copy_dO = smem_tiled_copy_dO.get_slice(threadIdx.x);
+    auto tdPsdO_copy_view = smem_thr_copy_dO.partition_S(sdO);
+    auto tdPrdO_copy_view = smem_thr_copy_dO.retile_D(tdPrdO);
+
+    auto smem_tiled_copy_V = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, tiled_mma_dP);
+    auto smem_thr_copy_V = smem_tiled_copy_V.get_slice(threadIdx.x);
+    auto tdPsV_copy_view = smem_thr_copy_V.partition_S(sV);
+    auto tdPrV_copy_view = smem_thr_copy_V.retile_D(tdPrV);
+
 
 
     // dV += P^TdO
@@ -949,14 +978,23 @@ void compute_dk_dv_kernel_v5(
         copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile), tdOsdO);
 
 
-
-
         __syncthreads();
 
         // compute S=QK^T
 
-        gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
-        gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
+        CUTE_UNROLL
+        for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
+            copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
+            copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
+            copy(smem_tiled_copy_dO, tdPsdO_copy_view(_,_,qk_block), tdPrdO_copy_view(_,_,qk_block));
+            copy(smem_tiled_copy_V, tdPsV_copy_view(_,_,qk_block), tdPrV_copy_view(_,_,qk_block));
+
+            gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
+            gemm(tiled_mma_dP, tdPrdO(_,_,qk_block), tdPrV(_,_,qk_block), tdPrdP_float);
+        }
+
+//         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+//         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
 
 
         __syncthreads();
