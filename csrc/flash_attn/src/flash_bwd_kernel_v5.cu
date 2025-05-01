@@ -426,8 +426,6 @@ void compute_dq_kernel_v5(
     auto tdQsKt_copy_view = smem_thr_copy_Kt.partition_S(sKt);
     auto tdQrKt_copy_view = smem_thr_copy_Kt.retile_D(tdQrKt);
 
-
-
     auto KV_TILE_MAX = size<3>(tSgK);
     auto QK_BLOCK_MAX = size<2>(tSsK);
     auto dSKt_BLOCK_MAX = size<2>(tdQsdS);
@@ -531,8 +529,6 @@ void compute_dq_kernel_v5(
 
 
         // dQ += dSK
-
-
 
         CUTE_UNROLL
         for (int dskt_block = 0; dskt_block < dSKt_BLOCK_MAX; dskt_block++) {
@@ -900,10 +896,6 @@ void compute_dk_dv_kernel_v5(
     auto tSrK_copy_view = smem_thr_copy_K.retile_D(tSrK);
 
 
-
-
-
-
     // dP = dOV^T
     TiledMma_dP tiled_mma_dP;
     ThrMMA thr_mma_dP = tiled_mma_dP.get_slice(threadIdx.x);
@@ -934,15 +926,26 @@ void compute_dk_dv_kernel_v5(
     // dV += P^TdO
     TiledMma_dV tiled_mma_dV;
     ThrMMA thr_mma_dV = tiled_mma_dV.get_slice(threadIdx.x);
+
     Tensor tdVsPt = thr_mma_dV.partition_A(sPt);
-    // for copying dO from gmem to smem
-    Tensor tdVgdO = thr_mma_dV.partition_A(gdO);
-    Tensor tdVsdO = thr_mma_dV.partition_A(sdO);
+    Tensor tdVrPt = thr_mma_dV.make_fragment_A(tdVsPt);
 
     Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
-    Tensor tdVrdOt = thr_mma_dV.partition_fragment_B(sdOt);
+    Tensor tdVrdOt = thr_mma_dV.partition_fragment_B(tdVsdOt);
+
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
+
+    auto smem_tiled_copy_Pt = make_tiled_copy_A(Copy_Atom<SM75_U16x8_LDSM_T, half_t>{}, tiled_mma_dV);
+    auto smem_thr_copy_Pt = smem_tiled_copy_Pt.get_slice(threadIdx.x);
+    auto tdVsPt_copy_view = smem_thr_copy_Pt.partition_S(sPt);
+    auto tdVrPt_copy_view = smem_thr_copy_Pt.retile_D(tdVrPt);
+
+    auto smem_tiled_copy_dOt = make_tiled_copy_B(Copy_Atom<SM75_U16x8_LDSM_T, half_t>{}, tiled_mma_dV);
+    auto smem_thr_copy_dOt = smem_tiled_copy_dOt.get_slice(threadIdx.x);
+    auto tdVsdOt_copy_view = smem_thr_copy_dOt.partition_S(sdOt);
+    auto tdVrdOt_copy_view = smem_thr_copy_dOt.retile_D(tdVrdOt);
+
 
     // dK += dS^TQ
     TiledMma_dK tiled_mma_dK;
@@ -955,7 +958,7 @@ void compute_dk_dv_kernel_v5(
 
     auto Q_TILE_MAX = size<3>(tSgQ);
     auto QK_BLOCK_MAX = size<2>(tSsK);
-
+    auto PtdOt_BLOCK_MAX = size<2>(tdVsPt);
     // load K, V, dK, dV tiles
 
     copy(gmem_tiled_copy_QKV, tKgK, tKsK);
@@ -1063,7 +1066,17 @@ void compute_dk_dv_kernel_v5(
         __syncthreads();
 
         // dV += P^TdO
-        gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
+        CUTE_UNROLL
+        for (int ptdot_block = 0; ptdot_block < PtdOt_BLOCK_MAX; ptdot++) {
+            copy(smem_tiled_copy_Pt, tdVsPt_copy_view(_,_,ptdot_block), tdVrPt_copy_view((_,_,ptdot_block));
+            copy(smem_tiled_copy_dOt, tdVsdOt_copy_view(_,_,ptdot_block), tdVrdOt_copy_view(_,_,ptdot_block));
+
+            gemm(tiled_mma_dV, tdVrPt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block), tdVrdV_float);
+
+        }
+
+
+        //gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 //
         // dK += dS^TQ
         gemm(tiled_mma_dK, tdKsdSt, tdKsQt, tdKrdK_float);
