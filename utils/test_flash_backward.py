@@ -48,16 +48,16 @@ def main():
     # query = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # key = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # value = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    #
-    query = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    key = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
-    value = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+
+    # query = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    # key = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    # value = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
 
 
     device = torch.device('cuda')
-    # query = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
-    # key = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
-    # value = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+    query = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+    key = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+    value = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
 
 
     # query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
@@ -77,8 +77,8 @@ def main():
     # print("=====")
 
 
-    #d_output = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
-    d_output = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
+    d_output = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+    #d_output = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
 
     #d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
 
