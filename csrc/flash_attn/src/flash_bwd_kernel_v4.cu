@@ -646,9 +646,10 @@ void compute_dq_kernel_v4(
 
 
     // rescale by head dim
-//     for (int i=0;i< tdQrdQ_float.size();i ++ ) {
-//         tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
-//     }
+    for (int i=0;i< tdQrdQ_float.size();i ++ ) {
+        //tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
+        tdQrdQ_float[i] *= sqrtf(kHeadDim);
+    }
 
 //     if (thread(0)) {
 //         print("final\n");
