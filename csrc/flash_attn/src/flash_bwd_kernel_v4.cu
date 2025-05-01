@@ -648,7 +648,6 @@ void compute_dq_kernel_v4(
     // rescale by head dim
     for (int i=0;i< tdQrdQ_float.size();i ++ ) {
         tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
-        tdQrdQ_float[i] *= 10000;
     }
 
 //     if (thread(0)) {
@@ -684,12 +683,12 @@ void compute_dq_kernel_v4(
     __syncthreads();
 
 
-        if (thread(255)) {
-            print_tensor(tdQrdQ);
-            print_tensor(tdQsdQ);
-            print_tensor(sdQ);
-            print_tensor(tdQsdQ_copy);
-        }
+//         if (thread(255)) {
+//             print_tensor(tdQrdQ);
+//             print_tensor(tdQsdQ);
+//             print_tensor(sdQ);
+//             print_tensor(tdQsdQ_copy);
+//         }
 
     copy(gmem_tiled_copy_QKV, tdQsdQ_copy, tdQgdQ_copy);
 
