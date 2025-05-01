@@ -649,23 +649,23 @@ void compute_dk_dv_kernel_v4(
 
 
     // Smem layout
-    // S and dP
-
-    using SmemLayoutAtom = decltype(
-        composition(Swizzle<3, 3, 3>{},
-                    Layout<Shape<Int<16>, Int<kBlockN>>,
-                           Stride<Int<kBlockN>, _1>>{}));
-
-    using SmemLayout = decltype(tile_to_shape(
-        SmemLayoutAtom{},
-        make_shape(Int<kBlockM>{}, Int<kBlockN>{})));
-
-    using SmemLayoutTransposed = decltype(
-        composition(SmemLayout{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
-
-
-
-
+//     // S and dP
+//
+//     using SmemLayoutAtom = decltype(
+//         composition(Swizzle<3, 3, 3>{},
+//                     Layout<Shape<Int<16>, Int<kBlockN>>,
+//                            Stride<Int<kBlockN>, _1>>{}));
+//
+//     using SmemLayout = decltype(tile_to_shape(
+//         SmemLayoutAtom{},
+//         make_shape(Int<kBlockM>{}, Int<kBlockN>{})));
+//
+//     using SmemLayoutTransposed = decltype(
+//         composition(SmemLayout{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
+//
+//
+//
+//
 //     // QKV
 //     // swizzle atom
 //     using SmemLayoutAtomQKV = decltype(composition(Swizzle<3, 3, 3>{},
