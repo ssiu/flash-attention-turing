@@ -679,13 +679,17 @@ void compute_dq_kernel_v4(
 
     copy(tdQrdQ, tdQsdQ);
 
-    if (thread(255)) {
-        print_tensor(tdQrdQ);
-        print_tensor(tdQsdQ);
-        print_tensor(sdQ);
-    }
+
 
     __syncthreads();
+
+
+        if (thread(255)) {
+            print_tensor(tdQrdQ);
+            print_tensor(tdQsdQ);
+            print_tensor(sdQ);
+            print_tensor(tdQsdQ_copy);
+        }
 
     copy(gmem_tiled_copy_QKV, tdQsdQ_copy, tdQgdQ_copy);
 

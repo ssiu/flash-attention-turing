@@ -148,7 +148,7 @@ def main():
 
     print("==========")
 
-    for i in range(d_query.size(1)):
+    for i in range(32):
         row = d_query[:, i, :, :]  # shape: (1, 1, 128)
         row_torch = d_query_torch[:, i, :, :]
         print(f"i = {i}");
