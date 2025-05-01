@@ -931,7 +931,7 @@ void compute_dk_dv_kernel_v5(
     Tensor tdVrPt = thr_mma_dV.make_fragment_A(tdVsPt);
 
     Tensor tdVsdOt = thr_mma_dV.partition_B(sdOt);
-    Tensor tdVrdOt = thr_mma_dV.partition_fragment_B(tdVsdOt);
+    Tensor tdVrdOt = thr_mma_dV.make_fragment_B(tdVsdOt);
 
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
