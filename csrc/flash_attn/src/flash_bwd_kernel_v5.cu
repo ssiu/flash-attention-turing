@@ -662,28 +662,28 @@ void compute_dk_dv_kernel_v5(
 
     using SmemLayoutTransposed = decltype(
         composition(SmemLayout{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
-//
-//
-//
-//
-//     // QKV
-//     // swizzle atom
-//     using SmemLayoutAtomQKV = decltype(composition(Swizzle<3, 3, 3>{},
-//                                 Layout<Shape<_16,_64>,
-//                                 Stride<_64, _1>>{}));
-//
-//     using SmemLayoutAtomQKVTransposed = decltype(composition(Swizzle<3, 3, 3>{},
-//                                 Layout<Shape<_64,_16>,
-//                                 Stride<_1, _64>>{}));
-//
-//     // swizzle Q
-//     using SmemLayoutQ = decltype(tile_to_shape(
-//         SmemLayoutAtomQKV{},
-//         Shape<Int<kBlockM>, Int<kHeadDim>>{}));
-//
-//     using SmemLayoutQTransposed = decltype(tile_to_shape(
-//                                           SmemLayoutAtomQKVTransposed{},
-//                                           Shape<Int<kHeadDim>, Int<kBlockM>>{}));
+
+
+
+
+    // QKV
+    // swizzle atom
+    using SmemLayoutAtomQKV = decltype(composition(Swizzle<3, 3, 3>{},
+                                Layout<Shape<_16,_64>,
+                                Stride<_64, _1>>{}));
+
+    using SmemLayoutAtomQKVTransposed = decltype(composition(Swizzle<3, 3, 3>{},
+                                Layout<Shape<_64,_16>,
+                                Stride<_1, _64>>{}));
+
+    // swizzle Q
+    using SmemLayoutQ = decltype(tile_to_shape(
+        SmemLayoutAtomQKV{},
+        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
+
+    using SmemLayoutQTransposed = decltype(tile_to_shape(
+                                          SmemLayoutAtomQKVTransposed{},
+                                          Shape<Int<kHeadDim>, Int<kBlockM>>{}));
 //
 //     // swizzle K and V
 //     using SmemLayoutAtomKV = decltype(
@@ -709,13 +709,13 @@ void compute_dk_dv_kernel_v5(
 //                     Layout<Shape<Int<kBlockN>, Int<kBlockM>>,
 //                     Stride<_1, Int<kBlockN>>>{});
 
-    using SmemLayoutQ = decltype(
-                            Layout<Shape<Int<kBlockM>, Int<kHeadDim>>,
-                            Stride<Int<kHeadDim>, _1>>{});
-
-    using SmemLayoutQTransposed = decltype(
-                                      Layout<Shape<Int<kHeadDim>, Int<kBlockM>>,
-                                      Stride<_1, Int<kHeadDim>>>{});
+//     using SmemLayoutQ = decltype(
+//                             Layout<Shape<Int<kBlockM>, Int<kHeadDim>>,
+//                             Stride<Int<kHeadDim>, _1>>{});
+//
+//     using SmemLayoutQTransposed = decltype(
+//                                       Layout<Shape<Int<kHeadDim>, Int<kBlockM>>,
+//                                       Stride<_1, Int<kHeadDim>>>{});
 
 
 
