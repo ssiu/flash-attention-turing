@@ -540,6 +540,26 @@ void compute_dq_kernel_v5(
 
         }
 
+        if (thread(0) && q_tile == 0 ) {
+            printf("tdQsdS\n");
+            print_tensor(tdQsdS);
+            printf("tdQrdS\n");
+            print_tensor(tdQrdS);
+            printf("tdQsKt\n");
+            print_tensor(tdQsKt);
+            printf("tdQrKt\n");
+            print_tensor(tdQrKt);
+
+            printf("tdQsdS_copy_view\n");
+            print_tensor(tdQsdS_copy_view);
+            printf("tdQrdS_copy_view\n");
+            print_tensor(tdQrdS_copy_view);
+            printf("tdQsKt_copy_view\n");
+            print_tensor(tdQsKt_copy_view);
+            printf("tdQrKt_copy_view\n");
+            print_tensor(tdQrKt_copy_view);
+        }
+
 
         __syncthreads();
 
@@ -1065,25 +1085,25 @@ void compute_dk_dv_kernel_v5(
 //
         __syncthreads();
 
-        if (thread(0) && q_tile == 0 ) {
-            printf("tdVsPt\n");
-            print_tensor(tdVsPt);
-            printf("tdVrPt\n");
-            print_tensor(tdVrPt);
-            printf("tdVsdOt\n");
-            print_tensor(tdVsdOt);
-            printf("tdVrdOt\n");
-            print_tensor(tdVrdOt);
-
-            printf("tdVsPt_copy_view\n");
-            print_tensor(tdVsPt_copy_view);
-            printf("tdVrPt_copy_view\n");
-            print_tensor(tdVrPt_copy_view);
-            printf("tdVsdOt_copy_view\n");
-            print_tensor(tdVsdOt_copy_view);
-            printf("tdVrdOt_copy_view\n");
-            print_tensor(tdVrdOt_copy_view);
-        }
+//         if (thread(0) && q_tile == 0 ) {
+//             printf("tdVsPt\n");
+//             print_tensor(tdVsPt);
+//             printf("tdVrPt\n");
+//             print_tensor(tdVrPt);
+//             printf("tdVsdOt\n");
+//             print_tensor(tdVsdOt);
+//             printf("tdVrdOt\n");
+//             print_tensor(tdVrdOt);
+//
+//             printf("tdVsPt_copy_view\n");
+//             print_tensor(tdVsPt_copy_view);
+//             printf("tdVrPt_copy_view\n");
+//             print_tensor(tdVrPt_copy_view);
+//             printf("tdVsdOt_copy_view\n");
+//             print_tensor(tdVsdOt_copy_view);
+//             printf("tdVrdOt_copy_view\n");
+//             print_tensor(tdVrdOt_copy_view);
+//         }
 
         // dV += P^TdO
 //         CUTE_UNROLL
