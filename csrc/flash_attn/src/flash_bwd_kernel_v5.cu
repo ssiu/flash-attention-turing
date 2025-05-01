@@ -701,13 +701,13 @@ void compute_dk_dv_kernel_v5(
 //         composition(SmemLayoutKV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
 
     // OLD
-    using SmemLayoutAtom = decltype(
-                    Layout<Shape<Int<kBlockM>, Int<kBlockN>>,
-                    Stride<Int<kBlockN>, _1>>{});
-
-    using SmemLayoutAtomTranposed = decltype(
-                    Layout<Shape<Int<kBlockN>, Int<kBlockM>>,
-                    Stride<_1, Int<kBlockN>>>{});
+//     using SmemLayoutAtom = decltype(
+//                     Layout<Shape<Int<kBlockM>, Int<kBlockN>>,
+//                     Stride<Int<kBlockN>, _1>>{});
+//
+//     using SmemLayoutAtomTranposed = decltype(
+//                     Layout<Shape<Int<kBlockN>, Int<kBlockM>>,
+//                     Stride<_1, Int<kBlockN>>>{});
 
     using SmemLayoutQ = decltype(
                             Layout<Shape<Int<kBlockM>, Int<kHeadDim>>,
