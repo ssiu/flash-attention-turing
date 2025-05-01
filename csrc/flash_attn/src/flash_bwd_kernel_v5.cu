@@ -936,12 +936,12 @@ void compute_dk_dv_kernel_v5(
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
 
-    auto smem_tiled_copy_Pt = make_tiled_copy_A(Copy_Atom<SM75_U16x8_LDSM_T, half_t>{}, tiled_mma_dV);
+    auto smem_tiled_copy_Pt = make_tiled_copy_A(Copy_Atom<SM75_U16x4_LDSM_T, half_t>{}, tiled_mma_dV);
     auto smem_thr_copy_Pt = smem_tiled_copy_Pt.get_slice(threadIdx.x);
     auto tdVsPt_copy_view = smem_thr_copy_Pt.partition_S(sPt);
     auto tdVrPt_copy_view = smem_thr_copy_Pt.retile_D(tdVrPt);
 
-    auto smem_tiled_copy_dOt = make_tiled_copy_B(Copy_Atom<SM75_U16x8_LDSM_T, half_t>{}, tiled_mma_dV);
+    auto smem_tiled_copy_dOt = make_tiled_copy_B(Copy_Atom<SM75_U16x4_LDSM_T, half_t>{}, tiled_mma_dV);
     auto smem_thr_copy_dOt = smem_tiled_copy_dOt.get_slice(threadIdx.x);
     auto tdVsdOt_copy_view = smem_thr_copy_dOt.partition_S(sdOt);
     auto tdVrdOt_copy_view = smem_thr_copy_dOt.retile_D(tdVrdOt);
