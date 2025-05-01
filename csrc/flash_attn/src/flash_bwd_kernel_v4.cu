@@ -679,7 +679,7 @@ void compute_dq_kernel_v4(
 
     copy(tdQrdQ, tdQsdQ);
 
-    if (thread(0)) {
+    if (thread(255)) {
         print_tensor(tdQrdQ);
         print_tensor(tdQsdQ);
         print_tensor(sdQ);
