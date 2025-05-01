@@ -294,7 +294,6 @@ void compute_dq_kernel_v4(
     // 64 * 128 = 16KB
     Tensor sQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
     Tensor sQt = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQTransposed{});
-    //Tensor sK = make_tensor(sQ.data() + kBlockM * kHeadDim, SmemLayoutKV{});
 
     // 64 * 128 = 16KB
     Tensor sK = make_tensor(sQ.data() + size(sQ), SmemLayoutKV{});
@@ -303,21 +302,15 @@ void compute_dq_kernel_v4(
     // 64 * 128 = 16KB
     Tensor sdO = make_tensor(sK.data() + size(sK), SmemLayoutQ{});
     Tensor sdOt = make_tensor(sK.data() + size(sK), SmemLayoutQTransposed{});
-//
-//
-//     // 64 * 128 = 16KB
+
+    // 64 * 128 = 16KB
     Tensor sV = make_tensor(sdO.data() + size(sdO), SmemLayoutKV{});
-//
-//
+
     // 64 * 64 = 8KB
-//     Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});
-//     Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});
     Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayout{});
     Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutTransposed{});
-//
+
     // 64 * 64 = 8KB
-//     Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
-//     Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});
     Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayout{});
     Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutTransposed{});
 
@@ -451,12 +444,6 @@ void compute_dq_kernel_v4(
 
 
 
-
-//     if (thread0()){
-//         print_tensor(sK);
-//         print("\n");
-//     }
-
     clear(tdQrdQ_float);
 
     CUTE_NO_UNROLL
@@ -464,22 +451,12 @@ void compute_dq_kernel_v4(
         clear(tSrS_float);
         clear(tdPrdP_float);
 
-        // load gQ to sQ
-//         copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile), tKsK);
-//         copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile), tVsV);
         copy(gmem_tiled_copy_QKV, tKrK, tKsK);
         copy(gmem_tiled_copy_QKV, tVrV, tVsV);
 
 
         __syncthreads();
 
-
-//         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
-//
-//         if (thread0()) {
-//             print_tensor(tSrQ);
-//             print_tensor(tSrK);
-//         }
 
         if (kv_tile + 1 < KV_TILE_MAX) {
             copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile + 1), tKrK);
@@ -494,26 +471,14 @@ void compute_dq_kernel_v4(
             copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
             copy(smem_tiled_copy_dO, tdPsdO_copy_view(_,_,qk_block), tdPrdO_copy_view(_,_,qk_block));
             copy(smem_tiled_copy_V, tdPsV_copy_view(_,_,qk_block), tdPrV_copy_view(_,_,qk_block));
-//             copy(tSsQ(_,_,qk_block), tSrQ(_,_,qk_block));
-//             copy(tSsK(_,_,qk_block), tSrK(_,_,qk_block));
-//             if (thread0() && kv_tile==0 && qk_block==0) {
-//                 print_tensor(tSrK);
-//             }
+
             gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
             gemm(tiled_mma_dP, tdPrdO(_,_,qk_block), tdPrV(_,_,qk_block), tdPrdP_float);
         }
 
-//         if (thread(0) && kv_tile==0) {
-//             print_tensor(tSrS_float);
-//         }
-        //gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
-
-
-
 
         __syncthreads();
-//
-//
+
         // load rL, rD from gmem to rmem
         for (int i=0;i<2;i++) {
             for (int j=0;j<2;j++) {
@@ -521,29 +486,15 @@ void compute_dq_kernel_v4(
                 rD[i][j] = gD((warp_offset + thread_offset + 8 * j + 32 * i));
             }
         }
-//
-//
-// //         for (int i=0; i<2; i++) {
-// //             rL[i] = gL((thread_row + 8 * i), q_tile);
-// //             rD[i] = gD((thread_row + 8 * i), q_tile);
-// //         }
-//
-//
+
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
-//
-//         //copy(tSrS_float, tSsS_float);
-//
+
         Tensor tSrP_float = tSrS_float;
         Tensor tdPrdS_float = tdPrdP_float;
 
-        // ptr[32b](0x7ea2408d8910) o ((_2,_2),_2,_2):((_1,_512),_2048,_32)
-        // for (int i=0;i<2;i++) {
-        //     for (int j=0;j<2;j++) {
-        //         print_tensor(tc(make_coord(_,j),i,_));
-        //     }
 
         // compute P = exp(S-l)
         for (int i=0; i<2; i++) {
@@ -553,7 +504,7 @@ void compute_dq_kernel_v4(
                 }
             }
         }
-//
+
         // compute dS = P \circ (dP - D)
         // tS has the same mma layout as tdP
         for (int i=0; i<2; i++) {
@@ -563,29 +514,7 @@ void compute_dq_kernel_v4(
                 }
             }
         }
-//
-// //         if (thread0()) {
-// //             print_tensor(tSrS_float);
-// //             print("\n");
-// //             print_tensor(tSrP_float);
-// //             print("\n");
-// //             print_tensor(tdPrdP_float);
-// //             print("\n");
-// //             print_tensor(tdPrdS_float);
-// //             print("\n");
-// //         }
-//
-//
-//
-        //convert P from fp32 to fp16
-//         constexpr int num_element = decltype(size(tSrP_float))::value;
-//
-//         cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-//         auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrP_float.data()));
-//
-//         Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
-//
-//
+
         // convert dS from fp32 to fp16
         constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
 
@@ -593,37 +522,16 @@ void compute_dq_kernel_v4(
         auto frag_dS = convert_op_dS(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
 
         Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
-//
-//
-
 
         //copy(tSrP, tSsP);
         copy(tdPrdS, tdPsdS);
-//
-//
+
         __syncthreads();
 
 
-//
-// //         if (thread0()) {
-// //             for (int i=0;i<2;i++) {
-// //                 for (int j=0;j<2;j++) {
-// //                     print("%d\n", warp_offset + thread_offset + 8 * j + 32 * i);
-// //                 }
-// //             }
-// //             print_tensor(sP);
-// //             print("\n");
-// //         }
-//
-//
 
-//
         // dQ += dSK
-        //copy(tdQgdQ_float(_,_,_,0), tdQrdQ_float);
 
-        //print_tensor(tdQrdQ_float);
-
-        //gemm(tiled_mma_dQ, tdQsdS, tdQsKt, tdQrdQ_float);
 
 
         CUTE_UNROLL
@@ -637,26 +545,9 @@ void compute_dq_kernel_v4(
         }
 
 
-//         if (thread(0)) {
-//             printf("kv_tile = %d\n", kv_tile);
-//             printf("sdS\n");
-//             print_tensor(tdQsdS);
-//             printf("sKt\n");
-//             print_tensor(tdQsKt);
-//             printf("rdQ\n");
-//             print_tensor(tdQrdQ_float);
-//
-//         }
-
         __syncthreads();
 
     }
-
-//     if (thread(0)) {
-//         print("final, before rescaling\n");
-//         print_tensor(tdQrdQ_float);
-//
-//     }
 
 
     // rescale by head dim
@@ -664,11 +555,7 @@ void compute_dq_kernel_v4(
         tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
     }
 
-//     if (thread(0)) {
-//         print("final\n");
-//         print_tensor(tdQrdQ_float);
-//
-//     }
+
 
 
     // dQ
@@ -679,17 +566,6 @@ void compute_dq_kernel_v4(
 
     Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag), tdQrdQ_float.layout());
 
-//     if (thread(0)) {
-//         print("final, fp16\n");
-//         print_tensor(tdQrdQ);
-//
-//     }
-//
-//     copy(tdQrdQ, tdQgdQ);
-
-
-
-
     copy(tdQrdQ, tdQsdQ);
 
 
@@ -697,12 +573,6 @@ void compute_dq_kernel_v4(
     __syncthreads();
 
 
-//         if (thread(255)) {
-//             print_tensor(tdQrdQ);
-//             print_tensor(tdQsdQ);
-//             print_tensor(sdQ);
-//             print_tensor(tdQsdQ_copy);
-//         }
 
     copy(gmem_tiled_copy_QKV, tdQsdQ_copy, tdQgdQ_copy);
 
