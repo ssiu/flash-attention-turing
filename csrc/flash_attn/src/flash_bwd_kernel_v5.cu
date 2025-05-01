@@ -541,15 +541,14 @@ void compute_dq_kernel_v5(
         }
 
         if (thread(0) && kv_tile == 0 ) {
-            printf("tdQsdS\n");
-            print_tensor(tdQsdS);
-            printf("tdQrdS\n");
-            print_tensor(tdQrdS);
-            printf("tdQsKt\n");
-            print_tensor(tdQsKt);
-            printf("tdQrKt\n");
-            print_tensor(tdQrKt);
-
+//             printf("tdQsdS\n");
+//             print_tensor(tdQsdS);
+//             printf("tdQrdS\n");
+//             print_tensor(tdQrdS);
+//             printf("tdQsKt\n");
+//             print_tensor(tdQsKt);
+//             printf("tdQrKt\n");
+//             print_tensor(tdQrKt);
             printf("tdQsdS_copy_view\n");
             print_tensor(tdQsdS_copy_view);
             printf("tdQrdS_copy_view\n");
