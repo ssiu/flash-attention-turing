@@ -527,26 +527,6 @@ void compute_dq_kernel_v5(
         __syncthreads();
 
 
-
-        if (thread(0) && kv_tile == 0 ) {
-//             printf("tdQsdS\n");
-//             print_tensor(tdQsdS);
-//             printf("tdQrdS\n");
-//             print_tensor(tdQrdS);
-//             printf("tdQsKt\n");
-//             print_tensor(tdQsKt);
-//             printf("tdQrKt\n");
-//             print_tensor(tdQrKt);
-            printf("tdQsdS_copy_view\n");
-            print(tdQsdS_copy_view.layout());
-//             printf("tdQrdS_copy_view\n");
-//             print_tensor(tdQrdS_copy_view);
-//             printf("tdQsKt_copy_view\n");
-//             print_tensor(tdQsKt_copy_view);
-//             printf("tdQrKt_copy_view\n");
-//             print_tensor(tdQrKt_copy_view);
-        }
-
         // dQ += dSK
 
         CUTE_UNROLL
