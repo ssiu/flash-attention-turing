@@ -538,13 +538,13 @@ void compute_dq_kernel_v5(
 //             printf("tdQrKt\n");
 //             print_tensor(tdQrKt);
             printf("tdQsdS_copy_view\n");
-            print_tensor(tdQsdS_copy_view);
-            printf("tdQrdS_copy_view\n");
-            print_tensor(tdQrdS_copy_view);
-            printf("tdQsKt_copy_view\n");
-            print_tensor(tdQsKt_copy_view);
-            printf("tdQrKt_copy_view\n");
-            print_tensor(tdQrKt_copy_view);
+            print(layout(tdQsdS_copy_view));
+//             printf("tdQrdS_copy_view\n");
+//             print_tensor(tdQrdS_copy_view);
+//             printf("tdQsKt_copy_view\n");
+//             print_tensor(tdQsKt_copy_view);
+//             printf("tdQrKt_copy_view\n");
+//             print_tensor(tdQrKt_copy_view);
         }
 
         // dQ += dSK
