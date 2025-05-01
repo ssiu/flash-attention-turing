@@ -649,19 +649,19 @@ void compute_dk_dv_kernel_v5(
 
 
     // Smem layout
-//     // S and dP
-//
-//     using SmemLayoutAtom = decltype(
-//         composition(Swizzle<3, 3, 3>{},
-//                     Layout<Shape<Int<16>, Int<kBlockN>>,
-//                            Stride<Int<kBlockN>, _1>>{}));
-//
-//     using SmemLayout = decltype(tile_to_shape(
-//         SmemLayoutAtom{},
-//         make_shape(Int<kBlockM>{}, Int<kBlockN>{})));
-//
-//     using SmemLayoutTransposed = decltype(
-//         composition(SmemLayout{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
+    // S and dP
+
+    using SmemLayoutAtom = decltype(
+        composition(Swizzle<3, 3, 3>{},
+                    Layout<Shape<Int<16>, Int<kBlockN>>,
+                           Stride<Int<kBlockN>, _1>>{}));
+
+    using SmemLayout = decltype(tile_to_shape(
+        SmemLayoutAtom{},
+        make_shape(Int<kBlockM>{}, Int<kBlockN>{})));
+
+    using SmemLayoutTransposed = decltype(
+        composition(SmemLayout{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
 //
 //
 //
@@ -700,7 +700,7 @@ void compute_dk_dv_kernel_v5(
 //     using SmemLayoutKVTransposed = decltype(
 //         composition(SmemLayoutKV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
 
-
+    // OLD
     using SmemLayoutAtom = decltype(
                     Layout<Shape<Int<kBlockM>, Int<kBlockN>>,
                     Stride<Int<kBlockN>, _1>>{});
@@ -841,12 +841,12 @@ void compute_dk_dv_kernel_v5(
 //
 //
     // 64 * 64 = 8KB
-    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayoutAtom{});
-    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutAtomTranposed{});
+    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayout{});
+    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutTranposed{});
 //
     // 64 * 64 = 8KB
-    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayoutAtom{});
-    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutAtomTranposed{});
+    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayout{});
+    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutTranposed{});
 
 
 
