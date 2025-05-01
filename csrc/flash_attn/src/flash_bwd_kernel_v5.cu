@@ -1065,10 +1065,14 @@ void compute_dk_dv_kernel_v5(
 //
         __syncthreads();
 
-        if (thread(0)) {
+        if (thread(0) && q_tile == 0 ) {
+            printf("tdVsPt_copy_view\n");
             print_tensor(tdVsPt_copy_view);
+            printf("tdVrPt_copy_view\n");
             print_tensor(tdVrPt_copy_view);
+            printf("tdVsdOt_copy_view\n");
             print_tensor(tdVsdOt_copy_view);
+            printf("tdVrdOt_copy_view\n");
             print_tensor(tdVrdOt_copy_view);
         }
 
