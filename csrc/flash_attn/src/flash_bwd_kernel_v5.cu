@@ -681,9 +681,8 @@ void compute_dk_dv_kernel_v5(
         SmemLayoutAtomQKV{},
         Shape<Int<kBlockM>, Int<kHeadDim>>{}));
 
-    using SmemLayoutQTransposed = decltype(tile_to_shape(
-                                          SmemLayoutAtomQKVTransposed{},
-                                          Shape<Int<kHeadDim>, Int<kBlockM>>{}));
+    using SmemLayoutQTransposed = decltype(
+                      composition(SmemLayoutQ{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockM>>{}, GenRowMajor{})));
 //
 //     // swizzle K and V
 //     using SmemLayoutAtomKV = decltype(
