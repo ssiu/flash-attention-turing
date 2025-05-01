@@ -5,7 +5,7 @@ import argparse
 from flash_attn_turing import flash_attn_func, flash_attn_backward_func
 
 torch.set_printoptions(precision=8)
-
+torch.set_printoptions(linewidth=500)
 
 def get_error(tensor, tensor_torch, batch_size, seq_len, num_heads, head_dim):
     sum_error = torch.sum(torch.abs(tensor - tensor_torch))
