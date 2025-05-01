@@ -145,19 +145,20 @@ def main():
     print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
 
 
-    print("==========")
-
-    for i in range(128):
-        print(f"i = {i}, dQ = {d_query[0,0,0,i]}, dQ_torch = {d_query_torch[0,0,0,i]}")
-
-    print("##################################################")
-    for i in range(128):
-        print(f"i = {i}, dQ = {d_query[0,i,0,0]}, dQ_torch = {d_query_torch[0,i,0,0]}")
-
-
-    print("##################################################")
-    for i in range(128):
-        print(f"i = {i}, l = {l[0,0,i]}")
+    # #DO NOT UNCOMMENT, ONLY SHOWS l
+    # print("==========")
+    #
+    # for i in range(128):
+    #     print(f"i = {i}, dQ = {d_query[0,0,0,i]}, dQ_torch = {d_query_torch[0,0,0,i]}")
+    #
+    # print("##################################################")
+    # for i in range(128):
+    #     print(f"i = {i}, dQ = {d_query[0,i,0,0]}, dQ_torch = {d_query_torch[0,i,0,0]}")
+    #
+    #
+    # print("##################################################")
+    # for i in range(128):
+    #     print(f"i = {i}, l = {l[0,0,i]}")
 
 if __name__ == "__main__":
     main()
