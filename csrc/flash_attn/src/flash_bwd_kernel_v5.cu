@@ -565,11 +565,7 @@ void compute_dq_kernel_v5(
 
     copy(tdQrdQ, tdQsdQ);
 
-
-
     __syncthreads();
-
-
 
     copy(gmem_tiled_copy_QKV, tdQsdQ_copy, tdQgdQ_copy);
 
@@ -842,6 +838,12 @@ void compute_dk_dv_kernel_v5(
 
 
 
+    Tensor sdK = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutKV{});
+    Tensor sdV = make_tensor(sdK.data() + size(sdK), SmemLayoutKV{});
+
+
+
+
     int thread_id = threadIdx.x;
     int lane_id = threadIdx.x % 32;
     int warp_id = threadIdx.x / 32;
@@ -870,6 +872,13 @@ void compute_dk_dv_kernel_v5(
 
     Tensor tdOgdO = thr_copy_QKV.partition_S(gdO);
     Tensor tdOsdO = thr_copy_QKV.partition_D(sdO);
+
+    Tensor tdKsdK_copy = thr_copy_QKV.partition_S(sdK);
+    Tensor tdKgdK_copy = thr_copy_QKV.partition_D(gdK);
+
+    Tensor tdVsdV_copy = thr_copy_QKV.partition_S(sdV);
+    Tensor tdVgdV_copy = thr_copy_QKV.partition_D(gdV);
+
 
 
     // S = QK^T
@@ -935,7 +944,7 @@ void compute_dk_dv_kernel_v5(
     Tensor tdVrdOt = thr_mma_dV.make_fragment_B(tdVsdOt);
 
     Tensor tdVrdV_float = partition_fragment_C(tiled_mma_dV, Shape<Int<kBlockN>, Int<kHeadDim>>{});
-    Tensor tdVgdV = thr_mma_dV.partition_C(gdV);
+    Tensor tdVsdV = thr_mma_dV.partition_C(sdV);
 
     auto smem_tiled_copy_Pt = make_tiled_copy_A(Copy_Atom<SM75_U16x8_LDSM_T, half_t>{}, tiled_mma_dV);
     auto smem_thr_copy_Pt = smem_tiled_copy_Pt.get_slice(threadIdx.x);
@@ -958,7 +967,7 @@ void compute_dk_dv_kernel_v5(
     Tensor tdKrQt = thr_mma_dV.make_fragment_B(tdKsQt);
 
     Tensor tdKrdK_float = partition_fragment_C(tiled_mma_dK, Shape<Int<kBlockN>, Int<kHeadDim>>{});
-    Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
+    Tensor tdKsdK = thr_mma_dK.partition_C(sdK);
 
     auto smem_tiled_copy_dSt = make_tiled_copy_A(Copy_Atom<SM75_U16x8_LDSM_T, half_t>{}, tiled_mma_dK);
     auto smem_thr_copy_dSt = smem_tiled_copy_dSt.get_slice(threadIdx.x);
@@ -1147,7 +1156,7 @@ void compute_dk_dv_kernel_v5(
 
     Tensor tdVrdV = make_tensor(make_rmem_ptr<half_t>(&frag), tdVrdV_float.layout());
 
-    copy(tdVrdV, tdVgdV);
+    copy(tdVrdV, tdVsdV);
 //
 //
     // dK
@@ -1165,9 +1174,17 @@ void compute_dk_dv_kernel_v5(
 
     Tensor tdKrdK = make_tensor(make_rmem_ptr<half_t>(&frag_dK), tdKrdK_float.layout());
 
-    copy(tdKrdK, tdKgdK);
+    copy(tdKrdK, tdKsdK);
 
+    __syncthreads();
 
+//     copy(tdQrdQ, tdQsdQ);
+//
+//     __syncthreads();
+//
+//     copy(gmem_tiled_copy_QKV, tdQsdQ_copy, tdQgdQ_copy);
+    copy(gmem_tiled_copy_QKV, tdKsdK_copy, tdKgdK_copy);
+    copy(gmem_tiled_copy_QKV, tdVsdV_copy, tdVgdV_copy);
 
 }
 
