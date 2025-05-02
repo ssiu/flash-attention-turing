@@ -1104,12 +1104,12 @@ void compute_dk_dv_kernel_v5(
         // dV += P^TdO
         CUTE_UNROLL
         for (int ptdot_block = 0; ptdot_block < PtdOt_BLOCK_MAX; ptdot_block++) {
-            copy(smem_tiled_copy_dSt, tdVsdSt_copy_view(_,_,ptdot_block), tdVrdSt_copy_view(_,_,ptdot_block));
-            copy(smem_tiled_copy_Qt, tdVsQt_copy_view(_,_,ptdot_block), tdVrQt_copy_view(_,_,ptdot_block));
+            copy(smem_tiled_copy_dSt, tdVsPt_copy_view(_,_,ptdot_block), tdVrPt_copy_view(_,_,ptdot_block));
+            copy(smem_tiled_copy_Qt, tdVsdOt_copy_view(_,_,ptdot_block), tdVrdOt_copy_view(_,_,ptdot_block));
 
             //copy(tdVsPt(_,_,ptdot_block), tdVrPt(_,_,ptdot_block));
             //copy(tdVsdOt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block));
-            gemm(tiled_mma_dV, tdVrdSt(_,_,ptdot_block), tdVrQt(_,_,ptdot_block), tdVrdV_float);
+            gemm(tiled_mma_dV, tdVrPt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block), tdVrdV_float);
 
         }
 
@@ -1123,8 +1123,8 @@ void compute_dk_dv_kernel_v5(
 
         CUTE_UNROLL
         for (int ptdot_block = 0; ptdot_block < PtdOt_BLOCK_MAX; ptdot_block++) {
-            copy(smem_tiled_copy_Pt, tdKsPt_copy_view(_,_,ptdot_block), tdKrPt_copy_view(_,_,ptdot_block));
-            copy(smem_tiled_copy_dOt, tdKsdOt_copy_view(_,_,ptdot_block), tdKrdOt_copy_view(_,_,ptdot_block));
+            copy(smem_tiled_copy_dSt, tdKsdSt_copy_view(_,_,ptdot_block), tdKrdSt_copy_view(_,_,ptdot_block));
+            copy(smem_tiled_copy_Qt, tdKsQt_copy_view(_,_,ptdot_block), tdKrQt_copy_view(_,_,ptdot_block));
 
             //copy(tdVsPt(_,_,ptdot_block), tdVrPt(_,_,ptdot_block));
             //copy(tdVsdOt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block));
@@ -1132,7 +1132,7 @@ void compute_dk_dv_kernel_v5(
 
         }
 
-        gemm(tiled_mma_dK, tdKsdSt, tdKsQt, tdKrdK_float);
+        //gemm(tiled_mma_dK, tdKsdSt, tdKsQt, tdKrdK_float);
 
 
         __syncthreads();
