@@ -1087,19 +1087,19 @@ void compute_dk_dv_kernel_v5(
 //         }
 
         // dV += P^TdO
-//         CUTE_UNROLL
-//         for (int ptdot_block = 0; ptdot_block < PtdOt_BLOCK_MAX; ptdot_block++) {
-// //             copy(smem_tiled_copy_Pt, tdVsPt_copy_view(_,_,ptdot_block), tdVrPt_copy_view(_,_,ptdot_block));
-// //             copy(smem_tiled_copy_dOt, tdVsdOt_copy_view(_,_,ptdot_block), tdVrdOt_copy_view(_,_,ptdot_block));
-//
-//             copy(tdVsPt(_,_,ptdot_block), tdVrPt(_,_,ptdot_block));
-//             copy(tdVsdOt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block));
-//             gemm(tiled_mma_dV, tdVrPt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block), tdVrdV_float);
-//
-//         }
+        CUTE_UNROLL
+        for (int ptdot_block = 0; ptdot_block < PtdOt_BLOCK_MAX; ptdot_block++) {
+            copy(smem_tiled_copy_Pt, tdVsPt_copy_view(_,_,ptdot_block), tdVrPt_copy_view(_,_,ptdot_block));
+//             copy(smem_tiled_copy_dOt, tdVsdOt_copy_view(_,_,ptdot_block), tdVrdOt_copy_view(_,_,ptdot_block));
+
+            //copy(tdVsPt(_,_,ptdot_block), tdVrPt(_,_,ptdot_block));
+            copy(tdVsdOt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block));
+            gemm(tiled_mma_dV, tdVrPt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block), tdVrdV_float);
+
+        }
 
 
-        gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
+        //gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 //
         // dK += dS^TQ
         gemm(tiled_mma_dK, tdKsdSt, tdKsQt, tdKrdK_float);
