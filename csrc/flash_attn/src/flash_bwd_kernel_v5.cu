@@ -952,9 +952,24 @@ void compute_dk_dv_kernel_v5(
     TiledMma_dK tiled_mma_dK;
     ThrMMA thr_mma_dK = tiled_mma_dK.get_slice(threadIdx.x);
     Tensor tdKsdSt = thr_mma_dK.partition_A(sdSt);
+    Tensor tdKrdSt = thr_mma_dK.make_fragment_A(tdKsdSt);
+
     Tensor tdKsQt = thr_mma_dK.partition_B(sQt);
+    Tensor tdKrQt = thr_mma_dV.make_fragment_B(tdKsQt);
+
     Tensor tdKrdK_float = partition_fragment_C(tiled_mma_dK, Shape<Int<kBlockN>, Int<kHeadDim>>{});
     Tensor tdKgdK = thr_mma_dK.partition_C(gdK);
+
+    auto smem_tiled_copy_dSt = make_tiled_copy_A(Copy_Atom<SM75_U16x8_LDSM_T, half_t>{}, tiled_mma_dK);
+    auto smem_thr_copy_dSt = smem_tiled_copy_dSt.get_slice(threadIdx.x);
+    auto tdKsdSt_copy_view = smem_thr_copy_dSt.partition_S(sdSt);
+    auto tdKrdSt_copy_view = smem_thr_copy_dSt.retile_D(tdKrdSt);
+
+    auto smem_tiled_copy_Qt = make_tiled_copy_B(Copy_Atom<SM75_U16x8_LDSM_T, half_t>{}, tiled_mma_dK);
+    auto smem_thr_copy_Qt = smem_tiled_copy_Qt.get_slice(threadIdx.x);
+    auto tdKsQt_copy_view = smem_thr_copy_dOt.partition_S(sQt);
+    auto tdKrQt_copy_view = smem_thr_copy_dOt.retile_D(tdKrQt);
+
 
 
     auto Q_TILE_MAX = size<3>(tSgQ);
@@ -1089,19 +1104,34 @@ void compute_dk_dv_kernel_v5(
         // dV += P^TdO
         CUTE_UNROLL
         for (int ptdot_block = 0; ptdot_block < PtdOt_BLOCK_MAX; ptdot_block++) {
-            copy(smem_tiled_copy_Pt, tdVsPt_copy_view(_,_,ptdot_block), tdVrPt_copy_view(_,_,ptdot_block));
-            copy(smem_tiled_copy_dOt, tdVsdOt_copy_view(_,_,ptdot_block), tdVrdOt_copy_view(_,_,ptdot_block));
+            copy(smem_tiled_copy_dSt, tdVsdSt_copy_view(_,_,ptdot_block), tdVrdSt_copy_view(_,_,ptdot_block));
+            copy(smem_tiled_copy_Qt, tdVsQt_copy_view(_,_,ptdot_block), tdVrQt_copy_view(_,_,ptdot_block));
 
             //copy(tdVsPt(_,_,ptdot_block), tdVrPt(_,_,ptdot_block));
             //copy(tdVsdOt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block));
-            gemm(tiled_mma_dV, tdVrPt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block), tdVrdV_float);
+            gemm(tiled_mma_dV, tdVrdSt(_,_,ptdot_block), tdVrQt(_,_,ptdot_block), tdVrdV_float);
 
         }
 
 
         //gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
 //
+
+
+
         // dK += dS^TQ
+
+        CUTE_UNROLL
+        for (int ptdot_block = 0; ptdot_block < PtdOt_BLOCK_MAX; ptdot_block++) {
+            copy(smem_tiled_copy_Pt, tdKsPt_copy_view(_,_,ptdot_block), tdKrPt_copy_view(_,_,ptdot_block));
+            copy(smem_tiled_copy_dOt, tdKsdOt_copy_view(_,_,ptdot_block), tdKrdOt_copy_view(_,_,ptdot_block));
+
+            //copy(tdVsPt(_,_,ptdot_block), tdVrPt(_,_,ptdot_block));
+            //copy(tdVsdOt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block));
+            gemm(tiled_mma_dK, tdKrdSt(_,_,ptdot_block), tdKrQt(_,_,ptdot_block), tdKrdK_float);
+
+        }
+
         gemm(tiled_mma_dK, tdKsdSt, tdKsQt, tdKrdK_float);
 
 
