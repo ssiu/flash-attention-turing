@@ -1016,6 +1016,7 @@ void compute_dk_dv_kernel_v6(
 
         __syncthreads();
 
+        // somehow pipelining gmem loads for both Q and dO use alot more registers which is slower
         if (q_tile + 1 < Q_TILE_MAX) {
             copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,q_tile+1), tQrQ);
             //copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile+1), tdOrdO);
