@@ -998,7 +998,7 @@ void compute_dk_dv_kernel_v6(
 
 
     copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,0), tQrQ);
-    //copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,0), tdOrdO);
+    copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,0), tdOrdO);
 
     CUTE_NO_UNROLL
     for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
@@ -1008,18 +1008,15 @@ void compute_dk_dv_kernel_v6(
         clear(tdPrdP_float);
 
         copy(gmem_tiled_copy_QKV, tQrQ, tQsQ);
-        //copy(gmem_tiled_copy_QKV, tdOrdO, tdOsdO);
+        copy(gmem_tiled_copy_QKV, tdOrdO, tdOsdO);
         // load gQ to sQ
         //copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,q_tile), tQsQ);
-        copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile), tdOsdO);
+        //copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile), tdOsdO);
 
 
         __syncthreads();
 
-        if (q_tile + 1 < Q_TILE_MAX) {
-            copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,q_tile+1), tQrQ);
-            copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile+1), tdOrdO);
-        }
+
 
         // compute S=QK^T
 
@@ -1122,6 +1119,11 @@ void compute_dk_dv_kernel_v6(
 //             printf("tdVrdOt_copy_view\n");
 //             print_tensor(tdVrdOt_copy_view);
 //         }
+
+        if (q_tile + 1 < Q_TILE_MAX) {
+            copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,q_tile+1), tQrQ);
+            copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile+1), tdOrdO);
+        }
 
         // dV += P^TdO
         CUTE_UNROLL
