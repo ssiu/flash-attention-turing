@@ -1025,8 +1025,8 @@ void compute_dk_dv_kernel_v6(
         // compute S=QK^T
 
 
-        copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,0), tSrQ_copy_view(_,_,0));
-        copy(smem_tiled_copy_K, tSsK_copy_view(_,_,0), tSrK_copy_view(_,_,0));
+//         copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,0), tSrQ_copy_view(_,_,0));
+//         copy(smem_tiled_copy_K, tSsK_copy_view(_,_,0), tSrK_copy_view(_,_,0));
 
         CUTE_UNROLL
         for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
