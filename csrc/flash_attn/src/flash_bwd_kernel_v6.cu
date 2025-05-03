@@ -1269,7 +1269,19 @@ flash_bwd_v6(torch::Tensor q,
 
     int maxbytes = 65536;
 
+    // compute dQ
+    dim3 dimGrid_dq(batch_size, num_heads, seq_len / kBlockM);
+    dim3 dimBlock_dq(256);
 
+    cudaFuncSetAttribute(compute_dq_kernel_v6, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    compute_dq_kernel_v6<<<dimGrid_dq, dimBlock_dq, maxbytes>>>(q_ptr,
+                                            k_ptr,
+                                            v_ptr,
+                                            l_ptr,
+                                            d_ptr,
+                                            do_ptr,
+                                            dq_ptr,
+                                            batch_size, seq_len, num_heads, head_dim);
 
 
     // compute dK, dV
@@ -1287,19 +1299,7 @@ flash_bwd_v6(torch::Tensor q,
                                             dk_ptr,
                                             dv_ptr,
                                             batch_size, seq_len, num_heads, head_dim);
-    // compute dQ
-    dim3 dimGrid_dq(batch_size, num_heads, seq_len / kBlockM);
-    dim3 dimBlock_dq(256);
 
-    cudaFuncSetAttribute(compute_dq_kernel_v6, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    compute_dq_kernel_v6<<<dimGrid_dq, dimBlock_dq, maxbytes>>>(q_ptr,
-                                            k_ptr,
-                                            v_ptr,
-                                            l_ptr,
-                                            d_ptr,
-                                            do_ptr,
-                                            dq_ptr,
-                                            batch_size, seq_len, num_heads, head_dim);
 
     return { dq, dk, dv };
 
