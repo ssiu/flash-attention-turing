@@ -1026,15 +1026,15 @@ void compute_dk_dv_kernel_v6(
 
 
         copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,0), tSrQ_copy_view(_,_,0));
-        //copy(smem_tiled_copy_K, tSsK_copy_view(_,_,0), tSrK_copy_view(_,_,0));
+        copy(smem_tiled_copy_K, tSsK_copy_view(_,_,0), tSrK_copy_view(_,_,0));
 
         CUTE_UNROLL
         for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
-//             copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
+            copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
             copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
 
-            int qk_block_next = (qk_block + 1) % QK_BLOCK_MAX;
-            copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block_next), tSrQ_copy_view(_,_,qk_block_next));
+//             int qk_block_next = (qk_block + 1) % QK_BLOCK_MAX;
+//             copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block_next), tSrQ_copy_view(_,_,qk_block_next));
             //copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block_next), tSrK_copy_view(_,_,qk_block_next));
 
             copy(smem_tiled_copy_dO, tdPsdO_copy_view(_,_,qk_block), tdPrdO_copy_view(_,_,qk_block));
