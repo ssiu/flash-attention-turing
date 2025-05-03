@@ -82,7 +82,11 @@ def main():
 
     d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
 
-    d_query, d_key, d_value = flash_attn_backward_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim)
+    with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+        d_query, d_key, d_value = flash_attn_backward_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim)
+
+    print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+
 
     print(d_query.size())
 
