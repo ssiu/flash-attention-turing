@@ -120,7 +120,7 @@ struct Flash_bwd_kernel_traits : public Base {
     static constexpr int kNWarps = kNWarps_;
 
     //using SmemCopyAtomQ = Copy_Atom<SM75_U32x2_LDSM_N, elem_type>;
-    using TiledMma_PdS = TiledMMA<
+    using TiledMma_SdP = TiledMMA<
         typename Base::MMA_Atom_Arch,
         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
         Tile<Int<kBlockM>, Int<kBlockN>, _8>>;

@@ -353,7 +353,7 @@ void compute_dq_kernel(
 
 
     // S = QK^T
-    TiledMma_S tiled_mma_S;
+    typename Kernel_traits::TiledMma_SdP tiled_mma_S;
     ThrMMA thr_mma_S = tiled_mma_S.get_slice(threadIdx.x);
     Tensor tSgQ = thr_mma_S.partition_A(gQ);
     Tensor tSsQ = thr_mma_S.partition_A(sQ);
