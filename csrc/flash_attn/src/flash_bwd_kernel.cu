@@ -116,23 +116,6 @@ void compute_dq_kernel(
     //     }
     // }
 
-    // MMA
-//     using TiledMma_S = TiledMMA<
-//         MMA_Atom_Arch,
-//         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-//         Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
-
-//     using TiledMma_dP = TiledMMA<
-//         MMA_Atom_Arch,
-//         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-//         Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
-
-
-//     using TiledMma_dQ = TiledMMA<
-//         MMA_Atom_Arch,
-//         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-//         Tile<Int<kBlockM>, Int<kHeadDim>, _8>>;
-
     // Gmem tiled copy
     using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
 
@@ -157,8 +140,6 @@ void compute_dq_kernel(
 
     using SmemLayoutTransposed = decltype(
         composition(SmemLayout{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
-
-
 
 
     // QKV
@@ -193,40 +174,6 @@ void compute_dq_kernel(
 
     using SmemLayoutKVTransposed = decltype(
         composition(SmemLayoutKV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
-
-
-
-
-    // original
-
-    // original Q
-//     using SmemLayoutQ = decltype(
-//                             Layout<Shape<Int<kBlockM>, Int<kHeadDim>>,
-//                             Stride<Int<kHeadDim>, _1>>{});
-//
-//     using SmemLayoutQTransposed = decltype(
-//                                       Layout<Shape<Int<kHeadDim>, Int<kBlockM>>,
-//                                       Stride<_1, Int<kHeadDim>>>{});
-
-
-    // original K
-//     using SmemLayoutK = decltype(
-//            Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
-//            Stride<Int<kHeadDim>, _1>>{});
-//
-//     using SmemLayoutKTransposed = decltype(
-//            Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
-//            Stride<_1, Int<kHeadDim>>>{});
-
-
-//     using SmemLayoutV = decltype(
-//            Layout<Shape<Int<kBlockN>, Int<kHeadDim>>,
-//            Stride<Int<kHeadDim>, _1>>{});
-//
-//     using SmemLayoutVTransposed = decltype(
-//            Layout<Shape<Int<kHeadDim>, Int<kBlockN>>,
-//            Stride<_1, Int<kHeadDim>>>{});
-
 
 
     // Q
