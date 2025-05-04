@@ -125,15 +125,15 @@ struct Flash_bwd_kernel_traits : public Base {
         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
         Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
 
-//    using TiledMma_dQ = TiledMMA<
-//        MMA_Atom_Arch,
-//        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-//        Tile<Int<kBlockM>, Int<kHeadDim>, _8>>;
-//
-//    using TiledMma_dKdV = TiledMMA<
-//        MMA_Atom_Arch,
-//        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-//        Tile<Int<kBlockN>, Int<kHeadDim>, _8>>;
+    using TiledMma_dQ = TiledMMA<
+        MMA_Atom_Arch,
+        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
+        Tile<Int<kBlockM>, Int<kHeadDim>, _8>>;
+
+    using TiledMma_dKdV = TiledMMA<
+        MMA_Atom_Arch,
+        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
+        Tile<Int<kBlockN>, Int<kHeadDim>, _8>>;
 //
 //
 //    using SmemLayoutAtomPdS = decltype(
