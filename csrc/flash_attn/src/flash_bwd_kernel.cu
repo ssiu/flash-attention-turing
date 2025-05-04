@@ -117,10 +117,10 @@ void compute_dq_kernel(
     // }
 
     // MMA
-    using TiledMma_S = TiledMMA<
-        MMA_Atom_Arch,
-        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-        Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
+//     using TiledMma_S = TiledMMA<
+//         MMA_Atom_Arch,
+//         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
+//         Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
 
     using TiledMma_dP = TiledMMA<
         MMA_Atom_Arch,
