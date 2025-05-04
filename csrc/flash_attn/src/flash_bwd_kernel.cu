@@ -122,16 +122,16 @@ void compute_dq_kernel(
 //         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
 //         Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
 
-    using TiledMma_dP = TiledMMA<
-        MMA_Atom_Arch,
-        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-        Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
+//     using TiledMma_dP = TiledMMA<
+//         MMA_Atom_Arch,
+//         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
+//         Tile<Int<kBlockM>, Int<kBlockN>, _8>>;
 
 
-    using TiledMma_dQ = TiledMMA<
-        MMA_Atom_Arch,
-        Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-        Tile<Int<kBlockM>, Int<kHeadDim>, _8>>;
+//     using TiledMma_dQ = TiledMMA<
+//         MMA_Atom_Arch,
+//         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
+//         Tile<Int<kBlockM>, Int<kHeadDim>, _8>>;
 
     // Gmem tiled copy
     using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
@@ -380,7 +380,7 @@ void compute_dq_kernel(
 
 
     // dP = dOV^T
-    TiledMma_dP tiled_mma_dP;
+    typename Kernel_traits::TiledMma_SdP tiled_mma_dP;
     ThrMMA thr_mma_dP = tiled_mma_dP.get_slice(threadIdx.x);
 
     Tensor tdPgdO = thr_mma_dP.partition_A(gdO);
@@ -406,7 +406,7 @@ void compute_dq_kernel(
 
 
 
-    TiledMma_dQ tiled_mma_dQ;
+    typename Kernel_traits::TiledMma_dQ tiled_mma_dQ;
     ThrMMA thr_mma_dQ = tiled_mma_dQ.get_slice(threadIdx.x);
     Tensor tdQsdS = thr_mma_dQ.partition_A(sdS);
     Tensor tdQrdS = thr_mma_dQ.make_fragment_A(tdQsdS);
