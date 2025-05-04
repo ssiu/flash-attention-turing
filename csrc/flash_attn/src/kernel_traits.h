@@ -118,67 +118,12 @@ struct Flash_bwd_kernel_traits : public Base {
     static constexpr int kBlockN = kBlockN_;
     static constexpr int kHeadDim = kHeadDim_;
 
+    //using SmemCopyAtomQ = Copy_Atom<SM75_U32x2_LDSM_N, elem_type>;
     using TiledMma = TiledMMA<
         typename Base::MMA_Atom_Arch,
-        Layout<Shape<_2,_1,_1>>,
-        Tile<_32, _32, _8>>;
+        Layout<Shape<_8,_1,_1>>,
+        // LDSM loads 32 rows for K and V
+        Tile<_128, _32, _8>>;
 
-    using TiledMma_dV = TiledMMA<
-        typename Base::MMA_Atom_Arch,
-        Layout<Shape<_2,_1,_1>>,
-        Tile<_32, _128, _8>>;
-
-    using SmemLayoutAtom = decltype(
-                    Layout<Shape<_32, _32>,
-                    Stride<_32, _1>>{});
-
-    using SmemLayoutAtomTranposed = decltype(
-                    Layout<Shape<_32, _32>,
-                    Stride<_1, _32>>{});
-
-//    using SmemLayoutQ = decltype(tile_to_shape(
-//        SmemLayoutAtom{},
-//        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
-//    using SmemLayoutQTransposed = decltype(tile_to_shape(
-//        SmemLayoutAtom{},
-//        Shape<Int<kHeadDim>, Int<kBlockM>>{}));
-    using SmemLayoutQ = decltype(
-                            Layout<Shape<_32, _128>,
-                            Stride<_128, _1>>{});
-
-    using SmemLayoutQTransposed = decltype(
-                                      Layout<Shape<_128, _32>,
-                                      Stride<_1, _128>>{});
-
-//    using SmemLayoutQ_T = decltype(tile_to_shape(
-//        SmemLayoutAtom{},
-//        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
-//
-//    using SmemLayoutKV = decltype(tile_to_shape(
-//        SmemLayoutAtom{},
-//        Shape<Int<kBlockN>, Int<kHeadDim>>{}));
-
-        using SmemLayoutKV = decltype(
-               Layout<Shape<_32, _128>,
-               Stride<_128, _1>>{});
-//
-//
-//    using SmemLayoutSP = decltype(tile_to_shape(
-//        SmemLayoutAtom{},
-//        Shape<Int<kBlockM>, Int<kBlockN>>{}));
-
-
-
-
-    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
-//    using Gmem_copy_struct = DefaultCopy;
-
-    using GmemLayoutAtom = Layout<Shape <_8, _8>, Stride<_8, _1>>;
-
-
-    using GmemTiledCopy = decltype(
-            make_tiled_copy(Copy_Atom<Gmem_copy_struct, Element>{},
-                            GmemLayoutAtom{},
-                            Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
 
 };
