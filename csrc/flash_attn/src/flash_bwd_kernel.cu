@@ -79,6 +79,7 @@ void compute_dot_do_o(half_t* o_ptr,
 
 }
 
+template <typename Kernel_traits>
 __global__ __launch_bounds__(256)
 void compute_dq_kernel(
     half_t const* q_ptr,
@@ -1269,12 +1270,16 @@ flash_bwd(torch::Tensor q,
 
     int maxbytes = 65536;
 
+
+
+
     // compute dQ
     dim3 dimGrid_dq(batch_size, num_heads, seq_len / kBlockM);
     dim3 dimBlock_dq(256);
 
-    cudaFuncSetAttribute(compute_dq_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    compute_dq_kernel<<<dimGrid_dq, dimBlock_dq, maxbytes>>>(q_ptr,
+    auto dq_kernel = compute_dq_kernel<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
+    cudaFuncSetAttribute(dq_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    dq_kernel<<<dimGrid_dq, dimBlock_dq, maxbytes>>>(q_ptr,
                                             k_ptr,
                                             v_ptr,
                                             l_ptr,
