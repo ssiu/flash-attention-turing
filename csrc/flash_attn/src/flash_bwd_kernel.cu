@@ -228,7 +228,9 @@ void compute_dq_kernel(
     float rD[2][2] = {0};
 
     // Copy operation
-    GmemTiledCopyQKV gmem_tiled_copy_QKV;
+    //GmemTiledCopyQKV gmem_tiled_copy_QKV;
+
+    typename Kernel_traits::GmemTiledCopy gmem_tiled_copy_QKV;
 
     ThrCopy thr_copy_QKV = gmem_tiled_copy_QKV.get_slice(threadIdx.x);
 

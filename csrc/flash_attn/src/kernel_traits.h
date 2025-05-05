@@ -178,4 +178,11 @@ struct Flash_bwd_kernel_traits : public Base {
         composition(SmemLayoutKV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
 
 
+    using GmemLayoutAtom = Layout<Shape <_32, _8>, Stride<_8, _1>>;
+
+    using GmemTiledCopy = decltype(
+            make_tiled_copy(Copy_Atom<typename Base::Gmem_copy_struct, Element>{},
+                            GmemLayoutAtom{},
+                            Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
+
 };
