@@ -255,12 +255,12 @@ void compute_dq_kernel(
     Tensor sV = make_tensor(sdO.data() + size(sdO), SmemLayoutKV{});
 
     // 64 * 64 = 8KB
-    Tensor sP = make_tensor(sdO.data() + size(sdO), SmemLayout{});
-    Tensor sPt = make_tensor(sdO.data() + size(sdO), SmemLayoutTransposed{});
+    Tensor sP = make_tensor(sdO.data() + size(sdO), typename Kernel_traits::SmemLayoutPdS{});
+    Tensor sPt = make_tensor(sdO.data() + size(sdO), typename Kernel_traits::SmemLayoutPdSTransposed{});
 
     // 64 * 64 = 8KB
-    Tensor sdS = make_tensor(sP.data() + size(sP), SmemLayout{});
-    Tensor sdSt = make_tensor(sP.data() + size(sP), SmemLayoutTransposed{});
+    Tensor sdS = make_tensor(sP.data() + size(sP), typename Kernel_traits::SmemLayoutPdS{});
+    Tensor sdSt = make_tensor(sP.data() + size(sP), typename Kernel_traits::SmemLayoutPdSTransposed{});
 
     Tensor sdQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), SmemLayoutQ{});
 

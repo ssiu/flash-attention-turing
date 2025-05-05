@@ -134,19 +134,19 @@ struct Flash_bwd_kernel_traits : public Base {
         typename Base::MMA_Atom_Arch,
         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
         Tile<Int<kBlockN>, Int<kHeadDim>, _8>>;
-//
-//
-//    using SmemLayoutAtomPdS = decltype(
-//        composition(Swizzle<3, 3, 3>{},
-//                    Layout<Shape<Int<16>, Int<kBlockN>>,
-//                           Stride<Int<kBlockN>, _1>>{}));
-//
-//    using SmemLayoutPdS = decltype(tile_to_shape(
-//        SmemLayoutAtom_PdS{},
-//        make_shape(Int<kBlockM>{}, Int<kBlockN>{})));
-//
-//    using SmemLayoutPdSTransposed = decltype(
-//        composition(SmemLayoutPdS{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
+
+
+    using SmemLayoutAtomPdS = decltype(
+        composition(Swizzle<3, 3, 3>{},
+                    Layout<Shape<Int<16>, Int<kBlockN>>,
+                           Stride<Int<kBlockN>, _1>>{}));
+
+    using SmemLayoutPdS = decltype(tile_to_shape(
+        SmemLayoutAtom_PdS{},
+        make_shape(Int<kBlockM>{}, Int<kBlockN>{})));
+
+    using SmemLayoutPdSTransposed = decltype(
+        composition(SmemLayoutPdS{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
 //
 //
 //    // QKV
