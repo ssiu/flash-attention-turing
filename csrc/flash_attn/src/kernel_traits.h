@@ -27,6 +27,8 @@ struct Flash_kernel_traits {
 
     using SmemCopyAtomV = Copy_Atom<SM75_U16x8_LDSM_T, elem_type>;
 
+    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
+
 };
 
 template<int kHeadDim_, int kBlockM_, int kBlockN_, int kNWarps_, typename elem_type=cutlass::half_t,
@@ -75,8 +77,6 @@ struct Flash_fwd_kernel_traits : public Base {
         Shape<Int<kHeadDim>, Int<kBlockN>>{}));
 
 
-    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
-
 
     using GmemLayoutAtomQK = Layout<Shape <_32, _8>, Stride<_8, _1>>;
 
@@ -86,17 +86,17 @@ struct Flash_fwd_kernel_traits : public Base {
 
 
     using GmemTiledCopyQK = decltype(
-            make_tiled_copy(Copy_Atom<Gmem_copy_struct, Element>{},
+            make_tiled_copy(Copy_Atom<typename Base::Gmem_copy_struct, Element>{},
                             GmemLayoutAtomQK{},
                             Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
 
     using GmemTiledCopyV = decltype(
-            make_tiled_copy(Copy_Atom<Gmem_copy_struct, Element>{},
+            make_tiled_copy(Copy_Atom<typename Base::Gmem_copy_struct, Element>{},
                             GmemLayoutAtomV{},
                             Layout<Shape<_8, _1>>{}));  // Val layout, 8 vals per read
 
     using GmemTiledCopyO = decltype(
-            make_tiled_copy(Copy_Atom<Gmem_copy_struct, Element>{},
+            make_tiled_copy(Copy_Atom<typename Base::Gmem_copy_struct, Element>{},
                             GmemLayoutAtomO{},
                             Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
 

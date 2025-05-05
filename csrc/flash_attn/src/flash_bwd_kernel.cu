@@ -126,54 +126,6 @@ void compute_dq_kernel(
                                 GmemLayoutAtomQKV{},
                                 Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
 
-    // Smem layout
-    // S and dP
-
-    using SmemLayoutAtom = decltype(
-        composition(Swizzle<3, 3, 3>{},
-                    Layout<Shape<Int<16>, Int<kBlockN>>,
-                           Stride<Int<kBlockN>, _1>>{}));
-
-    using SmemLayout = decltype(tile_to_shape(
-        SmemLayoutAtom{},
-        make_shape(Int<kBlockM>{}, Int<kBlockN>{})));
-
-    using SmemLayoutTransposed = decltype(
-        composition(SmemLayout{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
-
-
-    // QKV
-    // swizzle atom
-    using SmemLayoutAtomQKV = decltype(composition(Swizzle<3, 3, 3>{},
-                                Layout<Shape<_16,_64>,
-                                Stride<_64, _1>>{}));
-
-    using SmemLayoutAtomQKVTransposed = decltype(composition(Swizzle<3, 3, 3>{},
-                                Layout<Shape<_64,_16>,
-                                Stride<_1, _64>>{}));
-
-    // swizzle Q
-    using SmemLayoutQ = decltype(tile_to_shape(
-        SmemLayoutAtomQKV{},
-        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
-
-    using SmemLayoutQTransposed = decltype(
-                          composition(SmemLayoutQ{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockM>>{}, GenRowMajor{})));
-
-    // swizzle K
-    using SmemLayoutAtomKV = decltype(
-        composition(Swizzle<3, 3, 3>{},
-                    Layout<Shape<Int<16>, Int<64>>,
-                           Stride<Int<64>, _1>>{}));
-
-    using SmemLayoutKV = decltype(tile_to_shape(
-        // SmemLayoutAtomQdO{},
-        SmemLayoutAtomKV{},
-        make_shape(Int<kBlockN>{}, Int<kHeadDim>{})));
-
-    using SmemLayoutKVTransposed = decltype(
-        composition(SmemLayoutKV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
-
 
     // Q
     Tensor mQ = make_tensor(make_gmem_ptr(q_ptr),
