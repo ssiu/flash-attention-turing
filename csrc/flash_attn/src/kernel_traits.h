@@ -147,40 +147,35 @@ struct Flash_bwd_kernel_traits : public Base {
 
     using SmemLayoutPdSTransposed = decltype(
         composition(SmemLayoutPdS{}, make_layout(Shape<Int<kBlockN>, Int<kBlockM>>{}, GenRowMajor{})));
-//
-//
-//    // QKV
-//    // swizzle atom
-//    using SmemLayoutAtomQKV = decltype(composition(Swizzle<3, 3, 3>{},
-//                                Layout<Shape<_16,_64>,
-//                                Stride<_64, _1>>{}));
-//
-//    using SmemLayoutAtomQKVTransposed = decltype(composition(Swizzle<3, 3, 3>{},
-//                                Layout<Shape<_64,_16>,
-//                                Stride<_1, _64>>{}));
-//
-//    // swizzle Q
-//    using SmemLayoutQ = decltype(tile_to_shape(
-//        SmemLayoutAtom_QKV{},
-//        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
-//
-//    using SmemLayoutQTransposed = decltype(tile_to_shape(
-//                                          SmemLayoutAtomQKVTransposed{},
-//                                          Shape<Int<kHeadDim>, Int<kBlockM>>{}));
-//
-//    // swizzle K
-//    using SmemLayoutAtomKV = decltype(
-//        composition(Swizzle<3, 3, 3>{},
-//                    Layout<Shape<Int<16>, Int<64>>,
-//                           Stride<Int<64>, _1>>{}));
-//
-//    using SmemLayoutKV = decltype(tile_to_shape(
-//        // SmemLayoutAtomQdO{},
-//        SmemLayoutAtomKV{},
-//        make_shape(Int<kBlockN>{}, Int<kHeadDim>{})));
-//
-//    using SmemLayoutKVTransposed = decltype(
-//        composition(SmemLayoutKV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
+
+
+    // QKV
+    // swizzle atom
+    using SmemLayoutAtomQKV = decltype(composition(Swizzle<3, 3, 3>{},
+                                Layout<Shape<_16,_64>,
+                                Stride<_64, _1>>{}));
+
+    // swizzle Q
+    using SmemLayoutQ = decltype(tile_to_shape(
+        SmemLayoutAtomQKV{},
+        Shape<Int<kBlockM>, Int<kHeadDim>>{}));
+
+    using SmemLayoutQTransposed = decltype(
+                      composition(SmemLayoutQ{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockM>>{}, GenRowMajor{})));
+
+    // swizzle K
+    using SmemLayoutAtomKV = decltype(
+        composition(Swizzle<3, 3, 3>{},
+                    Layout<Shape<Int<16>, Int<64>>,
+                           Stride<Int<64>, _1>>{}));
+
+    using SmemLayoutKV = decltype(tile_to_shape(
+        // SmemLayoutAtomQdO{},
+        SmemLayoutAtomKV{},
+        make_shape(Int<kBlockN>{}, Int<kHeadDim>{})));
+
+    using SmemLayoutKVTransposed = decltype(
+        composition(SmemLayoutKV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
 
 
 };
