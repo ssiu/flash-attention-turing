@@ -142,7 +142,7 @@ struct Flash_bwd_kernel_traits : public Base {
                            Stride<Int<kBlockN>, _1>>{}));
 
     using SmemLayoutPdS = decltype(tile_to_shape(
-        SmemLayoutAtom_PdS{},
+        SmemLayoutAtomPdS{},
         make_shape(Int<kBlockM>{}, Int<kBlockN>{})));
 
     using SmemLayoutPdSTransposed = decltype(
