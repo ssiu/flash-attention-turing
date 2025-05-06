@@ -77,6 +77,8 @@ struct Flash_fwd_kernel_traits : public Base {
         Shape<Int<kHeadDim>, Int<kBlockN>>{}));
 
 
+    using SmemCopyAtomQdO = Copy_Atom<SM75_U32x4_LDSM_N, elem_type>;
+
 
     using GmemLayoutAtomQK = Layout<Shape <_32, _8>, Stride<_8, _1>>;
 

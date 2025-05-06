@@ -116,15 +116,6 @@ void compute_dq_kernel(
     //     }
     // }
 
-    // Gmem tiled copy
-    using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
-
-    using GmemLayoutAtomQKV = Layout<Shape <Int<kNThreads / 8>, _8>, Stride<_8, _1>>;
-
-    using GmemTiledCopyQKV = decltype(
-                make_tiled_copy(Copy_Atom<Gmem_copy_struct, half_t>{},
-                                GmemLayoutAtomQKV{},
-                                Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
 
 
     // Q
@@ -267,7 +258,7 @@ void compute_dq_kernel(
     Tensor tSsP = thr_mma_S.partition_C(sP);
 
 
-    auto smem_tiled_copy_Q = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, tiled_mma_S);
+    auto smem_tiled_copy_Q = make_tiled_copy_A(typename Kernel_traits::SmemCopyAtomQdO{}, tiled_mma_S);
     auto smem_thr_copy_Q = smem_tiled_copy_Q.get_slice(threadIdx.x);
     auto tSsQ_copy_view = smem_thr_copy_Q.partition_S(sQ);
     auto tSrQ_copy_view = smem_thr_copy_Q.retile_D(tSrQ);
@@ -294,7 +285,7 @@ void compute_dq_kernel(
     Tensor tdPrdP_float = partition_fragment_C(tiled_mma_dP, Shape<Int<kBlockM>, Int<kBlockN>>{});
     Tensor tdPsdS = thr_mma_dP.partition_C(sdS);
 
-    auto smem_tiled_copy_dO = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, tiled_mma_dP);
+    auto smem_tiled_copy_dO = make_tiled_copy_A(typename Kernel_traits::SmemCopyAtomQdO{}, tiled_mma_dP);
     auto smem_thr_copy_dO = smem_tiled_copy_dO.get_slice(threadIdx.x);
     auto tdPsdO_copy_view = smem_thr_copy_dO.partition_S(sdO);
     auto tdPrdO_copy_view = smem_thr_copy_dO.retile_D(tdPrdO);
