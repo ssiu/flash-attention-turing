@@ -77,9 +77,6 @@ struct Flash_fwd_kernel_traits : public Base {
         Shape<Int<kHeadDim>, Int<kBlockN>>{}));
 
 
-    using SmemCopyAtomQdO = Copy_Atom<SM75_U32x4_LDSM_N, elem_type>;
-
-
     using GmemLayoutAtomQK = Layout<Shape <_32, _8>, Stride<_8, _1>>;
 
     using GmemLayoutAtomV = Layout<Shape <_8, _32>, Stride<_1, _8>>;
@@ -178,6 +175,10 @@ struct Flash_bwd_kernel_traits : public Base {
 
     using SmemLayoutKVTransposed = decltype(
         composition(SmemLayoutKV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
+
+
+    // LDSM loads
+    using SmemCopyAtomQdOPdS = Copy_Atom<SM75_U32x4_LDSM_N, elem_type>;
 
 
     using GmemLayoutAtom = Layout<Shape <_32, _8>, Stride<_8, _1>>;

@@ -258,7 +258,7 @@ void compute_dq_kernel(
     Tensor tSsP = thr_mma_S.partition_C(sP);
 
 
-    auto smem_tiled_copy_Q = make_tiled_copy_A(typename Kernel_traits::SmemCopyAtomQdO{}, tiled_mma_S);
+    auto smem_tiled_copy_Q = make_tiled_copy_A(typename Kernel_traits::SmemCopyAtomQdOPdS{}, tiled_mma_S);
     auto smem_thr_copy_Q = smem_tiled_copy_Q.get_slice(threadIdx.x);
     auto tSsQ_copy_view = smem_thr_copy_Q.partition_S(sQ);
     auto tSrQ_copy_view = smem_thr_copy_Q.retile_D(tSrQ);
@@ -285,7 +285,7 @@ void compute_dq_kernel(
     Tensor tdPrdP_float = partition_fragment_C(tiled_mma_dP, Shape<Int<kBlockM>, Int<kBlockN>>{});
     Tensor tdPsdS = thr_mma_dP.partition_C(sdS);
 
-    auto smem_tiled_copy_dO = make_tiled_copy_A(typename Kernel_traits::SmemCopyAtomQdO{}, tiled_mma_dP);
+    auto smem_tiled_copy_dO = make_tiled_copy_A(typename Kernel_traits::SmemCopyAtomQdOPdS{}, tiled_mma_dP);
     auto smem_thr_copy_dO = smem_tiled_copy_dO.get_slice(threadIdx.x);
     auto tdPsdO_copy_view = smem_thr_copy_dO.partition_S(sdO);
     auto tdPrdO_copy_view = smem_thr_copy_dO.retile_D(tdPrdO);
@@ -296,7 +296,7 @@ void compute_dq_kernel(
     auto tdPrV_copy_view = smem_thr_copy_V.retile_D(tdPrV);
 
 
-
+    // dQ = dSK
     typename Kernel_traits::TiledMma_dQ tiled_mma_dQ;
     ThrMMA thr_mma_dQ = tiled_mma_dQ.get_slice(threadIdx.x);
     Tensor tdQsdS = thr_mma_dQ.partition_A(sdS);
@@ -308,7 +308,7 @@ void compute_dq_kernel(
     Tensor tdQsdQ = thr_mma_dQ.partition_C(sdQ);
     Tensor tdQgdQ = thr_mma_dQ.partition_C(gdQ);
 
-    auto smem_tiled_copy_dS = make_tiled_copy_A(Copy_Atom<SM75_U32x4_LDSM_N, half_t>{}, tiled_mma_dQ);
+    auto smem_tiled_copy_dS = make_tiled_copy_A(typename Kernel_traits::SmemCopyAtomQdOPdS{}, tiled_mma_dQ);
     auto smem_thr_copy_dS = smem_tiled_copy_dS.get_slice(threadIdx.x);
     auto tdQsdS_copy_view = smem_thr_copy_dS.partition_S(sdS);
     auto tdQrdS_copy_view = smem_thr_copy_dS.retile_D(tdQrdS);
