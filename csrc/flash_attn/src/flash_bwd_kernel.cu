@@ -313,7 +313,7 @@ void compute_dq_kernel(
     auto tdQsdS_copy_view = smem_thr_copy_dS.partition_S(sdS);
     auto tdQrdS_copy_view = smem_thr_copy_dS.retile_D(tdQrdS);
 
-    auto smem_tiled_copy_Kt = make_tiled_copy_B(Copy_Atom<SM75_U16x8_LDSM_T, half_t>{}, tiled_mma_dQ);
+    auto smem_tiled_copy_Kt = make_tiled_copy_B(typename Kernel_traits::SmemCopyAtomKt{}, tiled_mma_dQ);
     auto smem_thr_copy_Kt = smem_tiled_copy_Kt.get_slice(threadIdx.x);
     auto tdQsKt_copy_view = smem_thr_copy_Kt.partition_S(sKt);
     auto tdQrKt_copy_view = smem_thr_copy_Kt.retile_D(tdQrKt);
