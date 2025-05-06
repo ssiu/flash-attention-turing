@@ -263,7 +263,7 @@ void compute_dq_kernel(
     auto tSsQ_copy_view = smem_thr_copy_Q.partition_S(sQ);
     auto tSrQ_copy_view = smem_thr_copy_Q.retile_D(tSrQ);
 
-    auto smem_tiled_copy_K = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, tiled_mma_S);
+    auto smem_tiled_copy_K = make_tiled_copy_B(typename Kernel_traits::SmemCopyAtomKV{}, tiled_mma_S);
     auto smem_thr_copy_K = smem_tiled_copy_K.get_slice(threadIdx.x);
     auto tSsK_copy_view = smem_thr_copy_K.partition_S(sK);
     auto tSrK_copy_view = smem_thr_copy_K.retile_D(tSrK);
@@ -290,7 +290,7 @@ void compute_dq_kernel(
     auto tdPsdO_copy_view = smem_thr_copy_dO.partition_S(sdO);
     auto tdPrdO_copy_view = smem_thr_copy_dO.retile_D(tdPrdO);
 
-    auto smem_tiled_copy_V = make_tiled_copy_B(Copy_Atom<SM75_U32x2_LDSM_N, half_t>{}, tiled_mma_dP);
+    auto smem_tiled_copy_V = make_tiled_copy_B(typename Kernel_traits::SmemCopyAtomKV{}, tiled_mma_dP);
     auto smem_thr_copy_V = smem_tiled_copy_V.get_slice(threadIdx.x);
     auto tdPsV_copy_view = smem_thr_copy_V.partition_S(sV);
     auto tdPrV_copy_view = smem_thr_copy_V.retile_D(tdPrV);
