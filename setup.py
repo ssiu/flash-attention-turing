@@ -13,6 +13,8 @@ nvcc_flags = ["-std=c++17",
               "--expt-relaxed-constexpr",
               "-arch=sm_75",
               "-O3",
+              "--use_fast_math",
+              # "--ptxas-options=-v",
               "-lineinfo"]
 
 setup(
@@ -21,7 +23,8 @@ setup(
         CUDAExtension(
             name="flash_attn_turing",
             sources=["csrc/flash_attn/flash_api.cpp",
-                     "csrc/flash_attn/src/flash_fwd_kernel.cu"
+                     "csrc/flash_attn/src/flash_fwd_kernel.cu",
+                     "csrc/flash_attn/src/flash_bwd_kernel.cu"
                      ],
             #include_dirs=cutlass_include_dirs,
             include_dirs=[
@@ -36,3 +39,4 @@ setup(
     install_requires=["torch"],
     cmdclass={"build_ext": BuildExtension}
 )
+

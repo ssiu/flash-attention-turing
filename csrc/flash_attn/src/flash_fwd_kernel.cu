@@ -5,9 +5,6 @@
 #include <float.h>
 #include <torch/extension.h>
 #include <cute/tensor.hpp>
-#include "cutlass/util/print_error.hpp"
-#include "cutlass/util/GPU_Clock.hpp"
-#include "cutlass/util/helper_cuda.hpp"
 
 #include <cutlass/array.h>
 #include <cutlass/cutlass.h>
@@ -23,10 +20,11 @@ using namespace cute;
 template <typename Kernel_traits>
 __global__ __launch_bounds__(256)
 void flash_fwd_kernel(
-    half_t const* q,
-    half_t const* k,
-    half_t const* v,
+    half_t* q,
+    half_t* k,
+    half_t* v,
     half_t* o,
+    float* l,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {
@@ -64,6 +62,19 @@ void flash_fwd_kernel(
     Tensor gO = local_tile(mO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
+    // L = m + log l
+    Tensor mL = make_tensor(make_gmem_ptr(l),
+                             make_shape(batch_size, num_heads, seq_len),
+                             make_stride(seq_len * num_heads, seq_len, Int<1>{}));
+
+    Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
+                           make_coord(blockIdx.z));
+
+//     if (thread0()){
+//         print(gL);
+//         printf("\n");
+//     }
+
 
     extern __shared__ char smem_[];
 
@@ -73,10 +84,17 @@ void flash_fwd_kernel(
     Tensor sV = make_tensor(sK.data(), typename Kernel_traits::SmemLayoutV{});
     Tensor sO = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayoutQ{});
 
+//     if (thread0()) {
+//         print(gQ);
+//         print("\n");
+//         print(sQ);
+//         print("\n");
+//     }
 
     int thread_id = threadIdx.x;
     int lane_id = thread_id % 32;
-
+    int warp_id = threadIdx.x / 32;
+    int thread_row = warp_id * 16 + lane_id / 4;
 
     float rM_old[2] = {-FLT_MAX, -FLT_MAX};
     float rM[2] = {0.0f};
@@ -249,12 +267,16 @@ void flash_fwd_kernel(
         }
 
 
+
         // rescale l and also reset rD to 0
         for (int i =0; i<2; i++) {
             rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
             rD[i] = 0.0f;
         }
 
+//         if (thread0()){
+//             printf("kv_tile = %d, rL for this loop: %f\n", kv_tile, rL[0]);
+//         }
 
         // compute sum(sP)
 
@@ -281,6 +303,10 @@ void flash_fwd_kernel(
         for (int i =0; i<2; i++) {
             rL[i] += rD[i];
         }
+//         if (thread0()){
+//             printf("kv_tile = %d, rL after adding rD: %f\n", kv_tile, rL[0]);
+//         }
+
 
         // sync rL
         for (int i =0; i<2; i++) {
@@ -332,6 +358,10 @@ void flash_fwd_kernel(
     // end of KV loop
 
 
+    gL[thread_row] = rM[0] + logf(rL[0]);
+    gL[thread_row + 8] = rM[1] + logf(rL[1]);
+
+
     for (int i =0; i<2; i++) {
         for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
             tOrO_float(make_coord(_,i),_,_)[j] /= rL[i];
@@ -351,25 +381,40 @@ void flash_fwd_kernel(
     __syncthreads();
 
     copy(gmem_tiled_copy_O, tOsO_copy, tOgO_copy);
+//
+//     if (thread0()){
+//         print(gL);
+//         print("\n");
+//     }
 
 }
 
 
-
-torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
-                                int batch_size, int seq_len, int num_heads, int head_dim)
+std::vector<torch::Tensor>
+flash_fwd(torch::Tensor q,
+            torch::Tensor k,
+            torch::Tensor v,
+            int batch_size, int seq_len, int num_heads, int head_dim)
 {
     constexpr int kBlockM = 128;
     constexpr int kBlockN = 64;
     constexpr int kHeadDim = 128;
 
-    torch::Tensor o = torch::empty(q.sizes(), q.options().dtype(torch::kFloat16));
+    auto device = q.device();
+
+    torch::Tensor o = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
+
+    std::vector<int64_t> size = {batch_size, num_heads, seq_len};
+    torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
+
+    TORCH_CHECK(o.is_cuda(), "Tensor o is not on CUDA");
 
     half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
     half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
     half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
 
+    float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
 
     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockM);
     dim3 dimBlock(256);
@@ -382,10 +427,10 @@ torch::Tensor flash_fwd(torch::Tensor q, torch::Tensor k, torch::Tensor v,
 
 
     kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
-                                             k_ptr,
-                                             v_ptr,
-                                             o_ptr,
-                                             batch_size, seq_len, num_heads, head_dim);
-    return o;
-
+                                            k_ptr,
+                                            v_ptr,
+                                            o_ptr,
+                                            l_ptr,
+                                            batch_size, seq_len, num_heads, head_dim);
+    return {o, l};
 }
