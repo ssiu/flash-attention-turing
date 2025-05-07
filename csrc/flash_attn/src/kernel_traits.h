@@ -185,6 +185,8 @@ struct Flash_bwd_kernel_traits : public Base {
     using SmemCopyAtomKt = Copy_Atom<SM75_U16x8_LDSM_T, elem_type>;
 
 
+    using SmemCopyAtomQtdOtPtdSt = Copy_Atom<SM75_U16x8_LDSM_T, elem_type>;
+
     //gmem loads
     using GmemLayoutAtom = Layout<Shape <_32, _8>, Stride<_8, _1>>;
 
