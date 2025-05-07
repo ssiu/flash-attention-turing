@@ -463,6 +463,9 @@ void compute_dq_kernel(
 
 }
 
+
+
+template <typename Kernel_traits>
 __global__ __launch_bounds__(256)
 void compute_dk_dv_kernel(
     half_t const* q_ptr,
@@ -776,7 +779,7 @@ void compute_dk_dv_kernel(
 
 
     // S = QK^T
-    TiledMma_S tiled_mma_S;
+    typename Kernel_traits::TiledMma_SdP tiled_mma_S;
     ThrMMA thr_mma_S = tiled_mma_S.get_slice(threadIdx.x);
     Tensor tSgQ = thr_mma_S.partition_A(gQ);
     Tensor tSsQ = thr_mma_S.partition_A(sQ);
@@ -801,7 +804,7 @@ void compute_dk_dv_kernel(
 
 
     // dP = dOV^T
-    TiledMma_dP tiled_mma_dP;
+    typename Kernel_traits::TiledMma_SdP tiled_mma_dP;
     ThrMMA thr_mma_dP = tiled_mma_dP.get_slice(threadIdx.x);
 
     Tensor tdPgdO = thr_mma_dP.partition_A(gdO);
@@ -1184,9 +1187,9 @@ flash_bwd(torch::Tensor q,
     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockN);
     dim3 dimBlock(256);
 
-
+    auto dk_dv_kernel = compute_dk_dv_kernel<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
     cudaFuncSetAttribute(compute_dk_dv_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    compute_dk_dv_kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
+    dk_dv_kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
                                             k_ptr,
                                             v_ptr,
                                             l_ptr,
