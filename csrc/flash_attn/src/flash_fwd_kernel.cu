@@ -211,7 +211,7 @@ void flash_fwd_kernel(
             copy(gmem_tiled_copy_QK, tKgK(_,_,_,kv_tile + 1), tKrK);
         }
 
-
+        CUTE_UNROLL
         for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
             copy(s2r_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
             copy(s2r_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
@@ -334,10 +334,8 @@ void flash_fwd_kernel(
 
 
 
-
+        CUTE_UNROLL
         for (int pv_block = 0; pv_block < PV_BLOCK_MAX; pv_block++) {
-
-
             copy(s2r_tiled_copy_V, tOsV_copy_view(_,_,pv_block), tOrV_copy_view(_,_,pv_block));
 
             gemm(tiled_mma, tOrP(_,_,pv_block), tOrV(_,_,pv_block), tOrO_float);
