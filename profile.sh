@@ -4,7 +4,7 @@
 export CXX=g++
 export CC=gcc
 
-#OOM on colab
+# set ninja workers to 2, otherwise leads to OOM on colab
 export MAX_JOBS=2
 
 pip install torch
