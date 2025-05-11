@@ -20,11 +20,11 @@ using namespace cute;
 template <typename Kernel_traits>
 __global__ __launch_bounds__(256)
 void flash_fwd_kernel(
-    half_t* q,
-    half_t* k,
-    half_t* v,
-    half_t* o,
-    float* l,
+    half_t* __restrict__ q,
+    half_t* __restrict__ k,
+    half_t* __restrict__ v,
+    half_t* __restrict__ o,
+    float* __restrict__ l,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {
