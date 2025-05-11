@@ -82,13 +82,13 @@ void compute_dot_do_o(half_t* o_ptr,
 template <typename Kernel_traits>
 __global__ __launch_bounds__(256)
 void compute_dq_kernel(
-    half_t const* q_ptr,
-    half_t const* k_ptr,
-    half_t const* v_ptr,
-    float const* l_ptr,
-    float const* d_ptr,
-    half_t const* do_ptr,
-    half_t* dq_ptr,
+    half_t const* __restrict__ q_ptr,
+    half_t const* __restrict__ k_ptr,
+    half_t const* __restrict__ v_ptr,
+    float const* __restrict__ l_ptr,
+    float const* __restrict__ d_ptr,
+    half_t const* __restrict__ do_ptr,
+    half_t* __restrict__ dq_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {
@@ -465,14 +465,14 @@ void compute_dq_kernel(
 template <typename Kernel_traits>
 __global__ __launch_bounds__(256)
 void compute_dk_dv_kernel(
-    half_t const* q_ptr,
-    half_t const* k_ptr,
-    half_t const* v_ptr,
-    float const* l_ptr,
-    float const* d_ptr,
-    half_t const* do_ptr,
-    half_t* dk_ptr,
-    half_t* dv_ptr,
+    half_t const* __restrict__ q_ptr,
+    half_t const* __restrict__ k_ptr,
+    half_t const* __restrict__ v_ptr,
+    float const* __restrict__ l_ptr,
+    float const* __restrict__ d_ptr,
+    half_t const* __restrict__ do_ptr,
+    half_t* __restrict__ dk_ptr,
+    half_t* __restrict__ dv_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {   
