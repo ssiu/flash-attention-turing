@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cutlass/numeric_types.h>
+using half_t = cutlass::half_t;
 
 template<int Headdim, bool Is_causal> void run_mha_fwd_(half_t* q,
                                                                     half_t* k,

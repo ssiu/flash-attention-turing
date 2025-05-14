@@ -3,6 +3,8 @@
 #include "flash.h"
 #include "flash_fwd_kernel.cu"
 #include <cutlass/numeric_types.h>
+using half_t = cutlass::half_t;
+
 template<bool Is_causal>
 void run_mha_fwd_hdim128(half_t* q,
                         half_t* k,

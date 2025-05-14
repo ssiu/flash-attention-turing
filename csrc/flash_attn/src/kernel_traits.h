@@ -5,6 +5,7 @@
 #include "cutlass/cutlass.h"
 #include <cutlass/numeric_conversion.h>
 #include <cutlass/numeric_types.h>
+using half_t = cutlass::half_t;
 
 using namespace cute;
 
