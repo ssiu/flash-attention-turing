@@ -1,6 +1,8 @@
 #pragma once
 
-template<typename T, int Headdim, bool Is_causal> void run_mha_fwd_(half_t* q,
+#include <cutlass/numeric_types.h>
+
+template<int Headdim, bool Is_causal> void run_mha_fwd_(half_t* q,
                                                                     half_t* k,
                                                                     half_t* v,
                                                                     half_t* o,
