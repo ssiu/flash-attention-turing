@@ -1,6 +1,6 @@
 #include <torch/extension.h>
 #include "flash.h"
-
+#include "static_switch.h"
 //std::vector<torch::Tensor> flash_fwd(torch::Tensor q,
 //                                     torch::Tensor k,
 //                                     torch::Tensor v,
