@@ -45,7 +45,7 @@ void compute_dot_do_o(half_t* o_ptr,
     half_t rO[4];
     float sum = 0;
 
-    int thread_id = threadIdx.x;
+    //int thread_id = threadIdx.x;
     int warp_id = threadIdx.x / 32;
     int lane_id = threadIdx.x % 32;
 
@@ -96,7 +96,7 @@ void compute_dq_kernel(
     constexpr int kBlockN = K_BLOCK_N;
     constexpr int kHeadDim = 128;
     constexpr int kNWarps = 8;
-    constexpr int kNThreads = kNWarps * 32;
+    //constexpr int kNThreads = kNWarps * 32;
 
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
@@ -207,7 +207,7 @@ void compute_dq_kernel(
     Tensor sdQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayoutQ{});
 
 
-    int thread_id = threadIdx.x;
+    //int thread_id = threadIdx.x;
     int lane_id = threadIdx.x % 32;
     int warp_id = threadIdx.x / 32;
 
@@ -480,7 +480,7 @@ void compute_dk_dv_kernel(
     constexpr int kBlockN = K_BLOCK_N;
     constexpr int kHeadDim = 128;
     constexpr int kNWarps = 8;
-    constexpr int kNThreads = kNWarps * 32;
+    //constexpr int kNThreads = kNWarps * 32;
 
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
@@ -605,7 +605,7 @@ void compute_dk_dv_kernel(
 
 
 
-    int thread_id = threadIdx.x;
+    //int thread_id = threadIdx.x;
     int lane_id = threadIdx.x % 32;
     int warp_id = threadIdx.x / 32;
 

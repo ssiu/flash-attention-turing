@@ -37,7 +37,7 @@ void run_mha_fwd(half_t* q,
 
 
 std::vector<torch::Tensor>
-void mha_fwd(torch::Tensor q,
+mha_fwd(torch::Tensor q,
              torch::Tensor k,
              torch::Tensor v,
              int batch_size,
