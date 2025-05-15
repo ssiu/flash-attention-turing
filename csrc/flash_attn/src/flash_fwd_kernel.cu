@@ -17,7 +17,7 @@ using namespace cute;
 
 
 
-template <typename Kernel_traits>
+template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
 void flash_fwd_kernel(
     half_t* __restrict__ q,
