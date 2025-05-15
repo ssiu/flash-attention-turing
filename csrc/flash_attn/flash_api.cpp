@@ -68,7 +68,7 @@ mha_fwd(torch::Tensor q,
                 o_ptr,
                 l_ptr,
                 batch_size, seq_len, num_heads, head_dim, is_causal);
-    )
+
 
     return {o, l};
 

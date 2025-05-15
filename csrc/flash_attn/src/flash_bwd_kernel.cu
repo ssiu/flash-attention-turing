@@ -95,7 +95,7 @@ void compute_dq_kernel(
     constexpr int kBlockM = K_BLOCK_M;
     constexpr int kBlockN = K_BLOCK_N;
     constexpr int kHeadDim = 128;
-    constexpr int kNWarps = 8;
+    //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
 
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
@@ -479,7 +479,7 @@ void compute_dk_dv_kernel(
     constexpr int kBlockM = K_BLOCK_M;
     constexpr int kBlockN = K_BLOCK_N;
     constexpr int kHeadDim = 128;
-    constexpr int kNWarps = 8;
+    //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
 
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
