@@ -20,7 +20,7 @@ void run_flash_fwd(half_t* q,
                    int is_causal) {
 
 
-    auto kernel = &flash_fwd_kernel<Kernel_traits, Is_causal>;
+    auto kernel = flash_fwd_kernel<Kernel_traits, Is_causal>;
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
 
