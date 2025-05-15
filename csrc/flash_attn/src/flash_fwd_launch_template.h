@@ -31,11 +31,11 @@ void run_flash_fwd(half_t* q,
     cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
 
 
-    kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
-                                            k_ptr,
-                                            v_ptr,
-                                            o_ptr,
-                                            l_ptr,
+    kernel<<<dimGrid, dimBlock, maxbytes>>>(q,
+                                            k,
+                                            v,
+                                            o,
+                                            l,
                                             batch_size, seq_len, num_heads, head_dim);
 
 }
