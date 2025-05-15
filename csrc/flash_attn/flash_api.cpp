@@ -43,7 +43,8 @@ mha_fwd(torch::Tensor q,
              int batch_size,
              int seq_len,
              int num_heads,
-             int head_dim)
+             int head_dim,
+             int is_causal)
 {
     auto device = q.device();
 
