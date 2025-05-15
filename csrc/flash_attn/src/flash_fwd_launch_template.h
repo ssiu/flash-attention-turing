@@ -22,11 +22,13 @@ void run_flash_fwd(half_t* q,
 
     auto kernel = &flash_fwd_kernel<Kernel_traits, Is_causal>;
 
-    cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
 
     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockM);
     dim3 dimBlock(256);
     int maxbytes = 65536;
+
+    cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+
 
     kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
                                             k_ptr,
