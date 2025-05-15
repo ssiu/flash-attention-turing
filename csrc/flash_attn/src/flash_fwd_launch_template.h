@@ -20,7 +20,7 @@ void run_flash_fwd(half_t* q,
                    int is_causal) {
 
 
-    auto kernel = flash_fwd_kernel<Kernel_traits, Is_causal>;
+    //auto kernel = flash_fwd_kernel<Kernel_traits, Is_causal>;
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
 
@@ -28,10 +28,20 @@ void run_flash_fwd(half_t* q,
     dim3 dimBlock(256);
     int maxbytes = 65536;
 
-    cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+//    cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+//
+//
+//    kernel<<<dimGrid, dimBlock, maxbytes>>>(q,
+//                                            k,
+//                                            v,
+//                                            o,
+//                                            l,
+//                                            batch_size, seq_len, num_heads, head_dim);
+
+    cudaFuncSetAttribute(flash_fwd_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
 
 
-    kernel<<<dimGrid, dimBlock, maxbytes>>>(q,
+    flash_fwd_kernel<Kernel_traits, Is_causal><<<dimGrid, dimBlock, maxbytes>>>(q,
                                             k,
                                             v,
                                             o,
