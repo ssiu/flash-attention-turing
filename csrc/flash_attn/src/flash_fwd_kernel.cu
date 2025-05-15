@@ -25,7 +25,7 @@ void flash_fwd_kernel(
     half_t* __restrict__ v,
     half_t* __restrict__ o,
     float* __restrict__ l,
-    int batch_size, int seq_len, int num_heads, int head_dim
+    int batch_size, int seq_len, int num_heads, int head_dim, int is_casual
 )
 {
 

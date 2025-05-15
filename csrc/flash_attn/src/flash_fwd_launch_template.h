@@ -46,7 +46,7 @@ void run_flash_fwd(half_t* q,
                                             v,
                                             o,
                                             l,
-                                            batch_size, seq_len, num_heads, head_dim);
+                                            batch_size, seq_len, num_heads, head_dim, is_causal);
 
 }
 
