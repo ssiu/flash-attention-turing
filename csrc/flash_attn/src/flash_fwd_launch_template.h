@@ -22,6 +22,7 @@ void run_flash_fwd(half_t* q,
 
     auto kernel = &flash_fwd_kernel<Kernel_traits, Is_causal>;
 
+    constexpr int kBlockM = Kernel_traits::kBlockM;
 
     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockM);
     dim3 dimBlock(256);
