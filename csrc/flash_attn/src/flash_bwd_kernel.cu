@@ -45,7 +45,7 @@ void compute_dot_do_o(half_t* o_ptr,
     half_t rO[4];
     float sum = 0;
 
-    int thread_id = threadIdx.x;
+    //int thread_id = threadIdx.x;
     int warp_id = threadIdx.x / 32;
     int lane_id = threadIdx.x % 32;
 
@@ -82,21 +82,21 @@ void compute_dot_do_o(half_t* o_ptr,
 template <typename Kernel_traits>
 __global__ __launch_bounds__(256)
 void compute_dq_kernel(
-    half_t const* q_ptr,
-    half_t const* k_ptr,
-    half_t const* v_ptr,
-    float const* l_ptr,
-    float const* d_ptr,
-    half_t const* do_ptr,
-    half_t* dq_ptr,
+    half_t const* __restrict__ q_ptr,
+    half_t const* __restrict__ k_ptr,
+    half_t const* __restrict__ v_ptr,
+    float const* __restrict__ l_ptr,
+    float const* __restrict__ d_ptr,
+    half_t const* __restrict__ do_ptr,
+    half_t* __restrict__ dq_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {
     constexpr int kBlockM = K_BLOCK_M;
     constexpr int kBlockN = K_BLOCK_N;
     constexpr int kHeadDim = 128;
-    constexpr int kNWarps = 8;
-    constexpr int kNThreads = kNWarps * 32;
+    //constexpr int kNWarps = 8;
+    //constexpr int kNThreads = kNWarps * 32;
 
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
@@ -207,7 +207,7 @@ void compute_dq_kernel(
     Tensor sdQ = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayoutQ{});
 
 
-    int thread_id = threadIdx.x;
+    //int thread_id = threadIdx.x;
     int lane_id = threadIdx.x % 32;
     int warp_id = threadIdx.x / 32;
 
@@ -465,22 +465,22 @@ void compute_dq_kernel(
 template <typename Kernel_traits>
 __global__ __launch_bounds__(256)
 void compute_dk_dv_kernel(
-    half_t const* q_ptr,
-    half_t const* k_ptr,
-    half_t const* v_ptr,
-    float const* l_ptr,
-    float const* d_ptr,
-    half_t const* do_ptr,
-    half_t* dk_ptr,
-    half_t* dv_ptr,
+    half_t const* __restrict__ q_ptr,
+    half_t const* __restrict__ k_ptr,
+    half_t const* __restrict__ v_ptr,
+    float const* __restrict__ l_ptr,
+    float const* __restrict__ d_ptr,
+    half_t const* __restrict__ do_ptr,
+    half_t* __restrict__ dk_ptr,
+    half_t* __restrict__ dv_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {   
     constexpr int kBlockM = K_BLOCK_M;
     constexpr int kBlockN = K_BLOCK_N;
     constexpr int kHeadDim = 128;
-    constexpr int kNWarps = 8;
-    constexpr int kNThreads = kNWarps * 32;
+    //constexpr int kNWarps = 8;
+    //constexpr int kNThreads = kNWarps * 32;
 
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
@@ -605,7 +605,7 @@ void compute_dk_dv_kernel(
 
 
 
-    int thread_id = threadIdx.x;
+    //int thread_id = threadIdx.x;
     int lane_id = threadIdx.x % 32;
     int warp_id = threadIdx.x / 32;
 

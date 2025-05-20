@@ -4,7 +4,7 @@
 export CXX=g++
 export CC=gcc
 
-#OOM on colab
+# set ninja workers to 2, otherwise leads to OOM on colab
 export MAX_JOBS=2
 
 pip install torch
@@ -19,7 +19,14 @@ echo "Starting profiling"
 
 ncu -f --target-processes all --set full \
 --import-source on \
--o profile_flash_attn python utils/test_flash_backward.py 4 4096 32 128
+-o profile_flash_attn_causal python utils/test_flash_fwd_causal.py 4 4096 32 128 1
+
+
+ncu -f --target-processes all --set full \
+--import-source on \
+-o profile_flash_attn python utils/test_flash_fwd_causal.py 4 4096 32 128 0
+
+#-o profile_flash_attn python utils/test_flash_backward.py 4 4096 32 128
 
 #-o profile_flash_attn python utils/test_flash_backward.py 4 4096 32 128
 
