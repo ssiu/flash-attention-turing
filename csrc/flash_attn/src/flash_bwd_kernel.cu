@@ -20,8 +20,8 @@ using namespace cute;
 
 // kBlockN = 64 works
 // kBlockM = 64 doesnt work
-#define K_BLOCK_M 64
-#define K_BLOCK_N 64
+// #define K_BLOCK_M 64
+// #define K_BLOCK_N 64
 
 
 __global__ __launch_bounds__(1024)
@@ -983,90 +983,90 @@ void compute_dk_dv_kernel(
 
 
 
-std::vector<torch::Tensor>
-flash_bwd(torch::Tensor q,
-          torch::Tensor k,
-          torch::Tensor v,
-          torch::Tensor o,
-          torch::Tensor l,
-          torch::Tensor d_o,
-          int batch_size, int seq_len, int num_heads, int head_dim)
-{
-
-    constexpr int kBlockM = K_BLOCK_M;
-    constexpr int kBlockN = K_BLOCK_N;
-    constexpr int kHeadDim = 128;
-
-    torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
-    torch::Tensor dk = torch::empty(k.sizes(), k.options().dtype(torch::kFloat16));
-    torch::Tensor dv = torch::empty(v.sizes(), v.options().dtype(torch::kFloat16));
-    torch::Tensor d = torch::empty(l.sizes(), l.options());
-
-    half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
-    half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
-    half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
-    half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
-    float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
-    float* d_ptr = reinterpret_cast<float*>(d.data_ptr());
-    half_t* do_ptr = reinterpret_cast<half_t*>(d_o.data_ptr());
-
-    half_t* dq_ptr = reinterpret_cast<half_t*>(dq.data_ptr());
-    half_t* dk_ptr = reinterpret_cast<half_t*>(dk.data_ptr());
-    half_t* dv_ptr = reinterpret_cast<half_t*>(dv.data_ptr());
-
-//     for (int i=0;i<1024;i++) {
-//         printf("check o, i = %d, o = %f", i, static_cast<float>(o_ptr[i]));
-//     }
-
-    // compute dO \circ O
-    // we use 1 warp to compute a single row
-    // each thread block we launch 1024 = 32 x 32 threads = 32 warps
-    // so each thread block process 32 rows
-    dim3 dimGrid_dot_do_o(batch_size, num_heads, seq_len / 32);
-    dim3 dimBlock_dot_do_o(1024);
-    compute_dot_do_o<<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(o_ptr,
-                    do_ptr,
-                    d_ptr,
-                    batch_size, seq_len, num_heads, head_dim);
-
-    int maxbytes = 65536;
-
-
-
-
-    // compute dQ
-    dim3 dimGrid_dq(batch_size, num_heads, seq_len / kBlockM);
-    dim3 dimBlock_dq(256);
-
-    auto dq_kernel = compute_dq_kernel<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
-    cudaFuncSetAttribute(dq_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    dq_kernel<<<dimGrid_dq, dimBlock_dq, maxbytes>>>(q_ptr,
-                                            k_ptr,
-                                            v_ptr,
-                                            l_ptr,
-                                            d_ptr,
-                                            do_ptr,
-                                            dq_ptr,
-                                            batch_size, seq_len, num_heads, head_dim);
-
-
-    // compute dK, dV
-    dim3 dimGrid(batch_size, num_heads, seq_len / kBlockN);
-    dim3 dimBlock(256);
-
-    auto dk_dv_kernel = compute_dk_dv_kernel<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
-    cudaFuncSetAttribute(dk_dv_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    dk_dv_kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
-                                            k_ptr,
-                                            v_ptr,
-                                            l_ptr,
-                                            d_ptr,
-                                            do_ptr,
-                                            dk_ptr,
-                                            dv_ptr,
-                                            batch_size, seq_len, num_heads, head_dim);
-
-
-    return { dq, dk, dv };
-
-}
+// std::vector<torch::Tensor>
+// flash_bwd(torch::Tensor q,
+//           torch::Tensor k,
+//           torch::Tensor v,
+//           torch::Tensor o,
+//           torch::Tensor l,
+//           torch::Tensor do_,
+//           int batch_size, int seq_len, int num_heads, int head_dim)
+// {
+//
+//     constexpr int kBlockM = K_BLOCK_M;
+//     constexpr int kBlockN = K_BLOCK_N;
+//     constexpr int kHeadDim = 128;
+//
+//     torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
+//     torch::Tensor dk = torch::empty(k.sizes(), k.options().dtype(torch::kFloat16));
+//     torch::Tensor dv = torch::empty(v.sizes(), v.options().dtype(torch::kFloat16));
+//     torch::Tensor d = torch::empty(l.sizes(), l.options());
+//
+//     half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
+//     half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
+//     half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
+//     half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
+//     float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
+//     float* d_ptr = reinterpret_cast<float*>(d.data_ptr());
+//     half_t* do_ptr = reinterpret_cast<half_t*>(do_.data_ptr());
+//
+//     half_t* dq_ptr = reinterpret_cast<half_t*>(dq.data_ptr());
+//     half_t* dk_ptr = reinterpret_cast<half_t*>(dk.data_ptr());
+//     half_t* dv_ptr = reinterpret_cast<half_t*>(dv.data_ptr());
+//
+// //     for (int i=0;i<1024;i++) {
+// //         printf("check o, i = %d, o = %f", i, static_cast<float>(o_ptr[i]));
+// //     }
+//
+//     // compute dO \circ O
+//     // we use 1 warp to compute a single row
+//     // each thread block we launch 1024 = 32 x 32 threads = 32 warps
+//     // so each thread block process 32 rows
+//     dim3 dimGrid_dot_do_o(batch_size, num_heads, seq_len / 32);
+//     dim3 dimBlock_dot_do_o(1024);
+//     compute_dot_do_o<<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(o_ptr,
+//                     do_ptr,
+//                     d_ptr,
+//                     batch_size, seq_len, num_heads, head_dim);
+//
+//     int maxbytes = 65536;
+//
+//
+//
+//
+//     // compute dQ
+//     dim3 dimGrid_dq(batch_size, num_heads, seq_len / kBlockM);
+//     dim3 dimBlock_dq(256);
+//
+//     auto dq_kernel = compute_dq_kernel<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
+//     cudaFuncSetAttribute(dq_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+//     dq_kernel<<<dimGrid_dq, dimBlock_dq, maxbytes>>>(q_ptr,
+//                                             k_ptr,
+//                                             v_ptr,
+//                                             l_ptr,
+//                                             d_ptr,
+//                                             do_ptr,
+//                                             dq_ptr,
+//                                             batch_size, seq_len, num_heads, head_dim);
+//
+//
+//     // compute dK, dV
+//     dim3 dimGrid(batch_size, num_heads, seq_len / kBlockN);
+//     dim3 dimBlock(256);
+//
+//     auto dk_dv_kernel = compute_dk_dv_kernel<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
+//     cudaFuncSetAttribute(dk_dv_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+//     dk_dv_kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
+//                                             k_ptr,
+//                                             v_ptr,
+//                                             l_ptr,
+//                                             d_ptr,
+//                                             do_ptr,
+//                                             dk_ptr,
+//                                             dv_ptr,
+//                                             batch_size, seq_len, num_heads, head_dim);
+//
+//
+//     return { dq, dk, dv };
+//
+// }
