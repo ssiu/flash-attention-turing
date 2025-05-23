@@ -138,7 +138,7 @@ mha_bwd(torch::Tensor q,
                 batch_size, seq_len, num_heads, head_dim, is_causal);
 
 
-    return {dq, qk, qv};
+    return {dq, dk, dv};
 
 }
 

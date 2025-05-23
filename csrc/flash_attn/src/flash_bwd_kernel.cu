@@ -92,9 +92,9 @@ void compute_dq_kernel(
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {
-    constexpr int kBlockM = K_BLOCK_M;
-    constexpr int kBlockN = K_BLOCK_N;
-    constexpr int kHeadDim = 128;
+    constexpr int kBlockM = Kernel_traits::kBlockM;
+    constexpr int kBlockN = Kernel_traits::kBlockN;
+    constexpr int kHeadDim = Kernel_traits::kHeadDim;
     //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
 
@@ -476,9 +476,9 @@ void compute_dk_dv_kernel(
     int batch_size, int seq_len, int num_heads, int head_dim
 )
 {   
-    constexpr int kBlockM = K_BLOCK_M;
-    constexpr int kBlockN = K_BLOCK_N;
-    constexpr int kHeadDim = 128;
+    constexpr int kBlockM = Kernel_traits::kBlockM;
+    constexpr int kBlockN = Kernel_traits::kBlockN;
+    constexpr int kHeadDim = Kernel_traits::kHeadDim;
     //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
 
