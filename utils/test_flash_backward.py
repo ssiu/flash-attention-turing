@@ -27,6 +27,7 @@ def get_error(tensor, tensor_torch, batch_size, seq_len, num_heads, head_dim):
 
 
 def main():
+    print("Hello!")
     # Create an argument parser
     parser = argparse.ArgumentParser()
 
