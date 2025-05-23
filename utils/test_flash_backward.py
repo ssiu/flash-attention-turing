@@ -149,7 +149,7 @@ def main():
 
     print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
 
-    print("All done!")
+    print("All done! YEAH")
 
     # print("==========")
     #
