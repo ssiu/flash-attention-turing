@@ -79,7 +79,7 @@ void compute_dot_do_o(half_t* o_ptr,
 
 }
 
-template <typename Kernel_traits>
+template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
 void compute_dq_kernel(
     half_t const* __restrict__ q_ptr,
@@ -462,7 +462,7 @@ void compute_dq_kernel(
 
 
 
-template <typename Kernel_traits>
+template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
 void compute_dk_dv_kernel(
     half_t const* __restrict__ q_ptr,

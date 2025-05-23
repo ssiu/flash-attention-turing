@@ -48,7 +48,7 @@ void run_flash_bwd(half_t* q,
     dim3 dimGrid_dq(batch_size, num_heads, seq_len / kBlockM);
     dim3 dimBlock_dq(256);
 
-    auto dq_kernel = compute_dq_kernel<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
+    auto dq_kernel = compute_dq_kernel<Kernel_traits, Is_causal>;
     cudaFuncSetAttribute(dq_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     dq_kernel<<<dimGrid_dq, dimBlock_dq, maxbytes>>>(q_ptr,
                                             k_ptr,
@@ -64,7 +64,7 @@ void run_flash_bwd(half_t* q,
     dim3 dimGrid_dk_dv(batch_size, num_heads, seq_len / kBlockN);
     dim3 dimBlock_dk_dv(256);
 
-    auto dk_dv_kernel = compute_dk_dv_kernel<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
+    auto dk_dv_kernel = compute_dk_dv_kernel<Kernel_traits, Is_causal>;
     cudaFuncSetAttribute(dk_dv_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     dk_dv_kernel<<<dimGrid_dk_dv, dimBlock_dk_dv, maxbytes>>>(q_ptr,
                                             k_ptr,
