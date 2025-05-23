@@ -35,7 +35,7 @@ def main():
     parser.add_argument('seq_len', type=int)
     parser.add_argument('num_heads', type=int)
     parser.add_argument('head_dim', type=int)
-
+    parser.add_argument('is_causal', type=int)
     # Parse the arguments
     args = parser.parse_args()
 
@@ -44,6 +44,7 @@ def main():
     seq_len=args.seq_len
     num_heads=args.num_heads
     head_dim=args.head_dim
+    is_causal=args.is_causal
 
     # query = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # key = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
@@ -83,7 +84,7 @@ def main():
     d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
 
     with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-        d_query, d_key, d_value = flash_attn_bwd_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim)
+        d_query, d_key, d_value = flash_attn_bwd_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim, is_causal)
 
     print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
 
