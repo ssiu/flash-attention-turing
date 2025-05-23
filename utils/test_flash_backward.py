@@ -68,7 +68,7 @@ def main():
 
     # o = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # l = torch.randn(batch_size, num_heads, seq_len, dtype=torch.float).to("cuda")
-    is_causal = 0
+    is_causal = 1
     output, l = flash_attn_fwd_func(query, key, value, batch_size, seq_len, num_heads, head_dim, is_causal)
 
     # print("values of l")
