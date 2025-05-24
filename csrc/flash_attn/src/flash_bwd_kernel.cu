@@ -23,7 +23,7 @@ using namespace cute;
 // #define K_BLOCK_M 64
 // #define K_BLOCK_N 64
 
-
+template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(1024)
 void compute_dot_do_o(half_t* o_ptr,
                       half_t* do_ptr,
