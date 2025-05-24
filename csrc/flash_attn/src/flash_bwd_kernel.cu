@@ -5,10 +5,7 @@
 #include <float.h>
 #include <torch/extension.h>
 #include <cute/tensor.hpp>
-#include "cutlass/util/print_error.hpp"
-#include "cutlass/util/GPU_Clock.hpp"
-#include "cutlass/util/helper_cuda.hpp"
-#include <cuda_fp16.h>
+
 #include <cutlass/array.h>
 #include <cutlass/cutlass.h>
 #include <cutlass/numeric_conversion.h>
