@@ -28,7 +28,7 @@ __global__ __launch_bounds__(1024)
 void compute_dot_do_o(half_t* o_ptr,
                       half_t* do_ptr,
                       float*  d_ptr,
-                      int batch_size, int seq_len, int num_heads, int head_dim, is_causal)
+                      int batch_size, int seq_len, int num_heads, int head_dim, int is_causal)
 {
     // o_offset: (batch_size, seq_len, num_heads, head_dim)
     // do_offset: (batch_size, seq_len, num_heads, head_dim)
