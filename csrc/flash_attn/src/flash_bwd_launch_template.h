@@ -36,10 +36,10 @@ void run_flash_bwd(half_t* q,
     // so each thread block process 32 rows
     dim3 dimGrid_dot_do_o(batch_size, num_heads, seq_len / 32);
     dim3 dimBlock_dot_do_o(1024);
-    compute_dot_do_o<<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(o,
-                    do_,
-                    d,
-                    batch_size, seq_len, num_heads, head_dim);
+//    compute_dot_do_o<<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(o,
+//                    do_,
+//                    d,
+//                    batch_size, seq_len, num_heads, head_dim);
 
 
     int maxbytes = 65536;
