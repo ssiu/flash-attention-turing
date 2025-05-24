@@ -89,7 +89,7 @@ void compute_dq_kernel(
     float const* __restrict__ d_ptr,
     half_t const* __restrict__ do_ptr,
     half_t* __restrict__ dq_ptr,
-    int batch_size, int seq_len, int num_heads, int head_dim
+    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
 )
 {
     constexpr int kBlockM = Kernel_traits::kBlockM;
@@ -473,7 +473,7 @@ void compute_dk_dv_kernel(
     half_t const* __restrict__ do_ptr,
     half_t* __restrict__ dk_ptr,
     half_t* __restrict__ dv_ptr,
-    int batch_size, int seq_len, int num_heads, int head_dim
+    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
 )
 {   
     constexpr int kBlockM = Kernel_traits::kBlockM;

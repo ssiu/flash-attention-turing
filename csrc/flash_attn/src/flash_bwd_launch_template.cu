@@ -36,9 +36,9 @@ void run_flash_bwd(half_t* q,
     // so each thread block process 32 rows
     dim3 dimGrid_dot_do_o(batch_size, num_heads, seq_len / 32);
     dim3 dimBlock_dot_do_o(1024);
-    compute_dot_do_o<<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(o_ptr,
-                    do_ptr,
-                    d_ptr,
+    compute_dot_do_o<<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(o,
+                    do_,
+                    d,
                     batch_size, seq_len, num_heads, head_dim);
 
 
@@ -48,16 +48,16 @@ void run_flash_bwd(half_t* q,
     dim3 dimGrid_dq(batch_size, num_heads, seq_len / kBlockM);
     dim3 dimBlock_dq(256);
 
-    auto dq_kernel = compute_dq_kernel<Kernel_traits, Is_causal>;
-    cudaFuncSetAttribute(dq_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    dq_kernel<<<dimGrid_dq, dimBlock_dq, maxbytes>>>(q_ptr,
-                                            k_ptr,
-                                            v_ptr,
-                                            l_ptr,
-                                            d_ptr,
-                                            do_ptr,
-                                            dq_ptr,
-                                            batch_size, seq_len, num_heads, head_dim);
+    //auto dq_kernel = compute_dq_kernel<Kernel_traits, Is_causal>;
+    cudaFuncSetAttribute(compute_dq_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    compute_dq_kernel<Kernel_traits, Is_causal><<<dimGrid_dq, dimBlock_dq, maxbytes>>>(q,
+                                            k,
+                                            v,
+                                            l,
+                                            d,
+                                            do_,
+                                            dq,
+                                            batch_size, seq_len, num_heads, head_dim, is_causal);
 
 
     // compute dK, dV
@@ -66,15 +66,15 @@ void run_flash_bwd(half_t* q,
 
     auto dk_dv_kernel = compute_dk_dv_kernel<Kernel_traits, Is_causal>;
     cudaFuncSetAttribute(dk_dv_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    dk_dv_kernel<<<dimGrid_dk_dv, dimBlock_dk_dv, maxbytes>>>(q_ptr,
-                                            k_ptr,
-                                            v_ptr,
-                                            l_ptr,
-                                            d_ptr,
-                                            do_ptr,
-                                            dk_ptr,
-                                            dv_ptr,
-                                            batch_size, seq_len, num_heads, head_dim);
+    dk_dv_kernel<<<dimGrid_dk_dv, dimBlock_dk_dv, maxbytes>>>(q,
+                                            k,
+                                            v,
+                                            l,
+                                            d,
+                                            do_,
+                                            dk,
+                                            dv,
+                                            batch_size, seq_len, num_heads, head_dim, is_causal);
 
 }
 
