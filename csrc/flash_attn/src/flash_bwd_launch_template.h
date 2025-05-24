@@ -39,7 +39,7 @@ void run_flash_bwd(half_t* q,
     compute_dot_do_o<Kernel_traits, Is_causal><<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(o,
                     do_,
                     d,
-                    batch_size, seq_len, num_heads, head_dim);
+                    batch_size, seq_len, num_heads, head_dim, is_causal);
 
 
     int maxbytes = 65536;
