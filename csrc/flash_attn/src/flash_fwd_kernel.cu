@@ -91,7 +91,6 @@ void flash_fwd_kernel(
 //         print("\n");
 //     }
 
-    int thread_id = threadIdx.x;
     int lane_id = threadIdx.x % 32;
     int warp_id = threadIdx.x / 32;
     int thread_row = warp_id * 16 + lane_id / 4;

@@ -151,23 +151,23 @@ def main():
     print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
 
     print("All done! YEAH")
-
-    print("==========")
-
-    for i in range(32):
-        row = d_query[:, i, :, :]  # shape: (1, 1, 128)
-        row_torch = d_query_torch[:, i, :, :]
-        print(f"i = {i}");
-        print(f"{row}\n")
-        print(f"{row_torch}\n")
-        print("==================================================")
-
-    for i in range(128):
-        print(f"i = {i}, dQ = {d_query[0,0,0,i]}, dQ_torch = {d_query_torch[0,0,0,i]}")
-
-    print("##################################################")
-    for i in range(128):
-        print(f"i = {i}, dQ = {d_query[0,i,0,0]}, dQ_torch = {d_query_torch[0,i,0,0]}")
+    #
+    # print("==========")
+    #
+    # for i in range(32):
+    #     row = d_query[:, i, :, :]  # shape: (1, 1, 128)
+    #     row_torch = d_query_torch[:, i, :, :]
+    #     print(f"i = {i}");
+    #     print(f"{row}\n")
+    #     print(f"{row_torch}\n")
+    #     print("==================================================")
+    #
+    # for i in range(128):
+    #     print(f"i = {i}, dQ = {d_query[0,0,0,i]}, dQ_torch = {d_query_torch[0,0,0,i]}")
+    #
+    # print("##################################################")
+    # for i in range(128):
+    #     print(f"i = {i}, dQ = {d_query[0,i,0,0]}, dQ_torch = {d_query_torch[0,i,0,0]}")
     #
     # #DO NOT UNCOMMENT, ONLY SHOWS l
     # print("##################################################")
