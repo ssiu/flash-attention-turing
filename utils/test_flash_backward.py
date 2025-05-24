@@ -68,7 +68,7 @@ def main():
 
     # o = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # l = torch.randn(batch_size, num_heads, seq_len, dtype=torch.float).to("cuda")
-    is_causal = 1
+    #is_causal = 1
     output, l = flash_attn_fwd_func(query, key, value, batch_size, seq_len, num_heads, head_dim, is_causal)
 
     # print("values of l")
@@ -152,22 +152,22 @@ def main():
 
     print("All done! YEAH")
 
-    # print("==========")
-    #
-    # for i in range(32):
-    #     row = d_query[:, i, :, :]  # shape: (1, 1, 128)
-    #     row_torch = d_query_torch[:, i, :, :]
-    #     print(f"i = {i}");
-    #     print(f"{row}\n")
-    #     print(f"{row_torch}\n")
-    #     print("==================================================")
+    print("==========")
 
-    # for i in range(128):
-    #     print(f"i = {i}, dQ = {d_query[0,0,0,i]}, dQ_torch = {d_query_torch[0,0,0,i]}")
-    #
-    # print("##################################################")
-    # for i in range(128):
-    #     print(f"i = {i}, dQ = {d_query[0,i,0,0]}, dQ_torch = {d_query_torch[0,i,0,0]}")
+    for i in range(32):
+        row = d_query[:, i, :, :]  # shape: (1, 1, 128)
+        row_torch = d_query_torch[:, i, :, :]
+        print(f"i = {i}");
+        print(f"{row}\n")
+        print(f"{row_torch}\n")
+        print("==================================================")
+
+    for i in range(128):
+        print(f"i = {i}, dQ = {d_query[0,0,0,i]}, dQ_torch = {d_query_torch[0,0,0,i]}")
+
+    print("##################################################")
+    for i in range(128):
+        print(f"i = {i}, dQ = {d_query[0,i,0,0]}, dQ_torch = {d_query_torch[0,i,0,0]}")
     #
     # #DO NOT UNCOMMENT, ONLY SHOWS l
     # print("##################################################")
