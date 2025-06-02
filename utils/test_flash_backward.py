@@ -27,6 +27,7 @@ def get_error(tensor, tensor_torch, batch_size, seq_len, num_heads, head_dim):
 
 
 def main():
+
     # Create an argument parser
     parser = argparse.ArgumentParser()
 
@@ -35,7 +36,7 @@ def main():
     parser.add_argument('seq_len', type=int)
     parser.add_argument('num_heads', type=int)
     parser.add_argument('head_dim', type=int)
-
+    parser.add_argument('is_causal', type=int)
     # Parse the arguments
     args = parser.parse_args()
 
@@ -44,6 +45,7 @@ def main():
     seq_len=args.seq_len
     num_heads=args.num_heads
     head_dim=args.head_dim
+    is_causal=args.is_causal
 
     # query = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # key = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
@@ -54,19 +56,37 @@ def main():
     # value = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
 
 
-    device = torch.device('cuda')
+    # device = torch.device('cuda')
     # query = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
     # key = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
     # value = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+    # d_output = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+
+    # 256 x 128
+    # eye1 = torch.eye(128, dtype=torch.float16)
+    #
+    # # Create the second identity matrix
+    # eye2 = torch.eye(128, dtype=torch.float16)
+    #
+    # # Concatenate them vertically using torch.cat
+    # concat_matrix = torch.cat((eye1, eye2), dim=0)
+    #
+    # concat_tensor = concat_matrix.view(1,256,1,128).to("cuda")
+    #
+    # query = concat_tensor.clone()
+    # key = concat_tensor.clone()
+    # value = concat_tensor.clone()
+    # d_output = concat_tensor.clone()
 
 
     query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
+    d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
 
     # o = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # l = torch.randn(batch_size, num_heads, seq_len, dtype=torch.float).to("cuda")
-    is_causal = 0
+    #is_causal = 1
     output, l = flash_attn_fwd_func(query, key, value, batch_size, seq_len, num_heads, head_dim, is_causal)
 
     # print("values of l")
@@ -77,13 +97,15 @@ def main():
     # print("=====")
 
 
-    #d_output = torch.eye(128, device=device, dtype=torch.float16).view(1, 128, 1, 128)
+
     #d_output = torch.ones(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
 
-    d_output = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16, device="cuda")
+
+
+
 
     with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-        d_query, d_key, d_value = flash_attn_bwd_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim)
+        d_query, d_key, d_value = flash_attn_bwd_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim, is_causal)
 
     print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
 
@@ -100,7 +122,7 @@ def main():
     key_torch.requires_grad = True
     value_torch.requires_grad = True
 
-    output_torch = F.scaled_dot_product_attention(query_torch, key_torch, value_torch)
+    output_torch = F.scaled_dot_product_attention(query=query_torch, key=key_torch, value=value_torch, is_causal=bool(is_causal))
 
 
     output_torch.backward(d_output_torch)
@@ -148,18 +170,42 @@ def main():
 
     print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
 
-    print("All done!")
+    print("All done! YEAH")
 
-    # print("==========")
-    #
+    print("==========")
+
     # for i in range(32):
-    #     row = d_query[:, i, :, :]  # shape: (1, 1, 128)
-    #     row_torch = d_query_torch[:, i, :, :]
-    #     print(f"i = {i}");
+    #     row = d_key[:, i, :, :]  # shape: (1, 1, 128)
+    #     row_torch = d_key_torch[:, i, :, :]
+    #     print(f"dk, i = {i}");
     #     print(f"{row}\n")
     #     print(f"{row_torch}\n")
     #     print("==================================================")
 
+    # i = 191 HAS PROBLEMS
+
+    # diff = d_value - d_value_torch
+    # #diff = d_key - d_key_torch
+    #
+    # for i in range(62, 64):
+    #     row = d_value[:, i, :, :]  # shape: (1, 1, 128)
+    #     row_torch = d_value_torch[:, i, :, :]
+    #     print(f"dv, i = {i}");
+    #     print(f"{row}\n")
+    #     print(f"{row_torch}\n")
+    #
+    #     row = diff[:, i, :, :]
+    #     print(f"diff, i = {i}");
+    #     print(f"{row}\n")
+    #
+    #     print("==================================================")
+
+    # for i in range(128):
+    #     for j in range(128):
+    #         if diff[:, i, :, j] > 0.0001:
+    #             print(i,j)
+
+    #
     # for i in range(128):
     #     print(f"i = {i}, dQ = {d_query[0,0,0,i]}, dQ_torch = {d_query_torch[0,0,0,i]}")
     #
@@ -167,9 +213,9 @@ def main():
     # for i in range(128):
     #     print(f"i = {i}, dQ = {d_query[0,i,0,0]}, dQ_torch = {d_query_torch[0,i,0,0]}")
     #
-    # #DO NOT UNCOMMENT, ONLY SHOWS l
+    #DO NOT UNCOMMENT, ONLY SHOWS l
     # print("##################################################")
-    # for i in range(128):
+    # for i in range(64):
     #     print(f"i = {i}, l = {l[0,0,i]}")
 
 if __name__ == "__main__":
