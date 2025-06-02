@@ -5,10 +5,7 @@
 #include <float.h>
 #include <torch/extension.h>
 #include <cute/tensor.hpp>
-#include "cutlass/util/print_error.hpp"
-#include "cutlass/util/GPU_Clock.hpp"
-#include "cutlass/util/helper_cuda.hpp"
-#include <cuda_fp16.h>
+
 #include <cutlass/array.h>
 #include <cutlass/cutlass.h>
 #include <cutlass/numeric_conversion.h>
@@ -20,15 +17,15 @@ using namespace cute;
 
 // kBlockN = 64 works
 // kBlockM = 64 doesnt work
-#define K_BLOCK_M 64
-#define K_BLOCK_N 64
+// #define K_BLOCK_M 64
+// #define K_BLOCK_N 64
 
-
+template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(1024)
 void compute_dot_do_o(half_t* o_ptr,
                       half_t* do_ptr,
                       float*  d_ptr,
-                      int batch_size, int seq_len, int num_heads, int head_dim)
+                      int batch_size, int seq_len, int num_heads, int head_dim, int is_causal)
 {
     // o_offset: (batch_size, seq_len, num_heads, head_dim)
     // do_offset: (batch_size, seq_len, num_heads, head_dim)
@@ -79,7 +76,7 @@ void compute_dot_do_o(half_t* o_ptr,
 
 }
 
-template <typename Kernel_traits>
+template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
 void compute_dq_kernel(
     half_t const* __restrict__ q_ptr,
@@ -89,12 +86,12 @@ void compute_dq_kernel(
     float const* __restrict__ d_ptr,
     half_t const* __restrict__ do_ptr,
     half_t* __restrict__ dq_ptr,
-    int batch_size, int seq_len, int num_heads, int head_dim
+    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
 )
 {
-    constexpr int kBlockM = K_BLOCK_M;
-    constexpr int kBlockN = K_BLOCK_N;
-    constexpr int kHeadDim = 128;
+    constexpr int kBlockM = Kernel_traits::kBlockM;
+    constexpr int kBlockN = Kernel_traits::kBlockN;
+    constexpr int kHeadDim = Kernel_traits::kHeadDim;
     //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
 
@@ -318,7 +315,23 @@ void compute_dq_kernel(
     auto tdQsKt_copy_view = smem_thr_copy_Kt.partition_S(sKt);
     auto tdQrKt_copy_view = smem_thr_copy_Kt.retile_D(tdQrKt);
 
-    auto KV_TILE_MAX = size<3>(tSgK);
+    int KV_TILE_MAX;
+    int KV_TILE_NO_MASK;
+    int KV_TILE_MASK_START;
+    int KV_TILE_MASK_END;
+
+    if constexpr (Is_causal) {
+        // number of KV_TILES that does not need a mask
+        KV_TILE_NO_MASK = blockIdx.z * kBlockM / kBlockN;
+        KV_TILE_MASK_START = KV_TILE_NO_MASK;
+        KV_TILE_MASK_END = KV_TILE_MASK_START + kBlockM / kBlockN;
+        KV_TILE_MAX = KV_TILE_NO_MASK;
+    } else {
+        KV_TILE_MAX = size<3>(tSgK);
+    }
+
+
+    //auto KV_TILE_MAX = size<3>(tSgK);
     auto QK_BLOCK_MAX = size<2>(tSsK);
     auto dSKt_BLOCK_MAX = size<2>(tdQsdS);
 
@@ -436,13 +449,202 @@ void compute_dq_kernel(
     }
 
 
+    if (Is_causal) {
+
+        copy(gmem_tiled_copy_QKV, tKgK(_,_,_,KV_TILE_MASK_START), tKrK);
+        copy(gmem_tiled_copy_QKV, tVgV(_,_,_,KV_TILE_MASK_START), tVrV);
+        CUTE_NO_UNROLL
+        for (int kv_tile = KV_TILE_MASK_START; kv_tile < KV_TILE_MASK_END; ++kv_tile) {
+            clear(tSrS_float);
+            clear(tdPrdP_float);
+
+            copy(gmem_tiled_copy_QKV, tKrK, tKsK);
+            copy(gmem_tiled_copy_QKV, tVrV, tVsV);
+
+
+            __syncthreads();
+
+
+            if (kv_tile + 1 < KV_TILE_MASK_END) {
+                copy(gmem_tiled_copy_QKV, tKgK(_,_,_,kv_tile + 1), tKrK);
+                copy(gmem_tiled_copy_QKV, tVgV(_,_,_,kv_tile + 1), tVrV);
+            }
+
+
+
+            CUTE_UNROLL
+            for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
+                copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
+                copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
+                copy(smem_tiled_copy_dO, tdPsdO_copy_view(_,_,qk_block), tdPrdO_copy_view(_,_,qk_block));
+                copy(smem_tiled_copy_V, tdPsV_copy_view(_,_,qk_block), tdPrV_copy_view(_,_,qk_block));
+
+                gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
+                gemm(tiled_mma_dP, tdPrdO(_,_,qk_block), tdPrV(_,_,qk_block), tdPrdP_float);
+            }
+
+
+//             if (blockIdx.z ==0 && warp_id % 2 ==0 && lane_id < 4 && kv_tile == 0) {
+//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
+//                 print_tensor(tSrS_float(make_coord(_,_), 0, _ ));
+//
+//             }
+
+
+            __syncthreads();
+
+            // load rL, rD from gmem to rmem
+            for (int i=0;i<2;i++) {
+                for (int j=0;j<2;j++) {
+                    rL[i][j] = gL((warp_offset + thread_offset + 8 * j + 32 * i));
+                    rD[i][j] = gD((warp_offset + thread_offset + 8 * j + 32 * i));
+                }
+            }
+
+            // rescale S
+            for (int i=0;i< tSrS_float.size();i ++ ) {
+                tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+            }
+
+//             if (blockIdx.z ==0 && warp_id == 2 && lane_id == 0 && kv_tile == 0) {
+//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
+//                 printf("tSrS_float\n");
+//                 print_tensor(tSrS_float(make_coord(_, 0), 0, 0));
+//                 printf("====================\n");
+//                 //print_tensor(sdS(1, _));
+//             }
+
+            //apply mask
+            int row_offset = (warp_id % 2) * 16 + (lane_id / 4);
+            int col_offset = (warp_id / 2) * 8 + (lane_id % 4) * 2;
+            for (int i=0; i<2; i++) {
+                for (int j=0;j<2;j++) {
+                    for (int k=0;k<2;k++) {
+                        for (int l=0;l<2;l++) {
+                            int row = row_offset + 8 * j + 32 * k;
+                            int col = col_offset + i + 32 * l;
+                            if (row < col) {
+                                tSrS_float(make_coord(i,j),k,l) = -FLT_MAX;
+                                tdPrdP_float(make_coord(i,j),k,l) = 0;
+                            }
+                            // print("((%d, %d), %d, %d)\n", i, j, k, l);
+                            // print("row = %d, col = %d\n", row_offset + 8 * j + 32 * k, col_offset + i + 32 * l );
+                            // print("%d\n", 64 * (row_offset + 8 * j + 32 * k) + col_offset + i + 32 * l);
+                            // printf("%d\n", tc(make_coord(i,j),k,l));
+                            // print("====================\n");
+                        }
+                    }
+                }
+            }
+
+//             if (blockIdx.z ==0 && warp_id == 0 && lane_id == 0 && kv_tile == 0) {
+//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
+//                 printf("tSrS_float masked\n");
+//                 print_tensor(tSrS_float(make_coord(_, 0), 0, 0));
+//                 printf("====================\n");
+//                 //print_tensor(sdS(1, _));
+//             }
+
+
+//             if (blockIdx.z ==0 && warp_id == 2 && lane_id == 0 && kv_tile == 0) {
+//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
+//                 printf("tSrS_float masked\n");
+//                 print_tensor(tSrS_float(make_coord(_, 0), 0, 0));
+//                 printf("====================\n");
+//                 //print_tensor(sdS(1, _));
+//             }
+
+
+            Tensor tSrP_float = tSrS_float;
+            Tensor tdPrdS_float = tdPrdP_float;
+
+
+            // compute P = exp(S-l)
+            for (int i=0; i<2; i++) {
+                for (int j=0;j<2;j++) {
+                    for (int k=0; k< tSrS_float(make_coord(_,j),i,_).size(); k++) {
+                        tSrP_float(make_coord(_,j),i,_)[k] = expf(tSrS_float(make_coord(_,j),i,_)[k] - rL[i][j]);
+                    }
+                }
+            }
+
+
+//             if (blockIdx.z ==0 && warp_id == 2 && lane_id == 0 && kv_tile == 0) {
+//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
+//                 printf("tSrP_float\n");
+//                 print_tensor(tSrP_float(make_coord(_, 0), 0, 0));
+//                 printf("====================\n");
+//                 //print_tensor(sdS(1, _));
+//             }
+
+
+            // compute dS = P \circ (dP - D)
+            // tS has the same mma layout as tdP
+            for (int i=0; i<2; i++) {
+                for (int j=0;j<2;j++) {
+                    for (int k=0; k< tdPrdP_float(make_coord(_,j),i,_).size(); k++) {
+                        tdPrdS_float(make_coord(_,j),i,_)[k] = tSrP_float(make_coord(_,j),i,_)[k] * (tdPrdP_float(make_coord(_,j),i,_)[k] - rD[i][j]);
+                    }
+                }
+            }
+
+//             if (blockIdx.z ==0 && warp_id == 2 && lane_id == 0 && kv_tile == 0) {
+//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
+//                 printf("tdPrdS_float\n");
+//                 print_tensor(tdPrdS_float(make_coord(_, 0), 0, 0));
+//                 printf("====================\n");
+//                 //print_tensor(sdS(1, _));
+//             }
+
+            // convert dS from fp32 to fp16
+            constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
+
+            cutlass::NumericArrayConverter<half_t, float, num_element_dS> convert_op_dS;
+            auto frag_dS = convert_op_dS(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
+
+            Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
+
+            //copy(tSrP, tSsP);
+            copy(tdPrdS, tdPsdS);
+
+            __syncthreads();
+
+//             if (blockIdx.z ==0 && warp_id == 0 && lane_id == 0 && kv_tile == 0) {
+//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
+//                 print_tensor(sdS(make_coord(0,_)));
+//                 //print_tensor(sdS(1, _));
+//             }
+
+
+            // dQ += dSK
+
+            CUTE_UNROLL
+            for (int dskt_block = 0; dskt_block < dSKt_BLOCK_MAX; dskt_block++) {
+                copy(smem_tiled_copy_dS, tdQsdS_copy_view(_,_,dskt_block), tdQrdS_copy_view(_,_,dskt_block));
+                copy(smem_tiled_copy_Kt, tdQsKt_copy_view(_,_,dskt_block), tdQrKt_copy_view(_,_,dskt_block));
+
+
+                gemm(tiled_mma_dQ, tdQrdS(_,_,dskt_block), tdQrKt(_,_,dskt_block), tdQrdQ_float);
+//                 if (blockIdx.z == 0 && warp_id==4 && lane_id==0) {
+//                     print_tensor(tdQrdQ_float);
+//                 }
+            }
+
+            __syncthreads();
+
+        }
+    }
+
+
     // rescale by head dim
     for (int i=0;i< tdQrdQ_float.size();i ++ ) {
         tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
     }
 
 
-
+//     if (blockIdx.z == 0 && warp_id==4 && lane_id==0) {
+//         print_tensor(tdQrdQ_float);
+//     }
 
     // dQ
     constexpr int num_element = decltype(size(tdQrdQ_float))::value;
@@ -462,7 +664,7 @@ void compute_dq_kernel(
 
 
 
-template <typename Kernel_traits>
+template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
 void compute_dk_dv_kernel(
     half_t const* __restrict__ q_ptr,
@@ -473,12 +675,12 @@ void compute_dk_dv_kernel(
     half_t const* __restrict__ do_ptr,
     half_t* __restrict__ dk_ptr,
     half_t* __restrict__ dv_ptr,
-    int batch_size, int seq_len, int num_heads, int head_dim
+    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
 )
 {   
-    constexpr int kBlockM = K_BLOCK_M;
-    constexpr int kBlockN = K_BLOCK_N;
-    constexpr int kHeadDim = 128;
+    constexpr int kBlockM = Kernel_traits::kBlockM;
+    constexpr int kBlockN = Kernel_traits::kBlockN;
+    constexpr int kHeadDim = Kernel_traits::kHeadDim;
     //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
 
@@ -745,6 +947,21 @@ void compute_dk_dv_kernel(
 
 
 
+    int Q_TILE_NO_MASK;
+    int Q_TILE_MASK_START;
+    int Q_TILE_MASK_END;
+
+    if constexpr (Is_causal) {
+        // number of KV_TILES that does not need a mask
+        Q_TILE_NO_MASK = blockIdx.z + 1;
+        Q_TILE_MASK_START = blockIdx.z;
+        Q_TILE_MASK_END = Q_TILE_NO_MASK;
+
+    } else {
+        Q_TILE_NO_MASK = 0;
+    }
+
+
     auto Q_TILE_MAX = size<3>(tSgQ);
     auto QK_BLOCK_MAX = size<2>(tSsK);
     auto PtdOt_BLOCK_MAX = size<2>(tdVsPt);
@@ -759,11 +976,11 @@ void compute_dk_dv_kernel(
     clear(tdKrdK_float);
 
 
-    copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,0), tQrQ);
+    copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,Q_TILE_NO_MASK), tQrQ);
     //copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,0), tdOrdO);
 
     CUTE_NO_UNROLL
-    for (int q_tile = 0; q_tile < Q_TILE_MAX; ++q_tile) {
+    for (int q_tile = Q_TILE_NO_MASK; q_tile < Q_TILE_MAX; ++q_tile) {
         copy(gmem_tiled_copy_QKV, tVrV, tVsV);
 
         clear(tSrS_float);
@@ -807,6 +1024,7 @@ void compute_dk_dv_kernel(
         }
 
 
+        //if (blockIdx.z == 0 && warp_id == 7 && lane_id == 31) {
 
 
 
@@ -841,7 +1059,9 @@ void compute_dk_dv_kernel(
                 }
             }
         }
-//
+
+
+
         // compute dS = P \circ (dP - D)
         // tS has the same mma layout as tdP
         for (int i=0; i<2; i++) {
@@ -872,6 +1092,14 @@ void compute_dk_dv_kernel(
 //
         copy(gmem_tiled_copy_QKV, tVsV, tVrV);
         __syncthreads();
+
+//        if (thread(0)) {
+//             //printf("q_tile = %d, warp_id = %d, lane_id = %d\n", q_tile, warp_id, lane_id);
+//             //printf("tSrS_float\n");
+//             print_tensor(tSrP);
+//             //printf("====================\n");
+//             //print_tensor(sdS(1, _));
+//         }
 
         copy(tSrP, tSsP);
         copy(tdPrdS, tdPsdS);
@@ -939,6 +1167,236 @@ void compute_dk_dv_kernel(
 
     }
 
+//     To compute the mask, imagine we are working in a 64 x 64 row-major matrix.
+//     We want to compute a map
+//     (warp_id, lane_id) -> offset in a 64 x 64 row major matrix -> 2d coordinates
+//     To derive the first map we can partition a 64 x 64 row-major matrix using the bwd mma
+//     and print out the layout of each thread partition.
+//     For hdim = 128, the layout is ((_2,_2),_2,_2):((_1,_512),_2048,_32)
+//     The starting offset of each thread is given by
+//     (warp_id / 4) * 64 * 16 + (warp_id % 4) * 8 + (lane_id / 4) * 64 + (lane_id % 4) * 2
+//     the offset is simply offset_start + dot product between layout and stride
+//     The second map is simply offset -> (offset / 64, offset % 64)
+
+
+    if (Is_causal) {
+        copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,Q_TILE_MASK_START), tQrQ);
+        //copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,0), tdOrdO);
+
+        CUTE_NO_UNROLL
+        for (int q_tile = Q_TILE_MASK_START; q_tile < Q_TILE_MASK_END; ++q_tile) {
+            copy(gmem_tiled_copy_QKV, tVrV, tVsV);
+
+            clear(tSrS_float);
+            clear(tdPrdP_float);
+
+            copy(gmem_tiled_copy_QKV, tQrQ, tQsQ);
+            //copy(gmem_tiled_copy_QKV, tdOrdO, tdOsdO);
+            // load gQ to sQ
+            //copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,q_tile), tQsQ);
+            copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile), tdOsdO);
+
+
+            __syncthreads();
+
+            // somehow pipelining gmem loads for both Q and dO use alot more registers which is slower
+            if (q_tile + 1 < Q_TILE_MASK_END) {
+                copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,q_tile+1), tQrQ);
+                //copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,q_tile+1), tdOrdO);
+            }
+
+            // compute S=QK^T
+
+
+    //         copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,0), tSrQ_copy_view(_,_,0));
+    //         copy(smem_tiled_copy_K, tSsK_copy_view(_,_,0), tSrK_copy_view(_,_,0));
+
+            CUTE_UNROLL
+            for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
+                copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
+                copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
+
+    //             int qk_block_next = (qk_block + 1) % QK_BLOCK_MAX;
+    //             copy(smem_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block_next), tSrQ_copy_view(_,_,qk_block_next));
+                //copy(smem_tiled_copy_K, tSsK_copy_view(_,_,qk_block_next), tSrK_copy_view(_,_,qk_block_next));
+
+                copy(smem_tiled_copy_dO, tdPsdO_copy_view(_,_,qk_block), tdPrdO_copy_view(_,_,qk_block));
+                copy(smem_tiled_copy_V, tdPsV_copy_view(_,_,qk_block), tdPrV_copy_view(_,_,qk_block));
+
+                gemm(tiled_mma_S, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
+                gemm(tiled_mma_dP, tdPrdO(_,_,qk_block), tdPrV(_,_,qk_block), tdPrdP_float);
+            }
+
+
+
+
+
+    //         gemm(tiled_mma_S, tSsQ, tSsK, tSrS_float);
+    //         gemm(tiled_mma_dP, tdPsdO, tdPsV, tdPrdP_float);
+
+
+            __syncthreads();
+
+            // load rL, rD from gmem to rmem
+            for (int i=0;i<2;i++) {
+                for (int j=0;j<2;j++) {
+                    rL[i][j] = gL((warp_offset + thread_offset + 8 * j + 32 * i), q_tile);
+                    rD[i][j] = gD((warp_offset + thread_offset + 8 * j + 32 * i), q_tile);
+                }
+            }
+
+            // rescale S
+            for (int i=0;i< tSrS_float.size();i ++ ) {
+                tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+            }
+
+
+            //apply mask
+            int row_offset = (warp_id % 2) * 16 + (lane_id / 4);
+            int col_offset = (warp_id / 2) * 8 + (lane_id % 4) * 2;
+            for (int i=0; i<2; i++) {
+                for (int j=0;j<2;j++) {
+                    for (int k=0;k<2;k++) {
+                        for (int l=0;l<2;l++) {
+                            int row = row_offset + 8 * j + 32 * k;
+                            int col = col_offset + i + 32 * l;
+                            if (row < col) {
+                                tSrS_float(make_coord(i,j),k,l) = -FLT_MAX;
+                                tdPrdP_float(make_coord(i,j),k,l) = 0;
+                            }
+                            // print("((%d, %d), %d, %d)\n", i, j, k, l);
+                            // print("row = %d, col = %d\n", row_offset + 8 * j + 32 * k, col_offset + i + 32 * l );
+                            // print("%d\n", 64 * (row_offset + 8 * j + 32 * k) + col_offset + i + 32 * l);
+                            // printf("%d\n", tc(make_coord(i,j),k,l));
+                            // print("====================\n");
+                        }
+                    }
+                }
+            }
+
+//             if (blockIdx.z == 0 && warp_id == 6 && lane_id == 4) {
+//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", q_tile, warp_id, lane_id);
+//                 printf("tSrS_float\n");
+//                 print_tensor(tSrS_float(make_coord(_, _), 0, 1));
+//                 printf("====================\n");
+//                 //print_tensor(sdS(1, _));
+//             }
+
+
+            Tensor tSrP_float = tSrS_float;
+            Tensor tdPrdS_float = tdPrdP_float;
+
+            // compute P = exp(S-l)
+            for (int i=0; i<2; i++) {
+                for (int j=0;j<2;j++) {
+                    for (int k=0; k< tSrS_float(make_coord(_,j),i,_).size(); k++) {
+                        tSrP_float(make_coord(_,j),i,_)[k] = expf(tSrS_float(make_coord(_,j),i,_)[k] - rL[i][j]);
+                    }
+                }
+            }
+    //
+            // compute dS = P \circ (dP - D)
+            // tS has the same mma layout as tdP
+            for (int i=0; i<2; i++) {
+                for (int j=0;j<2;j++) {
+                    for (int k=0; k< tdPrdP_float(make_coord(_,j),i,_).size(); k++) {
+                        tdPrdS_float(make_coord(_,j),i,_)[k] = tSrP_float(make_coord(_,j),i,_)[k] * (tdPrdP_float(make_coord(_,j),i,_)[k] - rD[i][j]);
+                    }
+                }
+            }
+
+            //convert P from fp32 to fp16
+            constexpr int num_element = decltype(size(tSrP_float))::value;
+
+            cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+            auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrP_float.data()));
+
+            Tensor tSrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrP_float.layout());
+    //
+    //
+            // convert dS from fp32 to fp16
+            constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
+
+            cutlass::NumericArrayConverter<half_t, float, num_element_dS> convert_op_dS;
+            auto frag_dS = convert_op_dS(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
+
+            Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
+    //
+    //
+            copy(gmem_tiled_copy_QKV, tVsV, tVrV);
+            __syncthreads();
+
+            copy(tSrP, tSsP);
+            copy(tdPrdS, tdPsdS);
+    //
+    //
+            __syncthreads();
+
+
+//             if (thread(0)) {
+//                 printf("q_tile = %d\n", q_tile);
+//                 print_tensor(sPt(62, _));
+//                 printf("tdVsPt\n");
+//                 print_tensor(tdVsPt);
+//                 printf("tdVrPt\n");
+//                 print_tensor(tdVrPt);
+//                 printf("tdVsdOt\n");
+//                 print_tensor(tdVsdOt);
+//                 printf("tdVrdOt\n");
+//                 print_tensor(tdVrdOt);
+//
+//                 printf("tdVsPt_copy_view\n");
+//                 print_tensor(tdVsPt_copy_view);
+//                 printf("tdVrPt_copy_view\n");
+//                 print_tensor(tdVrPt_copy_view);
+//                 printf("tdVsdOt_copy_view\n");
+//                 print_tensor(tdVsdOt_copy_view);
+//                 printf("tdVrdOt_copy_view\n");
+//                 print_tensor(tdVrdOt_copy_view);
+//             }
+
+
+
+            // dV += P^TdO
+            CUTE_UNROLL
+            for (int ptdot_block = 0; ptdot_block < PtdOt_BLOCK_MAX; ptdot_block++) {
+                copy(smem_tiled_copy_dSt, tdVsPt_copy_view(_,_,ptdot_block), tdVrPt_copy_view(_,_,ptdot_block));
+                copy(smem_tiled_copy_Qt, tdVsdOt_copy_view(_,_,ptdot_block), tdVrdOt_copy_view(_,_,ptdot_block));
+
+                //copy(tdVsPt(_,_,ptdot_block), tdVrPt(_,_,ptdot_block));
+                //copy(tdVsdOt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block));
+                gemm(tiled_mma_dV, tdVrPt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block), tdVrdV_float);
+
+            }
+
+
+            //gemm(tiled_mma_dV, tdVsPt, tdVsdOt, tdVrdV_float);
+    //
+
+
+
+            // dK += dS^TQ
+
+            CUTE_UNROLL
+            for (int ptdot_block = 0; ptdot_block < PtdOt_BLOCK_MAX; ptdot_block++) {
+                copy(smem_tiled_copy_dSt, tdKsdSt_copy_view(_,_,ptdot_block), tdKrdSt_copy_view(_,_,ptdot_block));
+                copy(smem_tiled_copy_Qt, tdKsQt_copy_view(_,_,ptdot_block), tdKrQt_copy_view(_,_,ptdot_block));
+
+                //copy(tdVsPt(_,_,ptdot_block), tdVrPt(_,_,ptdot_block));
+                //copy(tdVsdOt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block));
+                gemm(tiled_mma_dK, tdKrdSt(_,_,ptdot_block), tdKrQt(_,_,ptdot_block), tdKrdK_float);
+
+            }
+
+            //gemm(tiled_mma_dK, tdKsdSt, tdKsQt, tdKrdK_float);
+
+
+            __syncthreads();
+
+        }
+    }
+
+
     // dV
     constexpr int num_element = decltype(size(tdVrdV_float))::value;
 
@@ -980,93 +1438,3 @@ void compute_dk_dv_kernel(
 }
 
 
-
-
-
-std::vector<torch::Tensor>
-flash_bwd(torch::Tensor q,
-          torch::Tensor k,
-          torch::Tensor v,
-          torch::Tensor o,
-          torch::Tensor l,
-          torch::Tensor d_o,
-          int batch_size, int seq_len, int num_heads, int head_dim)
-{
-
-    constexpr int kBlockM = K_BLOCK_M;
-    constexpr int kBlockN = K_BLOCK_N;
-    constexpr int kHeadDim = 128;
-
-    torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
-    torch::Tensor dk = torch::empty(k.sizes(), k.options().dtype(torch::kFloat16));
-    torch::Tensor dv = torch::empty(v.sizes(), v.options().dtype(torch::kFloat16));
-    torch::Tensor d = torch::empty(l.sizes(), l.options());
-
-    half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
-    half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
-    half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
-    half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
-    float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
-    float* d_ptr = reinterpret_cast<float*>(d.data_ptr());
-    half_t* do_ptr = reinterpret_cast<half_t*>(d_o.data_ptr());
-
-    half_t* dq_ptr = reinterpret_cast<half_t*>(dq.data_ptr());
-    half_t* dk_ptr = reinterpret_cast<half_t*>(dk.data_ptr());
-    half_t* dv_ptr = reinterpret_cast<half_t*>(dv.data_ptr());
-
-//     for (int i=0;i<1024;i++) {
-//         printf("check o, i = %d, o = %f", i, static_cast<float>(o_ptr[i]));
-//     }
-
-    // compute dO \circ O
-    // we use 1 warp to compute a single row
-    // each thread block we launch 1024 = 32 x 32 threads = 32 warps
-    // so each thread block process 32 rows
-    dim3 dimGrid_dot_do_o(batch_size, num_heads, seq_len / 32);
-    dim3 dimBlock_dot_do_o(1024);
-    compute_dot_do_o<<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(o_ptr,
-                    do_ptr,
-                    d_ptr,
-                    batch_size, seq_len, num_heads, head_dim);
-
-    int maxbytes = 65536;
-
-
-
-
-    // compute dQ
-    dim3 dimGrid_dq(batch_size, num_heads, seq_len / kBlockM);
-    dim3 dimBlock_dq(256);
-
-    auto dq_kernel = compute_dq_kernel<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
-    cudaFuncSetAttribute(dq_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    dq_kernel<<<dimGrid_dq, dimBlock_dq, maxbytes>>>(q_ptr,
-                                            k_ptr,
-                                            v_ptr,
-                                            l_ptr,
-                                            d_ptr,
-                                            do_ptr,
-                                            dq_ptr,
-                                            batch_size, seq_len, num_heads, head_dim);
-
-
-    // compute dK, dV
-    dim3 dimGrid(batch_size, num_heads, seq_len / kBlockN);
-    dim3 dimBlock(256);
-
-    auto dk_dv_kernel = compute_dk_dv_kernel<Flash_bwd_kernel_traits<kHeadDim, kBlockM, kBlockN, 8>>;
-    cudaFuncSetAttribute(dk_dv_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    dk_dv_kernel<<<dimGrid, dimBlock, maxbytes>>>(q_ptr,
-                                            k_ptr,
-                                            v_ptr,
-                                            l_ptr,
-                                            d_ptr,
-                                            do_ptr,
-                                            dk_ptr,
-                                            dv_ptr,
-                                            batch_size, seq_len, num_heads, head_dim);
-
-
-    return { dq, dk, dv };
-
-}
