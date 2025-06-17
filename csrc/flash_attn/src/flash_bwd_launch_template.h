@@ -15,6 +15,7 @@ void run_flash_bwd(half_t* q,
                     float* l,
                     float* d,
                     half_t* do_,
+                    float* dq_float,
                     half_t* dq,
                     half_t* dk,
                     half_t* dv,
@@ -76,6 +77,64 @@ void run_flash_bwd(half_t* q,
                                             dv,
                                             batch_size, seq_len, num_heads, head_dim, is_causal);
 
+//    // compute dQ, dK, dV in a single kernel
+//    dim3 dimGrid_dq_dk_dv(batch_size, num_heads, seq_len / kBlockN);
+//    dim3 dimBlock_dq_dk_dv(256);
+//
+//    //auto dk_dv_kernel = compute_dk_dv_kernel<Kernel_traits, Is_causal>;
+//    cudaFuncSetAttribute(compute_dq_dk_dv_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+//    compute_dq_dk_dv_kernel<Kernel_traits, Is_causal><<<dimGrid_dq_dk_dv, dimBlock_dq_dk_dv, maxbytes>>>(q,
+//                                            k,
+//                                            v,
+//                                            l,
+//                                            d,
+//                                            do_,
+//                                            dq_float,
+//                                            dq,
+//                                            dk,
+//                                            dv,
+//                                            batch_size, seq_len, num_heads, head_dim, is_causal);
+//
+//    // convert dq from float to half
+//    dim3 dimGrid_convert_dq(batch_size, num_heads, seq_len / kBlockM);
+//    dim3 dimBlock_convert_dq(256);
+//    convert_dq<Kernel_traits, Is_causal><<<dimGrid_convert_dq, dimBlock_convert_dq>>>(
+//                    dq_float,
+//                    dq,
+//                    batch_size, seq_len, num_heads, head_dim, is_causal);
+
+
+
+
+}
+
+
+template<bool Is_causal>
+void run_mha_bwd_hdim64(half_t* q,
+                        half_t* k,
+                        half_t* v,
+                        half_t* o,
+                        float* l,
+                        float* d,
+                        half_t* do_,
+                        float* dq_float,
+                        half_t* dq,
+                        half_t* dk,
+                        half_t* dv,
+                        int batch_size,
+                        int seq_len,
+                        int num_heads,
+                        int head_dim,
+                        int is_causal) {
+    constexpr static int Headdim = 64;
+    constexpr static int kBlockM = 64;
+    constexpr static int kBlockN = 64;
+    constexpr static int kNWarps = 8;
+
+    run_flash_bwd<Flash_bwd_kernel_traits<Headdim, kBlockM, kBlockN, kNWarps>, Is_causal>(q, k, v, o, l, d, do_, dq_float, dq, dk, dv,
+                                                                            batch_size, seq_len, num_heads, head_dim, is_causal);
+
+
 }
 
 
@@ -88,6 +147,7 @@ void run_mha_bwd_hdim128(half_t* q,
                         float* l,
                         float* d,
                         half_t* do_,
+                        float* dq_float,
                         half_t* dq,
                         half_t* dk,
                         half_t* dv,
@@ -101,7 +161,7 @@ void run_mha_bwd_hdim128(half_t* q,
     constexpr static int kBlockN = 64;
     constexpr static int kNWarps = 8;
 
-    run_flash_bwd<Flash_bwd_kernel_traits<Headdim, kBlockM, kBlockN, kNWarps>, Is_causal>(q, k, v, o, l, d, do_, dq, dk, dv,
+    run_flash_bwd<Flash_bwd_kernel_traits<Headdim, kBlockM, kBlockN, kNWarps>, Is_causal>(q, k, v, o, l, d, do_, dq_float, dq, dk, dv,
                                                                             batch_size, seq_len, num_heads, head_dim, is_causal);
 
 

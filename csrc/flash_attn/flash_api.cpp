@@ -43,13 +43,14 @@ void run_mha_bwd(half_t* q,
                  float* l,
                  float* d,
                  half_t* do_,
+                 float* dq_float,
                  half_t* dq,
                  half_t* dk,
                  half_t* dv,
                  int batch_size, int seq_len, int num_heads, int head_dim, int is_causal){
     HEADDIM_SWITCH(head_dim, [&] {
         BOOL_SWITCH(is_causal, Is_causal, [&] {
-                run_mha_bwd_<kHeadDim, Is_causal>(q, k, v, o, l, d, do_, dq, dk, dv,
+                run_mha_bwd_<kHeadDim, Is_causal>(q, k, v, o, l, d, do_, dq_float, dq, dk, dv,
                         batch_size, seq_len, num_heads, head_dim, is_causal);
         });
     });
@@ -108,9 +109,11 @@ mha_bwd(torch::Tensor q,
         int is_causal)
 {
 
+    torch::Tensor dq_float = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat32));
     torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
     torch::Tensor dk = torch::empty(k.sizes(), k.options().dtype(torch::kFloat16));
     torch::Tensor dv = torch::empty(v.sizes(), v.options().dtype(torch::kFloat16));
+
     torch::Tensor d = torch::empty(l.sizes(), l.options());
 
     half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
@@ -121,6 +124,7 @@ mha_bwd(torch::Tensor q,
     float* d_ptr = reinterpret_cast<float*>(d.data_ptr());
     half_t* do_ptr = reinterpret_cast<half_t*>(do_.data_ptr());
 
+    float* dq_float_ptr = reinterpret_cast<float*>(dq_float.data_ptr());
     half_t* dq_ptr = reinterpret_cast<half_t*>(dq.data_ptr());
     half_t* dk_ptr = reinterpret_cast<half_t*>(dk.data_ptr());
     half_t* dv_ptr = reinterpret_cast<half_t*>(dv.data_ptr());
@@ -132,6 +136,7 @@ mha_bwd(torch::Tensor q,
                 l_ptr,
                 d_ptr,
                 do_ptr,
+                dq_float_ptr,
                 dq_ptr,
                 dk_ptr,
                 dv_ptr,
