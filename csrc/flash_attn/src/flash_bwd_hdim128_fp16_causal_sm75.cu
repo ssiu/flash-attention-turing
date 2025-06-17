@@ -12,6 +12,7 @@ void run_mha_bwd_<128, true>(half_t* q,
                                                float* l,
                                                float* d,
                                                half_t* do_,
+                                               float* dq_float,
                                                half_t* dq,
                                                half_t* dk,
                                                half_t* dv,
@@ -20,7 +21,7 @@ void run_mha_bwd_<128, true>(half_t* q,
                                                int num_heads,
                                                int head_dim,
                                                int is_causal) {
-    run_mha_bwd_hdim128<true>(q, k, v, o, l, d, do_, dq, dk, dv,
+    run_mha_bwd_hdim128<true>(q, k, v, o, l, d, do_, dq_float, dq, dk, dv,
                                                 batch_size, seq_len, num_heads, head_dim, is_causal);
 }
 

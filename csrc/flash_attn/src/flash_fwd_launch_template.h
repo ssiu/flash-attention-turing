@@ -65,3 +65,23 @@ void run_mha_fwd_hdim128(half_t* q,
 }
 
 
+template<bool Is_causal>
+void run_mha_fwd_hdim64(half_t* q,
+                        half_t* k,
+                        half_t* v,
+                        half_t* o,
+                        float* l,
+                        int batch_size,
+                        int seq_len,
+                        int num_heads,
+                        int head_dim,
+                        int is_causal) {
+    constexpr static int Headdim = 64;
+    constexpr static int kBlockM = 128;
+    constexpr static int kBlockN = 128;
+    constexpr static int kNWarps = 8;
+    run_flash_fwd<Flash_fwd_kernel_traits<Headdim, kBlockM, kBlockN, kNWarps>, Is_causal>(q, k, v, o, l,
+                                                                            batch_size, seq_len, num_heads, head_dim, is_causal);
+
+
+}

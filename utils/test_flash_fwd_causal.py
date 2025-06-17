@@ -13,10 +13,11 @@ def get_error(batch_size=1, seq_len=16, num_heads=1, head_dim=128, is_causal=1):
     # key = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # value = torch.zeros(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
 
+
     # device = torch.device('cuda')
-    # query = torch.eye(128, dtype=torch.float16).view(1, 128, 1, 128).to("cuda")
-    # key = torch.eye(128, dtype=torch.float16).view(1, 128, 1, 128).to("cuda")
-    # value = torch.eye(128, dtype=torch.float16).view(1, 128, 1, 128).to("cuda")
+    # query = torch.eye(head_dim, dtype=torch.float16).view(1, head_dim, 1, head_dim).to("cuda")
+    # key = torch.eye(head_dim, dtype=torch.float16).view(1, head_dim, 1, head_dim).to("cuda")
+    # value = torch.eye(head_dim, dtype=torch.float16).view(1, head_dim, 1, head_dim).to("cuda")
 
     # 256 x 128
     # eye1 = torch.eye(128, dtype=torch.float16)
@@ -66,7 +67,7 @@ def get_error(batch_size=1, seq_len=16, num_heads=1, head_dim=128, is_causal=1):
     output_value = output[max_error_indices]
     output_torch_value = output_torch[max_error_indices]
 
-    # for i in range(32):
+    # for i in range(1):
     #     row = output[:, i, :, :]  # shape: (1, 1, 128)
     #     row_torch = output_torch[:, i, :, :]
     #     print(f"i = {i}");

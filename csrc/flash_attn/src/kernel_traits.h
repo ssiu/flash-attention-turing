@@ -181,12 +181,50 @@ struct Flash_bwd_kernel_traits : public Base {
     // lsdm loads
     using SmemCopyAtomQdOPdS = Copy_Atom<SM75_U32x4_LDSM_N, elem_type>;
 
-    using SmemCopyAtomKV = Copy_Atom<SM75_U32x2_LDSM_N, elem_type>;
 
-    using SmemCopyAtomKt = Copy_Atom<SM75_U16x8_LDSM_T, elem_type>;
+    //using SmemCopyAtomKV = Copy_Atom<SM75_U32x2_LDSM_N, elem_type>;
 
 
-    using SmemCopyAtomQtdOtPtdSt = Copy_Atom<SM75_U16x8_LDSM_T, elem_type>;
+
+    // kBlockN = 64 -> SM75_U32x2
+    // kBlockN = 128 -> SM75_U32x4
+
+    using SmemCopyAtomKV = std::conditional_t<
+        kHeadDim == 64,
+//        Copy_Atom<SM75_U32x4_LDSM_N, elem_type>,
+        Copy_Atom<SM75_U32x2_LDSM_N, elem_type>,
+        Copy_Atom<SM75_U32x2_LDSM_N, elem_type>
+    >;
+
+
+
+
+    using SmemCopyAtomKt = std::conditional_t<
+        kHeadDim == 64,
+        Copy_Atom<SM75_U16x4_LDSM_T, elem_type>,
+        Copy_Atom<SM75_U16x8_LDSM_T, elem_type>
+    >;
+
+    using SmemCopyAtomQt = std::conditional_t<
+        kHeadDim == 64,
+        Copy_Atom<SM75_U16x4_LDSM_T, elem_type>,
+        Copy_Atom<SM75_U16x8_LDSM_T, elem_type>
+    >;
+
+
+    using SmemCopyAtomdOt = std::conditional_t<
+        kHeadDim == 64,
+        Copy_Atom<SM75_U16x4_LDSM_T, elem_type>,
+        Copy_Atom<SM75_U16x8_LDSM_T, elem_type>
+    >;
+
+    // using SmemCopyAtomQtdOtPtdSt = Copy_Atom<SM75_U16x8_LDSM_T, elem_type>;
+
+    using SmemCopyAtomPtdSt = Copy_Atom<SM75_U16x8_LDSM_T, elem_type>;
+
+
+
+
 
     //gmem loads
     using GmemLayoutAtom = Layout<Shape <_32, _8>, Stride<_8, _1>>;

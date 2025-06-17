@@ -12,6 +12,7 @@
 #include <cutlass/numeric_types.h>
 
 #include "kernel_traits.h"
+#include "utils.h"
 
 using namespace cute;
 
@@ -186,16 +187,16 @@ void flash_fwd_kernel(
 
 
 
-    int KV_TILE_MAX;
-    int KV_TILE_NO_MASK;
-    int KV_TILE_MASK_START;
-    int KV_TILE_MASK_END;
+    int KV_TILE_MAX = 0;
+    int KV_TILE_NO_MASK = 0;
+    int KV_TILE_MASK_START = 0;
+    int KV_TILE_MASK_END = 0;
 
     if constexpr (Is_causal) {
         // number of KV_TILES that does not need a mask
         KV_TILE_NO_MASK = blockIdx.z * kBlockM / kBlockN;
         KV_TILE_MASK_START = KV_TILE_NO_MASK;
-        KV_TILE_MASK_END = KV_TILE_MASK_START + kBlockM / kBlockN;
+        KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
         KV_TILE_MAX = KV_TILE_NO_MASK;
     } else {
         KV_TILE_MAX = size<3>(tKgK);
@@ -208,7 +209,7 @@ void flash_fwd_kernel(
 
     copy(gmem_tiled_copy_QK, tQgQ, tQsQ);
     copy(gmem_tiled_copy_QK, tKgK(_,_,_,0), tKrK);
-
+    //copy(gmem_tiled_copy_V, tVgV(_,_,_,0), tVrV);
 
     clear(tOrO_float);
 
@@ -218,6 +219,7 @@ void flash_fwd_kernel(
 
 
         copy(gmem_tiled_copy_QK, tKrK, tKsK);
+        //copy(gmem_tiled_copy_V, tVrV, tVsV);
 
         __syncthreads();
 
@@ -225,6 +227,7 @@ void flash_fwd_kernel(
 
         if (kv_tile + 1 < KV_TILE_MAX) {
             copy(gmem_tiled_copy_QK, tKgK(_,_,_,kv_tile + 1), tKrK);
+            //copy(gmem_tiled_copy_V, tVgV(_,_,_,kv_tile + 1), tVrV);
         }
 
         CUTE_UNROLL
@@ -240,9 +243,14 @@ void flash_fwd_kernel(
         copy(gmem_tiled_copy_V, tVgV(_,_,_,kv_tile), tVsV);
         __syncthreads();
 
+//         if (thread0) {
+//             print_tensor(tSrS_float);
+//         }
+
         for (int i=0;i< tSrS_float.size();i ++ ) {
             tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
         }
+
 
 
         // compute m = rowmax(S)
@@ -276,19 +284,27 @@ void flash_fwd_kernel(
 
 
         // compute P = softmax(S)
+        CUTE_UNROLL
         for (int i =0; i<2; i++) {
+            float max_scaled = rM[i] * float(M_LOG2E);
+            CUTE_UNROLL
             for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
+                //tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
+                tSrS_float(make_coord(_,i),_,_)[j] = exp2f(tSrS_float(make_coord(_,i),_,_)[j] * float(M_LOG2E) - max_scaled);
             }
+
+            rL[i] = exp2f(rM_old[i] * float(M_LOG2E) - max_scaled) * rL_old[i];
+            rD[i] = 0.0f;
         }
 
 
 
         // rescale l and also reset rD to 0
-        for (int i =0; i<2; i++) {
-            rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
-            rD[i] = 0.0f;
-        }
+//         for (int i =0; i<2; i++) {
+//             //rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
+//             rL[i] = exp2f(rM_old[i] * float(M_LOG2E) - max_scaled) * rL_old[i];
+//             rD[i] = 0.0f;
+//         }
 
         // if (thread0()){
         //     printf("kv_tile = %d, rL for this loop: %f\n", kv_tile, rL[0]);
@@ -331,13 +347,14 @@ void flash_fwd_kernel(
 
 
 
-        constexpr int num_element = decltype(size(tSrS_float))::value;
+//         constexpr int num_element = decltype(size(tSrS_float))::value;
+//
+//         cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+//         auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
+//
+//         Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
 
-        cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-        auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
-
-        Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
-
+        Tensor tOrP = convert_type<half_t>(tSrS_float);
 
 
         // rescale O
@@ -411,96 +428,118 @@ void flash_fwd_kernel(
                 tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
             }
 
-            // tSrS_float has layout ((_2,_2),_1,_8)
-            // the first mode of (2,2) goes horizontally, second mode vertically
-            // the Turing atom tensor core is 16x8x8, but its basically a 8x8 layouted in a 2x1
-            // First, figure out for the 8 slices ((_2,_2),_1, i)
-            // the maps from {0,...,31} x {0,1} -> {0,...,7} x {0,...,7}
-            // is given by (t,p) -> (t/4, (t % 4) x 2 + p)
 
-            if (kv_tile == KV_TILE_MASK_START) {
 
-                // only the first 4 warps need masks
-                if (warp_id < 4) {
-                    // first put full masks from 2 * warp_id to 8
-                    for (int i = (warp_id + 1) * 2; i < 8;i++) {
-                        for (int j=0; j < tSrS_float(make_coord(_,_),_,i).size(); j++) {
-                            tSrS_float(make_coord(_,_),_,i)[j] = -FLT_MAX;
-                        }
-                    }
+            // We assume kBlockM = 128 and kBlockN = {64, 128} depending on head_dim (either 64 or 128).
+            // Because we are using 8 warps, each warp is responsible for 16 rows.
+            // Therefore, tSrS_float has layout ((_2,_2),_1, MMA_N),
+            // since a Turing tensor core atom is 16 x 8 x 8.
 
-                    // now mask out the diagonal ones
 
-                    // warp_id * 2
-                    for (int i=0;i<2;i ++) {
+            // row and col offset for tSrS_float((0, 0)), 0, 0)
+            int row_offset = (warp_id * 16) + (lane_id / 4);
+            int col_offset = (lane_id % 4) * 2 + (kv_tile - KV_TILE_MASK_START) * kBlockN;
 
-                        int row = lane_id / 4;
-                        int col = (lane_id % 4) * 2 + i;
+            for (int i=0; i<2; i++) {
+                for (int j=0;j<2;j++) {
+                    for (int l = 0; l < size<2>(tSrS_float); l++) {
+                        int row = row_offset + 8 * j;
+                        int col = col_offset + i + 8 * l;
                         if (row < col) {
-                            tSrS_float(make_coord(i,0),0,warp_id * 2) = -FLT_MAX;
+                            tSrS_float(make_coord(i,j),0,l) = -FLT_MAX;
                         }
                     }
-
-                    // warp_id * 2 + 1
-                    for (int i=0;i<2;i ++) {
-                        tSrS_float(make_coord(i, 0), 0, warp_id * 2 + 1) = -FLT_MAX;
-                    }
-
-
-                    for (int i=0;i<2; i++) {
-
-                        int row = lane_id / 4;
-                        int col = (lane_id % 4) * 2 + i;
-                        if (row < col) {
-                            tSrS_float(make_coord(i, 1), 0, warp_id * 2 + 1) = -FLT_MAX;
-                        }
-                    }
-
-                }
-
-
-            } else if (kv_tile == KV_TILE_MASK_START+1) {
-                // full mask for warp 0 - 3
-                if (warp_id < 4) {
-                    for (int j=0; j < tSrS_float.size(); j++) {
-                        tSrS_float[j] = -FLT_MAX ;
-                    }
-                } else {
-                    // first put full masks for warp 4 - 7 from (warp_id - 3) * 2 to 8
-                    for (int i = (warp_id - 3) * 2; i < 8;i++) {
-                        for (int j=0; j < tSrS_float(make_coord(_,_),_,i).size(); j++) {
-                            tSrS_float(make_coord(_,_),_,i)[j] = -FLT_MAX;
-                        }
-                    }
-
-                    // now mask out the diagonal ones
-                    // (warp_id - 4) * 2
-                    for (int i=0;i<2;i ++) {
-
-                        int row = lane_id / 4;
-                        int col = (lane_id % 4) * 2 + i;
-                        if (row < col) {
-                            tSrS_float(make_coord(i,0),0, (warp_id - 4) * 2) = -FLT_MAX;
-                        }
-                    }
-
-                    // warp_id * 2 + 1
-                    for (int i=0;i<2;i ++) {
-                        tSrS_float(make_coord(i, 0), 0, (warp_id - 4) * 2 + 1) = -FLT_MAX;
-                    }
-
-
-                    for (int i=0;i<2; i++) {
-
-                        int row = lane_id / 4;
-                        int col = (lane_id % 4) * 2 + i;
-                        if (row < col) {
-                            tSrS_float(make_coord(i, 1), 0, (warp_id - 4) * 2 + 1) = -FLT_MAX;
-                        }
-                    }
-
                 }
             }
+
+
+
+
+//             if (kv_tile == KV_TILE_MASK_START) {
+//
+//                 // only the first 4 warps need masks
+//                 if (warp_id < 4) {
+//                     // first put full masks from 2 * warp_id to 8
+//                     for (int i = (warp_id + 1) * 2; i < 8;i++) {
+//                         for (int j=0; j < tSrS_float(make_coord(_,_),_,i).size(); j++) {
+//                             tSrS_float(make_coord(_,_),_,i)[j] = -FLT_MAX;
+//                         }
+//                     }
+//
+//                     // now mask out the diagonal ones
+//
+//                     // warp_id * 2
+//                     for (int i=0;i<2;i ++) {
+//
+//                         int row = lane_id / 4;
+//                         int col = (lane_id % 4) * 2 + i;
+//                         if (row < col) {
+//                             tSrS_float(make_coord(i,0),0,warp_id * 2) = -FLT_MAX;
+//                         }
+//                     }
+//
+//                     // warp_id * 2 + 1
+//                     for (int i=0;i<2;i ++) {
+//                         tSrS_float(make_coord(i, 0), 0, warp_id * 2 + 1) = -FLT_MAX;
+//                     }
+//
+//
+//                     for (int i=0;i<2; i++) {
+//
+//                         int row = lane_id / 4;
+//                         int col = (lane_id % 4) * 2 + i;
+//                         if (row < col) {
+//                             tSrS_float(make_coord(i, 1), 0, warp_id * 2 + 1) = -FLT_MAX;
+//                         }
+//                     }
+//
+//                 }
+//
+//
+//             } else if (kv_tile == KV_TILE_MASK_START+1) {
+//                 // full mask for warp 0 - 3
+//                 if (warp_id < 4) {
+//                     for (int j=0; j < tSrS_float.size(); j++) {
+//                         tSrS_float[j] = -FLT_MAX ;
+//                     }
+//                 } else {
+//                     // first put full masks for warp 4 - 7 from (warp_id - 3) * 2 to 8
+//                     for (int i = (warp_id - 3) * 2; i < 8;i++) {
+//                         for (int j=0; j < tSrS_float(make_coord(_,_),_,i).size(); j++) {
+//                             tSrS_float(make_coord(_,_),_,i)[j] = -FLT_MAX;
+//                         }
+//                     }
+//
+//                     // now mask out the diagonal ones
+//                     // (warp_id - 4) * 2
+//                     for (int i=0;i<2;i ++) {
+//
+//                         int row = lane_id / 4;
+//                         int col = (lane_id % 4) * 2 + i;
+//                         if (row < col) {
+//                             tSrS_float(make_coord(i,0),0, (warp_id - 4) * 2) = -FLT_MAX;
+//                         }
+//                     }
+//
+//                     // warp_id * 2 + 1
+//                     for (int i=0;i<2;i ++) {
+//                         tSrS_float(make_coord(i, 0), 0, (warp_id - 4) * 2 + 1) = -FLT_MAX;
+//                     }
+//
+//
+//                     for (int i=0;i<2; i++) {
+//
+//                         int row = lane_id / 4;
+//                         int col = (lane_id % 4) * 2 + i;
+//                         if (row < col) {
+//                             tSrS_float(make_coord(i, 1), 0, (warp_id - 4) * 2 + 1) = -FLT_MAX;
+//                         }
+//                     }
+//
+//                 }
+//             }
+
+
 
 
 
@@ -585,13 +624,13 @@ void flash_fwd_kernel(
 
 
 
-            constexpr int num_element = decltype(size(tSrS_float))::value;
-
-            cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-            auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
-
-            Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
-
+//             constexpr int num_element = decltype(size(tSrS_float))::value;
+//
+//             cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+//             auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
+//
+//             Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+            Tensor tOrP = convert_type<half_t>(tSrS_float);
 
 
             // rescale O
@@ -635,12 +674,13 @@ void flash_fwd_kernel(
     }
 
 
-    constexpr int num_element = decltype(size(tOrO_float))::value;
+//     constexpr int num_element = decltype(size(tOrO_float))::value;
+//
+//     cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+//     auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tOrO_float.data()));
+//     Tensor tOrO = make_tensor(make_rmem_ptr<half_t>(&frag), tOrO_float.layout());
 
-    cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-    auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tOrO_float.data()));
-    Tensor tOrO = make_tensor(make_rmem_ptr<half_t>(&frag), tOrO_float.layout());
-
+    Tensor tOrO = convert_type<half_t>(tOrO_float);
 
     copy(tOrO, tOsO);
 

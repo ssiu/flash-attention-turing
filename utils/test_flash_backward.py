@@ -79,6 +79,24 @@ def main():
     # d_output = concat_tensor.clone()
 
 
+    # 128 x 64
+    #
+    # eye1 = torch.eye(64, dtype=torch.float16)
+    #
+    # # Create the second identity matrix
+    # eye2 = torch.eye(64, dtype=torch.float16)
+    #
+    # # Concatenate them vertically using torch.cat
+    # concat_matrix = torch.cat((eye1, eye2), dim=0)
+    #
+    # concat_tensor = concat_matrix.view(1,128,1,64).to("cuda")
+    #
+    # query = concat_tensor.clone()
+    # key = concat_tensor.clone()
+    # value = concat_tensor.clone()
+    # d_output = concat_tensor.clone()
+
+
     query = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     key = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     value = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
@@ -183,13 +201,14 @@ def main():
     #     print("==================================================")
 
     # i = 191 HAS PROBLEMS
+######################### 12/6/2025 debug
 
-    # diff = d_value - d_value_torch
-    # #diff = d_key - d_key_torch
-    #
-    # for i in range(62, 64):
-    #     row = d_value[:, i, :, :]  # shape: (1, 1, 128)
-    #     row_torch = d_value_torch[:, i, :, :]
+    # diff = d_query - d_query_torch
+    # # #diff = d_key - d_key_torch
+    # #
+    # for i in range(32):
+    #     row = d_query[:, i, :, :]  # shape: (1, 1, 128)
+    #     row_torch = d_query_torch[:, i, :, :]
     #     print(f"dv, i = {i}");
     #     print(f"{row}\n")
     #     print(f"{row_torch}\n")
@@ -199,9 +218,23 @@ def main():
     #     print(f"{row}\n")
     #
     #     print("==================================================")
+    #
+    # for i in range(64, 96):
+    #     row = d_query[:, i, :, :]  # shape: (1, 1, 128)
+    #     row_torch = d_query_torch[:, i, :, :]
+    #     print(f"dv, i = {i}");
+    #     print(f"{row}\n")
+    #     print(f"{row_torch}\n")
+    #
+    #     row = diff[:, i, :, :]
+    #     print(f"diff, i = {i}");
+    #     print(f"{row}\n")
+    #
+    #     print("==================================================")
+######################### 12/6/2025 debug
 
     # for i in range(128):
-    #     for j in range(128):
+    #     for j in range(64):
     #         if diff[:, i, :, j] > 0.0001:
     #             print(i,j)
 
@@ -218,5 +251,9 @@ def main():
     # for i in range(64):
     #     print(f"i = {i}, l = {l[0,0,i]}")
 
+######################### 12/6/2025 debug
+    # print(f"o = {output[0,0,0,:]}")
+    # print(f"do = {d_output[0,0,0,:]}")
+######################### 12/6/2025 debug
 if __name__ == "__main__":
     main()
