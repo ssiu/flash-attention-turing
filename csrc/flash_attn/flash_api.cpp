@@ -22,7 +22,7 @@ void set_params_fprop(Flash_fwd_params &params,
                       void *cu_seqlens_k_d,
                       void *seqused_k,
                       void *softmax_lse_d,
-                      float softmax_scale
+                      float softmax_scale,
                       int is_causal) {
 
     // Reset the parameters
