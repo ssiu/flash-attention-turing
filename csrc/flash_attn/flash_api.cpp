@@ -73,7 +73,7 @@ void set_params_fprop(Flash_fwd_params &params,
     params.scale_softmax = softmax_scale;
     params.scale_softmax_log2 = softmax_scale * M_LOG2E;
 
-    params.is_causal = is_causal == 1;
+    params.is_causal = is_causal;
 }
 
 
@@ -112,12 +112,26 @@ std::vector<torch::Tensor>
 mha_fwd(torch::Tensor q,
              torch::Tensor k,
              torch::Tensor v,
-             int batch_size,
-             int seq_len,
-             int num_heads,
-             int head_dim,
-             int is_causal)
+//             int batch_size,
+//             int seq_len,
+//             int num_heads,
+//             int head_dim,
+             bool is_causal)
 {
+
+    const auto sizes = q.sizes();
+
+    const int batch_size = sizes[0];
+    const int seqlen_q = sizes[1];
+    const int num_heads = sizes[2];
+    const int head_size = sizes[3];
+
+    //placeholder variables
+    const int seqlen_q_rounded = seq_len_q;
+    const int seqlen_k_rounded = seq_len_q;
+    const int num_heads_k = num_heads;
+    const int softmax_scale = 0;
+
     auto device = q.device();
 
     torch::Tensor o = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
