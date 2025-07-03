@@ -127,9 +127,12 @@ mha_fwd(torch::Tensor q,
     const int head_size = sizes[3];
 
     //placeholder variables
+
+
+    const int seqlen_k = seqlen_q;
+    const int num_heads_k = num_heads;
     const int seqlen_q_rounded = seqlen_q;
     const int seqlen_k_rounded = seqlen_q;
-    const int num_heads_k = num_heads;
     const int softmax_scale = 0;
 
     auto device = q.device();
