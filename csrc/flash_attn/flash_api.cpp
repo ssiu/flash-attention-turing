@@ -22,7 +22,8 @@ void set_params_fprop(Flash_fwd_params &params,
                       void *cu_seqlens_k_d,
                       void *seqused_k,
                       void *softmax_lse_d,
-                      float softmax_scale) {
+                      float softmax_scale
+                      int is_causal) {
 
     // Reset the parameters
     params = {};
@@ -72,6 +73,7 @@ void set_params_fprop(Flash_fwd_params &params,
     params.scale_softmax = softmax_scale;
     params.scale_softmax_log2 = softmax_scale * M_LOG2E;
 
+    params.is_causal = is_causal;
 }
 
 
@@ -144,7 +146,8 @@ mha_fwd(torch::Tensor q,
                      /*cu_seqlens_k_d=*/nullptr,
                      /*seqused_k=*/nullptr,
                      l.data_ptr(),
-                     softmax_scale
+                     softmax_scale,
+                     is_causal
                      );
 
     run_mha_fwd(params);

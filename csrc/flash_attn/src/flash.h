@@ -51,6 +51,8 @@ struct Flash_fwd_params : public Qkv_params {
     float scale_softmax;
     float scale_softmax_log2;
 
+    bool is_causal;
+
 };
 
 
