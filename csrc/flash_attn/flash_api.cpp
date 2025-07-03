@@ -73,7 +73,7 @@ void set_params_fprop(Flash_fwd_params &params,
     params.scale_softmax = softmax_scale;
     params.scale_softmax_log2 = softmax_scale * M_LOG2E;
 
-    params.is_causal = is_causal;
+    params.is_causal = is_causal == 1;
 }
 
 
