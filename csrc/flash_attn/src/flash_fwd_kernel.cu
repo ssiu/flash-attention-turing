@@ -74,7 +74,7 @@ void flash_fwd_kernel(Flash_fwd_params &params)
     Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
                            make_coord(blockIdx.z));
 
-    print("%d\n", 42);
+    print("%d\n", kBlockM);
     //printf("batch_size = %d, seq_len = %d, num_heads = %d, head_dim = %d\n", batch_size, seq_len, num_heads, head_dim);
 
 //     if (thread0()){
