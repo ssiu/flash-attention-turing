@@ -32,15 +32,15 @@ void flash_fwd_kernel(Flash_fwd_params params)
     constexpr int kBlockM = Kernel_traits::kBlockM;
     constexpr int kBlockN = Kernel_traits::kBlockN;
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
-//     int batch_size = params.b;
-//     int seq_len = params.seqlen_q;
-//     int num_heads = params.h;
-//     int head_dim = params.d;
-
-    int batch_size = 1;
-    int seq_len = 128;
-    int num_heads = 1;
-    int head_dim = 128;
+    int batch_size = params.b;
+    int seq_len = params.seqlen_q;
+    int num_heads = params.h;
+    int head_dim = params.d;
+//
+//     int batch_size = 1;
+//     int seq_len = 128;
+//     int num_heads = 1;
+//     int head_dim = 128;
 
     Tensor mQ = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.q_ptr)),
                             make_shape(batch_size, seq_len, num_heads, head_dim),
