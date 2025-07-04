@@ -74,11 +74,11 @@ void flash_fwd_kernel(Flash_fwd_params &params)
     Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
                            make_coord(blockIdx.z));
 
-    if (thread0()){
-        //print(gL);
-        printf("batch_size = %d, seq_len = %d, num_heads = %d, head_dim = %d\n", batch_size, seq_len, num_heads, head_dim);
-        //print(gQ);
-    }
+//     if (thread0()){
+//         //print(gL);
+//         printf("batch_size = %d, seq_len = %d, num_heads = %d, head_dim = %d\n", batch_size, seq_len, num_heads, head_dim);
+//         //print(gQ);
+//     }
 //
 //
 //     extern __shared__ char smem_[];
