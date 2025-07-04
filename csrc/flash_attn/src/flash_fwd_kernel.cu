@@ -80,7 +80,9 @@ void flash_fwd_kernel(Flash_fwd_params &params)
                            make_coord(blockIdx.z));
 
     //print("%d\n", kBlockM);
-    printf("batch_size = %d, seq_len = %d, num_heads = %d, head_dim = %d\n", params.b, params.seqlen_q, params.h, params.d);
+    //printf("batch_size = %d, seq_len = %d, num_heads = %d, head_dim = %d\n", params.b, params.seqlen_q, params.h, params.d);
+    printf("batch_size = %d\n", params.b);
+
 
 //     if (thread0()){
 //         //print(gL);
