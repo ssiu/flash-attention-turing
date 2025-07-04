@@ -26,7 +26,7 @@ using namespace cute;
 
 template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
-void flash_fwd_kernel(Flash_fwd_params &params)
+void flash_fwd_kernel(Flash_fwd_params params)
 {
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
@@ -83,7 +83,7 @@ void flash_fwd_kernel(Flash_fwd_params &params)
     //printf("batch_size = %d, seq_len = %d, num_heads = %d, head_dim = %d\n", params.b, params.seqlen_q, params.h, params.d);
     //printf("batch_size = %d\n", params.b);
 
-    printf("gL[0] = %f\n", gL[0]);
+    //printf("gL[0] = %f\n", gL[0]);
 
 //     if (thread0()){
 //         //print(gL);

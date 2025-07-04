@@ -8,7 +8,7 @@ using half_t = cutlass::half_t;
 
 
 template<typename Kernel_traits, bool Is_causal>
-void run_flash_fwd(Flash_fwd_params &params) {
+void run_flash_fwd(Flash_fwd_params params) {
 
     int batch_size = params.b;
     int num_heads = params.h;
@@ -33,7 +33,7 @@ void run_flash_fwd(Flash_fwd_params &params) {
 
 
 template<bool Is_causal>
-void run_mha_fwd_hdim128(Flash_fwd_params &params) {
+void run_mha_fwd_hdim128(Flash_fwd_params params) {
     constexpr static int Headdim = 128;
     constexpr static int kBlockM = 128;
     constexpr static int kBlockN = 64;
@@ -45,7 +45,7 @@ void run_mha_fwd_hdim128(Flash_fwd_params &params) {
 
 
 template<bool Is_causal>
-void run_mha_fwd_hdim64(Flash_fwd_params &params) {
+void run_mha_fwd_hdim64(Flash_fwd_params params) {
     constexpr static int Headdim = 64;
     constexpr static int kBlockM = 128;
     constexpr static int kBlockN = 128;
