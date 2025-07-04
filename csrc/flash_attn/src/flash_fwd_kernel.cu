@@ -75,9 +75,9 @@ void flash_fwd_kernel(Flash_fwd_params &params)
                            make_coord(blockIdx.z));
 
     if (thread0()){
-        print(gL);
-        printf("\n");
-        print(gQ);
+        //print(gL);
+        printf("batch_size = %d, seq_len = %d, num_heads = %d, head_dim = %d\n", batch_size, seq_len, num_heads, head_dim);
+        //print(gQ);
     }
 //
 //
