@@ -32,10 +32,15 @@ void flash_fwd_kernel(Flash_fwd_params &params)
     constexpr int kBlockM = Kernel_traits::kBlockM;
     constexpr int kBlockN = Kernel_traits::kBlockN;
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
-    int batch_size = params.b;
-    int seq_len = params.seqlen_q;
-    int num_heads = params.h;
-    int head_dim = params.d;
+//     int batch_size = params.b;
+//     int seq_len = params.seqlen_q;
+//     int num_heads = params.h;
+//     int head_dim = params.d;
+
+    int batch_size = 1;
+    int seq_len = 128;
+    int num_heads = 1;
+    int head_dim = 128;
 
     Tensor mQ = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.q_ptr)),
                             make_shape(batch_size, seq_len, num_heads, head_dim),
@@ -74,8 +79,8 @@ void flash_fwd_kernel(Flash_fwd_params &params)
     Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
                            make_coord(blockIdx.z));
 
-    print("%d\n", kBlockM);
-    //printf("batch_size = %d, seq_len = %d, num_heads = %d, head_dim = %d\n", batch_size, seq_len, num_heads, head_dim);
+    //print("%d\n", kBlockM);
+    printf("batch_size = %d, seq_len = %d, num_heads = %d, head_dim = %d\n", batch_size, seq_len, num_heads, head_dim);
 
 //     if (thread0()){
 //         //print(gL);
