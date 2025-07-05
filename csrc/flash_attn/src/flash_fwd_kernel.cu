@@ -22,7 +22,7 @@ using namespace cute;
 // half_t* __restrict__ v,
 // half_t* __restrict__ o,
 // float* __restrict__ l,
-// int batch_size, int seq_len, int num_heads, int head_dim, int is_casual
+// int params.b, int seq_len, int params.h, int params.d, int is_casual
 
 template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
@@ -32,62 +32,62 @@ void flash_fwd_kernel(Flash_fwd_params params)
     constexpr int kBlockM = Kernel_traits::kBlockM;
     constexpr int kBlockN = Kernel_traits::kBlockN;
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
-    int batch_size = params.b;
-    int seq_len = params.seqlen_q;
-    int num_heads = params.h;
-    int head_dim = params.d;
+//     int params.b = params.b;
+//     int seq_len = params.seqlen_q;
+//     int params.h = params.h;
+//     int params.d = params.d;
 //
-//     int batch_size = 1;
+//     int params.b = 1;
 //     int seq_len = 128;
-//     int num_heads = 1;
-//     int head_dim = 128;
+//     int params.h = 1;
+//     int params.d = 128;
 
     Tensor mQ = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.q_ptr)),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+                            make_shape(params.b, params.seqlen_q, params.h, params.d),
+                            make_stride(seqlen_q * params.h * params.d, params.h * params.d, params.d, Int<1>{}));
 
     Tensor gQ = local_tile(mQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
     Tensor mK = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.k_ptr)),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+                            make_shape(params.b, params.seqlen_k, params.h, params.d),
+                            make_stride(seqlen_k * params.h * params.d, params.h * params.d, params.d, Int<1>{}));
 
     Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
-    // this is a (seq_len, head_dim) column major matrix, so its V^T in row major
+    // this is a (seq_len, params.d) column major matrix, so its V^T in row major
     Tensor mV = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.v_ptr)),
-                            make_shape(batch_size, head_dim, num_heads, seq_len),
-                            make_stride(seq_len * num_heads * head_dim, Int<1>{}, head_dim, num_heads * head_dim));
+                            make_shape(params.b, params.d, params.h, params.seqlen_k),
+                            make_stride(seqlen_k * params.h * params.d, Int<1>{}, params.d, params.h * params.d));
 
     Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
                            make_coord(0, _));
 
     Tensor mO = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.o_ptr)),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+                            make_shape(params.b, params.seqlen_q, params.h, params.d),
+                            make_stride(seqlen_q * params.h * params.d, params.h * params.d, params.d, Int<1>{}));
 
     Tensor gO = local_tile(mO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(reinterpret_cast<float*>(params.softmax_lse_ptr)),
-                             make_shape(batch_size, num_heads, seq_len),
-                             make_stride(seq_len * num_heads, seq_len, Int<1>{}));
+                             make_shape(params.b, params.h, params.seqlen_q),
+                             make_stride(seqlen_q * params.h, params.seqlen_q, Int<1>{}));
 
     Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
                            make_coord(blockIdx.z));
 
     //print("%d\n", kBlockM);
-    //printf("batch_size = %d, seq_len = %d, num_heads = %d, head_dim = %d\n", params.b, params.seqlen_q, params.h, params.d);
-    //printf("batch_size = %d\n", params.b);
+    //printf("params.b = %d, seq_len = %d, params.h = %d, params.d = %d\n", params.b, params.seqlen_q, params.h, params.d);
+    //printf("params.b = %d\n", params.b);
 
     //printf("gL[0] = %f\n", gL[0]);
 
 //     if (thread0()){
 //         //print(gL);
-//         printf("batch_size = %d, seq_len = %d, num_heads = %d, head_dim = %d\n", batch_size, seq_len, num_heads, head_dim);
+//         printf("params.b = %d, seq_len = %d, params.h = %d, params.d = %d\n", params.b, seq_len, params.h, params.d);
 //         //print(gQ);
 //     }
 //
@@ -445,7 +445,7 @@ void flash_fwd_kernel(Flash_fwd_params params)
 
 
 
-            // We assume kBlockM = 128 and kBlockN = {64, 128} depending on head_dim (either 64 or 128).
+            // We assume kBlockM = 128 and kBlockN = {64, 128} depending on params.d (either 64 or 128).
             // Because we are using 8 warps, each warp is responsible for 16 rows.
             // Therefore, tSrS_float has layout ((_2,_2),_1, MMA_N),
             // since a Turing tensor core atom is 16 x 8 x 8.
