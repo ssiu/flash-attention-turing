@@ -44,7 +44,7 @@ void flash_fwd_kernel(Flash_fwd_params params)
 
     Tensor mQ = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.q_ptr)),
                             make_shape(params.b, params.seqlen_q, params.h, params.d),
-                            make_stride(params.seqlen_q * params.h * params.d, params.h * params.d, params.d, Int<1>{}));
+                            make_stride(params.q_batch_stride, params.q_row_stride, params.q_head_stride, Int<1>{}));
 
     Tensor gQ = local_tile(mQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));

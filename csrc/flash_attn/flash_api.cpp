@@ -32,6 +32,8 @@ void set_params_fprop(Flash_fwd_params &params,
     params.q_ptr = q.data_ptr();
     params.k_ptr = k.data_ptr();
     params.v_ptr = v.data_ptr();
+    params.o_ptr = out.data_ptr();
+
     // All stride are in elements, not bytes.
     params.q_row_stride = q.stride(-3);
     params.k_row_stride = k.stride(-3);
@@ -39,16 +41,15 @@ void set_params_fprop(Flash_fwd_params &params,
     params.q_head_stride = q.stride(-2);
     params.k_head_stride = k.stride(-2);
     params.v_head_stride = v.stride(-2);
-    params.o_ptr = out.data_ptr();
+
     params.o_row_stride = out.stride(-3);
     params.o_head_stride = out.stride(-2);
 
-    if (cu_seqlens_q_d == nullptr) {
-        params.q_batch_stride = q.stride(0);
-        params.k_batch_stride = k.stride(0);
-        params.v_batch_stride = v.stride(0);
-        params.o_batch_stride = out.stride(0);
-    }
+    params.q_batch_stride = q.stride(0);
+    params.k_batch_stride = k.stride(0);
+    params.v_batch_stride = v.stride(0);
+    params.o_batch_stride = out.stride(0);
+
 
 //    params.cu_seqlens_q = static_cast<int *>(cu_seqlens_q_d);
 //    params.cu_seqlens_k = static_cast<int *>(cu_seqlens_k_d);
