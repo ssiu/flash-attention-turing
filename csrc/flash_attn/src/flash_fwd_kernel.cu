@@ -44,14 +44,14 @@ void flash_fwd_kernel(Flash_fwd_params params)
 
     Tensor mQ = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.q_ptr)),
                             make_shape(params.b, params.seqlen_q, params.h, params.d),
-                            make_stride(seqlen_q * params.h * params.d, params.h * params.d, params.d, Int<1>{}));
+                            make_stride(params.seqlen_q * params.h * params.d, params.h * params.d, params.d, Int<1>{}));
 
     Tensor gQ = local_tile(mQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
 
     Tensor mK = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.k_ptr)),
                             make_shape(params.b, params.seqlen_k, params.h, params.d),
-                            make_stride(seqlen_k * params.h * params.d, params.h * params.d, params.d, Int<1>{}));
+                            make_stride(params.seqlen_k * params.h * params.d, params.h * params.d, params.d, Int<1>{}));
 
     Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(_, 0));
@@ -59,14 +59,14 @@ void flash_fwd_kernel(Flash_fwd_params params)
     // this is a (seq_len, params.d) column major matrix, so its V^T in row major
     Tensor mV = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.v_ptr)),
                             make_shape(params.b, params.d, params.h, params.seqlen_k),
-                            make_stride(seqlen_k * params.h * params.d, Int<1>{}, params.d, params.h * params.d));
+                            make_stride(params.seqlen_k * params.h * params.d, Int<1>{}, params.d, params.h * params.d));
 
     Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
                            make_coord(0, _));
 
     Tensor mO = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.o_ptr)),
                             make_shape(params.b, params.seqlen_q, params.h, params.d),
-                            make_stride(seqlen_q * params.h * params.d, params.h * params.d, params.d, Int<1>{}));
+                            make_stride(params.seqlen_q * params.h * params.d, params.h * params.d, params.d, Int<1>{}));
 
     Tensor gO = local_tile(mO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(blockIdx.z, 0));
@@ -74,7 +74,7 @@ void flash_fwd_kernel(Flash_fwd_params params)
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(reinterpret_cast<float*>(params.softmax_lse_ptr)),
                              make_shape(params.b, params.h, params.seqlen_q),
-                             make_stride(seqlen_q * params.h, params.seqlen_q, Int<1>{}));
+                             make_stride(params.seqlen_q * params.h, params.seqlen_q, Int<1>{}));
 
     Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
                            make_coord(blockIdx.z));
