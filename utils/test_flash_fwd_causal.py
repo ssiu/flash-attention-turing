@@ -108,10 +108,10 @@ def main():
     head_dim=args.head_dim
     is_causal=args.is_causal
 
-    #with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-    sum_error, avg_error, max_error, output_value, output_torch_value = get_error(batch_size=batch_size, seq_len=seq_len, num_heads=num_heads, head_dim=head_dim, is_causal=is_causal)
+    with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+        sum_error, avg_error, max_error, output_value, output_torch_value = get_error(batch_size=batch_size, seq_len=seq_len, num_heads=num_heads, head_dim=head_dim, is_causal=is_causal)
 
-    #print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+    print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
     print(f"sum_error = {sum_error}, avg_error = {avg_error}, max_error = {max_error},\nmax_error output = {output_value}, max_error output torch = {output_torch_value}")
 
     print("==================================================")
