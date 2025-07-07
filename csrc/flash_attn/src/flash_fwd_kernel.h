@@ -24,11 +24,11 @@ using namespace cute;
 // float* __restrict__ l,
 // int params.b, int seq_len, int params.h, int params.d, int is_casual
 
-// template <typename Kernel_traits, bool Is_causal, typename Params>
-// __global__ __launch_bounds__(256)
-// void flash_fwd_kernel(const Params params)
-template <typename Kernel_traits, bool Is_causal, typename Params>
-__forceinline__ __device__ void compute_attn_1rowblock(const Params &params, const int bidb, const int bidh, const int m_block)
+ template <typename Kernel_traits, bool Is_causal, typename Params>
+ __global__ __launch_bounds__(256)
+ void flash_fwd_kernel(const Params params, const int bidb, const int bidh, const int m_block)
+//template <typename Kernel_traits, bool Is_causal, typename Params>
+//__forceinline__ __device__ void compute_attn_1rowblock(const Params &params, const int bidb, const int bidh, const int m_block)
 {
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
@@ -620,15 +620,15 @@ __forceinline__ __device__ void compute_attn_1rowblock(const Params &params, con
 
 
 
-
- template<typename Kernel_traits, bool Is_causal, typename Params>
- __inline__ __device__ void compute_attn(const Params &params) {
-    const int m_block = blockIdx.x;
-    // The block index for the batch.
-    const int bidb = blockIdx.y;
-    // The block index for the head.
-    const int bidh = blockIdx.z;
-
-
-    compute_attn_1rowblock<Kernel_traits, Is_causal>(params, bidb, bidh, m_block);
- }
+//
+// template<typename Kernel_traits, bool Is_causal, typename Params>
+// __inline__ __device__ void compute_attn(const Params &params) {
+//    const int m_block = blockIdx.x;
+//    // The block index for the batch.
+//    const int bidb = blockIdx.y;
+//    // The block index for the head.
+//    const int bidh = blockIdx.z;
+//
+//
+//    compute_attn_1rowblock<Kernel_traits, Is_causal>(params, bidb, bidh, m_block);
+// }

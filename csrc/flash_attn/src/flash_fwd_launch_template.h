@@ -6,11 +6,11 @@
 using half_t = cutlass::half_t;
 
 
-template <typename Kernel_traits, bool Is_causal, typename Params>
-__global__ __launch_bounds__(256)
-void flash_fwd_kernel(Params params) {
-    compute_attn<Kernel_traits, Is_causal>(params);
-}
+//template <typename Kernel_traits, bool Is_causal, typename Params>
+//__global__ __launch_bounds__(256)
+//void flash_fwd_kernel(Params params) {
+//    compute_attn<Kernel_traits, Is_causal>(params);
+//}
 
 
 template<typename Kernel_traits, bool Is_causal>
