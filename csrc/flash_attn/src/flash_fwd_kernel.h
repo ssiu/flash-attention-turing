@@ -622,7 +622,7 @@ __forceinline__ __device__ void compute_attn_1rowblock(const Params &params, con
 
 
  template<typename Kernel_traits, bool Is_causal, typename Params>
- __forceinline__ __device__ void compute_attn(const Params &params) {
+ __inline__ __device__ void compute_attn(const Params &params) {
     const int m_block = blockIdx.x;
     // The block index for the batch.
     const int bidb = blockIdx.y;
