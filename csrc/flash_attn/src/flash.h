@@ -57,7 +57,7 @@ struct Flash_fwd_params : public Qkv_params {
 
 
 
-template<int Headdim, bool Is_causal> void run_mha_fwd_(Flash_fwd_params params);
+template<int Headdim, bool Is_causal> void run_mha_fwd_(Flash_fwd_params &params);
 
 
 template<int Headdim, bool Is_causal> void run_mha_bwd_(half_t* q,
