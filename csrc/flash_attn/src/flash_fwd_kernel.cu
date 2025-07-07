@@ -24,9 +24,11 @@ using namespace cute;
 // float* __restrict__ l,
 // int params.b, int seq_len, int params.h, int params.d, int is_casual
 
+// template <typename Kernel_traits, bool Is_causal, typename Params>
+// __global__ __launch_bounds__(256)
+// void flash_fwd_kernel(const Params params)
 template <typename Kernel_traits, bool Is_causal, typename Params>
-__global__ __launch_bounds__(256)
-void flash_fwd_kernel(const Params params)
+__forceinline__ __device__ void compute_attn(const Params &params)
 {
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
