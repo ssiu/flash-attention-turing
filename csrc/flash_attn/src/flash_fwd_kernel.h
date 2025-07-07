@@ -28,7 +28,7 @@ using namespace cute;
 // __global__ __launch_bounds__(256)
 // void flash_fwd_kernel(const Params params)
 template <typename Kernel_traits, bool Is_causal, typename Params>
-__forceinline__ __device__ void compute_attn(const Params &params)
+__forceinline__ __device__ void compute_attn_1rowblock(const Params &params, const int bidb, const int bidh, const int m_block)
 {
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
@@ -48,14 +48,14 @@ __forceinline__ __device__ void compute_attn(const Params &params)
                             make_shape(params.b, params.seqlen_q, params.h, params.d),
                             make_stride(params.q_batch_stride, params.q_row_stride, params.q_head_stride, Int<1>{}));
 
-    Tensor gQ = local_tile(mQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
+    Tensor gQ = local_tile(mQ(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(m_block, 0));
 
     Tensor mK = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.k_ptr)),
                             make_shape(params.b, params.seqlen_k, params.h, params.d),
                             make_stride(params.k_batch_stride, params.k_row_stride, params.k_head_stride, Int<1>{}));
 
-    Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+    Tensor gK = local_tile(mK(bidb, _, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
     // this is a (seq_len, params.d) column major matrix, so its V^T in row major
@@ -63,23 +63,23 @@ __forceinline__ __device__ void compute_attn(const Params &params)
                             make_shape(params.b, params.d, params.h, params.seqlen_k),
                             make_stride(params.v_batch_stride, Int<1>{}, params.v_head_stride, params.v_row_stride));
 
-    Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
+    Tensor gV = local_tile(mV(bidb, _, bidh, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
                            make_coord(0, _));
 
     Tensor mO = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(params.o_ptr)),
                             make_shape(params.b, params.seqlen_q, params.h, params.d),
                             make_stride(params.o_batch_stride, params.o_row_stride, params.o_head_stride, Int<1>{}));
 
-    Tensor gO = local_tile(mO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
+    Tensor gO = local_tile(mO(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(m_block, 0));
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(reinterpret_cast<float*>(params.softmax_lse_ptr)),
                              make_shape(params.b, params.h, params.seqlen_q),
                              make_stride(params.seqlen_q * params.h, params.seqlen_q, Int<1>{}));
 
-    Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
-                           make_coord(blockIdx.z));
+    Tensor gL = local_tile(mL(bidb, bidh, _), Shape<Int<kBlockM>>{},
+                           make_coord(m_block));
 
     //print("%d\n", kBlockM);
     //printf("params.b = %d, seq_len = %d, params.h = %d, params.d = %d\n", params.b, params.seqlen_q, params.h, params.d);
@@ -211,7 +211,7 @@ __forceinline__ __device__ void compute_attn(const Params &params)
 
     if constexpr (Is_causal) {
         // number of KV_TILES that does not need a mask
-        KV_TILE_NO_MASK = blockIdx.z * kBlockM / kBlockN;
+        KV_TILE_NO_MASK = m_block * kBlockM / kBlockN;
         KV_TILE_MASK_START = KV_TILE_NO_MASK;
         KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
         KV_TILE_MAX = KV_TILE_NO_MASK;
@@ -709,14 +709,17 @@ __forceinline__ __device__ void compute_attn(const Params &params)
 }
 
 
-// template<typename Kernel_traits, bool Is_causal>
-// inline __device__ void compute_attn(const Params &params) {
-//     const int m_block = blockIdx.x;
-//     // The block index for the batch.
-//     const int bidb = blockIdx.y;
-//     // The block index for the head.
-//     const int bidh = blockIdx.z;
-//
-//
-//     FLASH_NAMESPACE::compute_attn_1rowblock<Kernel_traits, Is_dropout, Is_causal, Is_local, Has_alibi, Is_even_MN, Is_even_K, Is_softcap, Return_softmax>(params, bidb, bidh, m_block);
-// }
+
+
+
+ template<typename Kernel_traits, bool Is_causal, typename Params>
+ __forceinline__ __device__ void compute_attn(const Params &params) {
+    const int m_block = blockIdx.x;
+    // The block index for the batch.
+    const int bidb = blockIdx.y;
+    // The block index for the head.
+    const int bidh = blockIdx.z;
+
+
+    compute_attn_1rowblock<Kernel_traits, Is_causal>(params, bidb, bidh, m_block);
+ }
