@@ -23,10 +23,10 @@ void run_flash_fwd(Flash_fwd_params params) {
     int maxbytes = 65536;
 
 
-    cudaFuncSetAttribute(flash_fwd_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(flash_fwd_kernel<Kernel_traits, Is_causal, params>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
 
 
-    flash_fwd_kernel<Kernel_traits, Is_causal><<<dimGrid, dimBlock, maxbytes>>>(params);
+    flash_fwd_kernel<Kernel_traits, Is_causal, params><<<dimGrid, dimBlock, maxbytes>>>(params);
 
 }
 
