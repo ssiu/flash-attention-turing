@@ -24,9 +24,9 @@ using namespace cute;
 // float* __restrict__ l,
 // int params.b, int seq_len, int params.h, int params.d, int is_casual
 
-template <typename Kernel_traits, bool Is_causal>
+template <typename Kernel_traits, bool Is_causal, typename Params>
 __global__ __launch_bounds__(256)
-void flash_fwd_kernel(Flash_fwd_params params)
+void flash_fwd_kernel(const Params params)
 {
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
@@ -707,3 +707,14 @@ void flash_fwd_kernel(Flash_fwd_params params)
 }
 
 
+// template<typename Kernel_traits, bool Is_causal>
+// inline __device__ void compute_attn(const Params &params) {
+//     const int m_block = blockIdx.x;
+//     // The block index for the batch.
+//     const int bidb = blockIdx.y;
+//     // The block index for the head.
+//     const int bidh = blockIdx.z;
+//
+//
+//     FLASH_NAMESPACE::compute_attn_1rowblock<Kernel_traits, Is_dropout, Is_causal, Is_local, Has_alibi, Is_even_MN, Is_even_K, Is_softcap, Return_softmax>(params, bidb, bidh, m_block);
+// }
