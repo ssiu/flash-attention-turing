@@ -30,9 +30,13 @@ using namespace cute;
 //template <typename Kernel_traits, bool Is_causal, typename Params>
 //__forceinline__ __device__ void compute_attn_1rowblock(const Params &params, const int bidb, const int bidh, const int m_block)
 {
-    const int m_block = blockIdx.x;
-    const int bidb = blockIdx.y;
-    const int bidh = blockIdx.z;
+//    const int m_block = blockIdx.x;
+//    const int bidb = blockIdx.y;
+//    const int bidh = blockIdx.z;
+
+    const int m_block = blockIdx.z;
+    const int bidb = blockIdx.x;
+    const int bidh = blockIdx.y;
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
     constexpr int kBlockN = Kernel_traits::kBlockN;
