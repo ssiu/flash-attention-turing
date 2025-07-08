@@ -22,12 +22,12 @@ void set_params_fprop(Flash_fwd_params &params,
     params = {};
 
     // Set the pointers and strides.
-    params.q_ptr = q.data_ptr();
-    params.k_ptr = k.data_ptr();
-    params.v_ptr = v.data_ptr();
-    params.o_ptr = out.data_ptr();
+    params.q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
+    params.k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
+    params.v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
+    params.o_ptr = reinterpret_cast<half_t*>(out.data_ptr());
     // Softmax sum
-    params.softmax_lse_ptr = softmax_lse.data_ptr();
+    params.softmax_lse_ptr = reinterpret_cast<float*>(softmax_lse.data_ptr());
     // Set the dimensions.
     params.b = b;
     params.seqlen = seqlen;
