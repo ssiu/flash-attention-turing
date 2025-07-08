@@ -6,9 +6,9 @@ using half_t = cutlass::half_t;
 struct Qkv_params {
     using index_t = int64_t;
     // The QKV matrices.
-    void *__restrict__ q_ptr;
-    void *__restrict__ k_ptr;
-    void *__restrict__ v_ptr;
+    half_t *__restrict__ q_ptr;
+    half_t *__restrict__ k_ptr;
+    half_t *__restrict__ v_ptr;
 
     // The number of heads.
     int h;
@@ -21,10 +21,10 @@ struct Qkv_params {
 struct Flash_fwd_params : public Qkv_params {
 
     // The O matrix (output).
-    void * __restrict__ o_ptr;
+    half_t * __restrict__ o_ptr;
 
     // The pointer to the softmax sum.
-    void * __restrict__ softmax_lse_ptr;
+    float * __restrict__ softmax_lse_ptr;
 
     int b, seqlen, d;
 
