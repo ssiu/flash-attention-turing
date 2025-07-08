@@ -1,37 +1,45 @@
 #include <torch/extension.h>
 #include "flash.h"
 #include "static_switch.h"
-//std::vector<torch::Tensor> flash_fwd(torch::Tensor q,
-//                                     torch::Tensor k,
-//                                     torch::Tensor v,
-//                                     int batch_size,
-//                                     int seq_len,
-//                                     int num_heads,
-//                                     int head_dim);
-//
-//
-//std::vector<torch::Tensor> flash_bwd(torch::Tensor q,
-//                                     torch::Tensor k,
-//                                     torch::Tensor v,
-//                                     torch::Tensor o,
-//                                     torch::Tensor l,
-//                                     torch::Tensor d_o,
-//                                     int batch_size,
-//                                     int seq_len,
-//                                     int num_heads,
-//                                     int head_dim);
 
 
-void run_mha_fwd(half_t* q,
-                 half_t* k,
-                 half_t* v,
-                 half_t* o,
-                 float* l,
-                 int batch_size, int seq_len, int num_heads, int head_dim, int is_causal){
+void set_params_fprop(Flash_fwd_params &params,
+                      // sizes
+                      const size_t b,
+                      const size_t seqlen,
+                      const size_t h,
+                      const size_t d,
+                      // device pointers
+                      const at::Tensor q,
+                      const at::Tensor k,
+                      const at::Tensor v,
+                      at::Tensor out,
+                      at::Tensor softmax_lse,
+                      //void *softmax_lse_d,
+                      bool is_causal) {
+
+    // Reset the parameters
+    params = {};
+
+    // Set the pointers and strides.
+    params.q_ptr = q.data_ptr();
+    params.k_ptr = k.data_ptr();
+    params.v_ptr = v.data_ptr();
+    params.o_ptr = out.data_ptr();
+    // Softmax sum
+    params.softmax_lse_ptr = softmax_lse.data_ptr();
+    // Set the dimensions.
+    params.b = b;
+    params.seqlen = seqlen;
+    params.h = h;
+    params.d = d;
+    params.is_causal = is_causal;
+}
+
+void run_mha_fwd(Flash_fwd_params &params){
     HEADDIM_SWITCH(head_dim, [&] {
         BOOL_SWITCH(is_causal, Is_causal, [&] {
-                run_mha_fwd_<kHeadDim, Is_causal>(q, k, v, o, l,
-                        batch_size, seq_len, num_heads, head_dim, is_causal);
+                run_mha_fwd_<kHeadDim, Is_causal>(params);
         });
     });
 }
@@ -61,13 +69,20 @@ std::vector<torch::Tensor>
 mha_fwd(torch::Tensor q,
              torch::Tensor k,
              torch::Tensor v,
-             int batch_size,
-             int seq_len,
-             int num_heads,
-             int head_dim,
-             int is_causal)
+//             int batch_size,
+//             int seq_len,
+//             int num_heads,
+//             int head_dim,
+             bool is_causal)
 {
     auto device = q.device();
+
+    const auto sizes = q.sizes();
+
+    int batch_size = sizes[0];
+    int seqlen = sizes[1];
+    int num_heads = sizes[2];
+    int head_size = sizes[3];
 
     torch::Tensor o = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
 
@@ -76,19 +91,24 @@ mha_fwd(torch::Tensor q,
 
     TORCH_CHECK(o.is_cuda(), "Tensor o is not on CUDA");
 
-    half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
-    half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
-    half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
-    half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
+//    half_t* q_ptr = reinterpret_cast<half_t*>(q.data_ptr());
+//    half_t* k_ptr = reinterpret_cast<half_t*>(k.data_ptr());
+//    half_t* v_ptr = reinterpret_cast<half_t*>(v.data_ptr());
+//    half_t* o_ptr = reinterpret_cast<half_t*>(o.data_ptr());
+//
+//    float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
 
-    float* l_ptr = reinterpret_cast<float*>(l.data_ptr());
+    Flash_fwd_params params;
+    set_params_fprop(params,
+                     batch_size,
+                     seqlen,
+                     num_heads,
+                     head_size,
+                     q, k, v, o, l,
+                     is_causal
+                     );
 
-    run_mha_fwd(q_ptr,
-                k_ptr,
-                v_ptr,
-                o_ptr,
-                l_ptr,
-                batch_size, seq_len, num_heads, head_dim, is_causal);
+    run_mha_fwd(params);
 
 
     return {o, l};
