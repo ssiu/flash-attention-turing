@@ -27,7 +27,7 @@ void run_flash_fwd(Flash_fwd_params &params) {
     flash_fwd_kernel<Kernel_traits, Is_causal><<<dimGrid, dimBlock, maxbytes>>>(params.q_ptr,
                                                                                 params.k_ptr,
                                                                                 params.v_ptr,
-                                                                                params.o_ptr
+                                                                                params.o_ptr,
                                                                                 params.softmax_lse_ptr,
                                                                                 params.b,
                                                                                 params.seqlen,
