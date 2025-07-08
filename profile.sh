@@ -17,33 +17,43 @@ pip install -v .
 
 echo "Starting profiling"
 
+ncu -f --target-processes all --set full \
+--import-source on \
+-o profile_flash_attn_64 python utils/test_flash_fwd_causal.py 4 4096 32 64 0
+
+ncu -f --target-processes all --set full \
+--import-source on \
+-o profile_flash_attn_64_causal python utils/test_flash_fwd_causal.py 4 4096 32 64 1
+
+ncu -f --target-processes all --set full \
+--import-source on \
+-o profile_flash_attn_128 python utils/test_flash_fwd_causal.py 4 4096 32 128 0
+
+ncu -f --target-processes all --set full \
+--import-source on \
+-o profile_flash_attn_128_causal python utils/test_flash_fwd_causal.py 4 4096 32 128 1
+
+
 #ncu -f --target-processes all --set full \
 #--import-source on \
-#-o profile_flash_attn python utils/test_flash_fwd_causal.py 4 4096 32 64 0
+#-o profile_flash_attn_64 python utils/test_flash_backward.py 4 4096 32 64 0
 #
 #ncu -f --target-processes all --set full \
 #--import-source on \
-#-o profile_flash_attn_causal python utils/test_flash_fwd_causal.py 4 4096 32 64 1
-
-ncu -f --target-processes all --set full \
---import-source on \
--o profile_flash_attn_64 python utils/test_flash_backward.py 4 4096 32 64 0
-
-ncu -f --target-processes all --set full \
---import-source on \
--o profile_flash_attn_64_causal python utils/test_flash_backward.py 4 4096 32 64 1
-
-ncu -f --target-processes all --set full \
---import-source on \
--o profile_flash_attn_128 python utils/test_flash_backward.py 4 4096 32 128 0
-
-ncu -f --target-processes all --set full \
---import-source on \
--o profile_flash_attn_128_causal python utils/test_flash_backward.py 4 4096 32 128 1
-
+#-o profile_flash_attn_64_causal python utils/test_flash_backward.py 4 4096 32 64 1
+#
 #ncu -f --target-processes all --set full \
 #--import-source on \
-#-o profile_flash_attn_causal python utils/test_flash_backward.py 4 4096 32 64 1
+#-o profile_flash_attn_128 python utils/test_flash_backward.py 4 4096 32 128 0
+#
+#ncu -f --target-processes all --set full \
+#--import-source on \
+#-o profile_flash_attn_128_causal python utils/test_flash_backward.py 4 4096 32 128 1
+#
+
+
+
+
 
 
 

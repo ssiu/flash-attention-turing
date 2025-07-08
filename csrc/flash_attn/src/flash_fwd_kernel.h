@@ -20,6 +20,7 @@ using namespace cute;
 
 template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
+// for some reason changing this into params struc is 10% slower for hdim = 128
 void flash_fwd_kernel(half_t* __restrict__ q,
                           half_t* __restrict__ k,
                           half_t* __restrict__ v,
