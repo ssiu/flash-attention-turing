@@ -86,7 +86,7 @@ mha_fwd(torch::Tensor q,
 
     torch::Tensor o = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
 
-    std::vector<int64_t> size = {batch_size, num_heads, seq_len};
+    std::vector<int64_t> size = {batch_size, num_heads, seqlen};
     torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
 
     TORCH_CHECK(o.is_cuda(), "Tensor o is not on CUDA");
