@@ -37,8 +37,8 @@ void set_params_fprop(Flash_fwd_params &params,
 }
 
 void run_mha_fwd(Flash_fwd_params &params){
-    HEADDIM_SWITCH(head_dim, [&] {
-        BOOL_SWITCH(is_causal, Is_causal, [&] {
+    HEADDIM_SWITCH(params.head_dim, [&] {
+        BOOL_SWITCH(params.is_causal, Is_causal, [&] {
                 run_mha_fwd_<kHeadDim, Is_causal>(params);
         });
     });
