@@ -14,7 +14,7 @@ using half_t = cutlass::half_t;
 
 
 template<typename Kernel_traits, bool Is_causal>
-void run_flash_fwd(Flash_fwd_params params) {
+void run_flash_fwd(Flash_fwd_params &params) {
 
     int batch_size = params.b;
     int num_heads = params.h;
