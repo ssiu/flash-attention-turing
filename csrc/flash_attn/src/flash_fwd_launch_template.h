@@ -30,42 +30,24 @@ void run_flash_fwd(Flash_fwd_params &params) {
 
 
 template<bool Is_causal>
-void run_mha_fwd_hdim128(half_t* q,
-                        half_t* k,
-                        half_t* v,
-                        half_t* o,
-                        float* l,
-                        int batch_size,
-                        int seq_len,
-                        int num_heads,
-                        int head_dim,
-                        int is_causal) {
+void run_mha_fwd_hdim128(Flash_fwd_params &params) {
     constexpr static int Headdim = 128;
     constexpr static int kBlockM = 128;
     constexpr static int kBlockN = 64;
     constexpr static int kNWarps = 8;
-    run_flash_fwd<Flash_fwd_kernel_traits<Headdim, kBlockM, kBlockN, kNWarps>, Is_causal>(Flash_fwd_params &params);
+    run_flash_fwd<Flash_fwd_kernel_traits<Headdim, kBlockM, kBlockN, kNWarps>, Is_causal>(params);
 
 
 }
 
 
 template<bool Is_causal>
-void run_mha_fwd_hdim64(half_t* q,
-                        half_t* k,
-                        half_t* v,
-                        half_t* o,
-                        float* l,
-                        int batch_size,
-                        int seq_len,
-                        int num_heads,
-                        int head_dim,
-                        int is_causal) {
+void run_mha_fwd_hdim64(Flash_fwd_params &params) {
     constexpr static int Headdim = 64;
     constexpr static int kBlockM = 128;
     constexpr static int kBlockN = 128;
     constexpr static int kNWarps = 8;
-    run_flash_fwd<Flash_fwd_kernel_traits<Headdim, kBlockM, kBlockN, kNWarps>, Is_causal>(Flash_fwd_params &params);
+    run_flash_fwd<Flash_fwd_kernel_traits<Headdim, kBlockM, kBlockN, kNWarps>, Is_causal>(params);
 
 
 }
