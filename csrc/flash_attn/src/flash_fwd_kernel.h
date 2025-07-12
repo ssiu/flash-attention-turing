@@ -17,16 +17,21 @@
 using namespace cute;
 
 
-
+// for some reason changing this into params struc is 15% slower for hdim = 128
 template <typename Kernel_traits, bool Is_causal>
-__global__ __launch_bounds__(256)
-// for some reason changing this into params struc is 10% slower for hdim = 128
-void flash_fwd_kernel(half_t* __restrict__ q,
+inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
                           half_t* __restrict__ k,
                           half_t* __restrict__ v,
                           half_t* __restrict__ o,
                           float* __restrict__ l,
-                          int batch_size, int seq_len, int num_heads, int head_dim, int is_casual)
+                          int batch_size,
+                          int seq_len,
+                          int num_heads,
+                          int head_dim,
+                          int is_casual,
+                          int bidb,
+                          int bidh,
+                          int m_block)
 {
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
@@ -37,14 +42,14 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gQ = local_tile(mQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
+    Tensor gQ = local_tile(mQ(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(m_block, 0));
 
     Tensor mK = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(k)),
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+    Tensor gK = local_tile(mK(bidb, _, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
     // this is a (seq_len, head_dim) column major matrix, so its V^T in row major
@@ -52,23 +57,23 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                             make_shape(batch_size, head_dim, num_heads, seq_len),
                             make_stride(seq_len * num_heads * head_dim, Int<1>{}, head_dim, num_heads * head_dim));
 
-    Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
+    Tensor gV = local_tile(mV(bidb, _, bidh, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
                            make_coord(0, _));
 
     Tensor mO = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(o)),
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gO = local_tile(mO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
+    Tensor gO = local_tile(mO(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(m_block, 0));
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(reinterpret_cast<float*>(l)),
                              make_shape(batch_size, num_heads, seq_len),
                              make_stride(seq_len * num_heads, seq_len, Int<1>{}));
 
-    Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
-                           make_coord(blockIdx.z));
+    Tensor gL = local_tile(mL(bidb, bidh, _), Shape<Int<kBlockM>>{},
+                           make_coord(m_block));
 
 //     if (thread0()){
 //         print(gL);
@@ -193,7 +198,7 @@ void flash_fwd_kernel(half_t* __restrict__ q,
 
     if constexpr (Is_causal) {
         // number of KV_TILES that does not need a mask
-        KV_TILE_NO_MASK = blockIdx.z * kBlockM / kBlockN;
+        KV_TILE_NO_MASK = m_block * kBlockM / kBlockN;
         KV_TILE_MASK_START = KV_TILE_NO_MASK;
         KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
         KV_TILE_MAX = KV_TILE_NO_MASK;
@@ -691,3 +696,34 @@ void flash_fwd_kernel(half_t* __restrict__ q,
 }
 
 
+template<typename Kernel_traits, bool Is_causal>
+inline __device__ void compute_attn(half_t* __restrict__ q,
+                                      half_t* __restrict__ k,
+                                      half_t* __restrict__ v,
+                                      half_t* __restrict__ o,
+                                      float* __restrict__ l,
+                                      int batch_size,
+                                      int seq_len,
+                                      int num_heads,
+                                      int head_dim,
+                                      int is_casual) {
+    const int m_block = blockIdx.x;
+    // The block index for the batch.
+    const int bidb = blockIdx.y;
+    // The block index for the head.
+    const int bidh = blockIdx.z;
+
+    compute_attn_1rowblock<Kernel_traits, Is_causal>(q,
+                                                    k,
+                                                    v,
+                                                    o,
+                                                    l,
+                                                    batch_size,
+                                                    seq_len,
+                                                    num_heads,
+                                                    head_dim,
+                                                    is_casual,
+                                                    bidb,
+                                                    bidh,
+                                                    m_block);
+}

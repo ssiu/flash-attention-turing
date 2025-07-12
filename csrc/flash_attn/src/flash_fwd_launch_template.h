@@ -5,7 +5,31 @@
 #include <cutlass/numeric_types.h>
 using half_t = cutlass::half_t;
 
-
+template <typename Kernel_traits, bool Is_causal>
+__global__ __launch_bounds__(256)
+// for some reason changing this into params struc is 10% slower for hdim = 128
+void flash_fwd_kernel(half_t* __restrict__ q,
+                          half_t* __restrict__ k,
+                          half_t* __restrict__ v,
+                          half_t* __restrict__ o,
+                          float* __restrict__ l,
+                          int batch_size,
+                          int seq_len,
+                          int num_heads,
+                          int head_dim,
+                          int is_casual)
+{
+    compute_attn<Kernel_traits, Is_causal>(q,
+                                           k,
+                                           v,
+                                           o,
+                                           l,
+                                           batch_size,
+                                           seq_len,
+                                           num_heads,
+                                           head_dim,
+                                           is_casual);
+}
 
 template<typename Kernel_traits, bool Is_causal>
 void run_flash_fwd(Flash_fwd_params &params) {
@@ -15,7 +39,7 @@ void run_flash_fwd(Flash_fwd_params &params) {
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
 
-    dim3 dimGrid(params.b, params.h, params.seqlen / kBlockM);
+    dim3 dimGrid(params.seqlen / kBlockM, params.b, params.h, );
     dim3 dimBlock(256);
     int maxbytes = 65536;
 
