@@ -39,7 +39,7 @@ void run_flash_fwd(Flash_fwd_params &params) {
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
 
-    dim3 dimGrid(params.seqlen / kBlockM, params.b, params.h, );
+    dim3 dimGrid(params.seqlen / kBlockM, params.b, params.h);
     dim3 dimBlock(256);
     int maxbytes = 65536;
 
