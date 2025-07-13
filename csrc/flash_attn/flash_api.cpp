@@ -169,6 +169,6 @@ mha_bwd(torch::Tensor q,
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("flash_attn_fwd_func", &mha_fwd, "Forward pass");
-    m.def("flash_attn_bwd_func", &mha_bwd, "Backward pass");
+    m.def("fwd", &mha_fwd, "Forward pass");
+    m.def("bwd", &mha_bwd, "Backward pass");
 }
