@@ -160,7 +160,7 @@ mha_bwd(torch::Tensor q,
 //        int seq_len,
 //        int num_heads,
 //        int head_dim,
-        int is_causal)
+        bool is_causal)
 {
 
     const auto sizes = q.sizes();
@@ -194,7 +194,7 @@ mha_bwd(torch::Tensor q,
                     dk,
                     dv,
                     do_o,
-                    bool is_causal);
+                    is_causal);
 
     run_mha_bwd(params);
 
