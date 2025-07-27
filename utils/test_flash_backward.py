@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch.profiler import profile, record_function, ProfilerActivity
 import argparse
-from flash_attn_turing import flash_attn_fwd_func, flash_attn_bwd_func
+from flash_attn_turing import fwd, bwd
 
 torch.set_printoptions(precision=8)
 torch.set_printoptions(linewidth=500)
@@ -105,7 +105,7 @@ def main():
     # o = torch.randn(batch_size, seq_len, num_heads, head_dim, dtype=torch.float16).to("cuda")
     # l = torch.randn(batch_size, num_heads, seq_len, dtype=torch.float).to("cuda")
     #is_causal = 1
-    output, l = flash_attn_fwd_func(query, key, value, batch_size, seq_len, num_heads, head_dim, bool(is_causal))
+    output, l = fwd(query, key, value, batch_size, seq_len, num_heads, head_dim, bool(is_causal))
 
     # print("values of l")
     #
@@ -123,7 +123,7 @@ def main():
 
 
     with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-        d_query, d_key, d_value = flash_attn_bwd_func(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim, bool(is_causal))
+        d_query, d_key, d_value = bwd(query, key, value, output, l, d_output, batch_size, seq_len, num_heads, head_dim, bool(is_causal))
 
     print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
 
