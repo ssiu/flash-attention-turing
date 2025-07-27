@@ -24,32 +24,25 @@ struct Flash_fwd_params : public Qkv_params {
     half_t * __restrict__ o_ptr;
 
     // The pointer to the softmax sum.
-    float * __restrict__ softmax_lse_ptr;
-
+    float * __restrict__ l_ptr;
     int b, seqlen, d;
-
-
     bool is_causal;
 };
 
+
+struct Flash_bwd_params : public Flash_fwd_params {
+
+    half_t *__restrict__ do_ptr;
+    half_t *__restrict__ dq_ptr;
+    half_t *__restrict__ dk_ptr;
+    half_t *__restrict__ dv_ptr;
+    float *__restrict__ do_o_ptr;
+
+
+};
 
 
 template<int Headdim, bool Is_causal> void run_mha_fwd_(Flash_fwd_params &params);
 
 
-template<int Headdim, bool Is_causal> void run_mha_bwd_(half_t* q,
-                                                        half_t* k,
-                                                        half_t* v,
-                                                        half_t* o,
-                                                        float* l,
-                                                        float* d,
-                                                        half_t* do_,
-                                                        float* dq_float,
-                                                        half_t* dq,
-                                                        half_t* dk,
-                                                        half_t* dv,
-                                                        int batch_size,
-                                                        int seq_len,
-                                                        int num_heads,
-                                                        int head_dim,
-                                                        int is_causal);
+template<int Headdim, bool Is_causal> void run_mha_bwd_(Flash_bwd_params &params);

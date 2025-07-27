@@ -17,7 +17,7 @@
 using namespace cute;
 
 
-// for some reason changing this into params struc is 15% slower for hdim = 128
+// for some reason changing this into params struct is 15% slower for hdim = 128
 template <typename Kernel_traits, bool Is_causal>
 inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
                           half_t* __restrict__ k,

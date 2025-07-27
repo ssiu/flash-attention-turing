@@ -52,7 +52,7 @@ void run_flash_fwd(Flash_fwd_params &params) {
                                                                                 params.k_ptr,
                                                                                 params.v_ptr,
                                                                                 params.o_ptr,
-                                                                                params.softmax_lse_ptr,
+                                                                                params.l_ptr,
                                                                                 params.b,
                                                                                 params.seqlen,
                                                                                 params.h,
