@@ -25,7 +25,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
     compute_dot_do_o<Kernel_traits, Is_causal><<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(params.o_ptr,
                     params.do_ptr,
                     params.do_o_ptr,
-                    params.b, params.seqlen, params.h, params.d, is_causal);
+                    params.b, params.seqlen, params.h, params.d, params.is_causal);
 
 
     int maxbytes = 65536;
@@ -43,7 +43,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
                                             params.do_o_ptr,
                                             params.do_ptr,
                                             params.dq_ptr,
-                                            params.b, params.seqlen, params.h, params.d, is_causal);
+                                            params.b, params.seqlen, params.h, params.d, params.is_causal);
 
 
     // compute dK, dV
@@ -60,7 +60,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
                                             params.do_ptr,
                                             params.dk_ptr,
                                             params.dv_ptr,
-                                            params.b, params.seqlen, params.h, params.d, is_causal);
+                                            params.b, params.seqlen, params.h, params.d, params.is_causal);
 
 //    // compute dQ, dK, dV in a single kernel
 //    dim3 dimGrid_dq_dk_dv(params.b, params.h, params.seqlen / kBlockN);
