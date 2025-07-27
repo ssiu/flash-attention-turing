@@ -153,7 +153,7 @@ std::vector<torch::Tensor>
 mha_bwd(torch::Tensor q,
         torch::Tensor k,
         torch::Tensor v,
-        torch::Tensor o,
+        torch::Tensor out,
         torch::Tensor l,
         torch::Tensor dout,
 //        int batch_size,
