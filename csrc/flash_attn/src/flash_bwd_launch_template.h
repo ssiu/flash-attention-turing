@@ -23,13 +23,13 @@ __global__ void flash_bwd_dot_do_o_kernel(half_t* o_ptr,
 template<typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
 void flash_bwd_dq_kernel(
-    half_t __restrict__ q_ptr,
-    half_t __restrict__ k_ptr,
-    half_t __restrict__ v_ptr,
-    float __restrict__ l_ptr,
-    float __restrict__ d_ptr,
-    half_t __restrict__ do_ptr,
-    half_t* __restrict__ dq_ptr,
+    half_t * __restrict__ q_ptr,
+    half_t * __restrict__ k_ptr,
+    half_t * __restrict__ v_ptr,
+    float * __restrict__ l_ptr,
+    float * __restrict__ d_ptr,
+    half_t * __restrict__ do_ptr,
+    half_t * __restrict__ dq_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim, int is_causal) {
 
         compute_dq(q_ptr, k_ptr, v_ptr, l_ptr, d_ptr, do_ptr, dq_ptr,
@@ -42,12 +42,12 @@ void flash_bwd_dq_kernel(
 template<typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
 void flash_bwd_dk_dv_kernel(
-    half_t __restrict__ q_ptr,
-    half_t __restrict__ k_ptr,
-    half_t __restrict__ v_ptr,
-    float __restrict__ l_ptr,
-    float __restrict__ d_ptr,
-    half_t __restrict__ do_ptr,
+    half_t * __restrict__ q_ptr,
+    half_t * __restrict__ k_ptr,
+    half_t * __restrict__ v_ptr,
+    float * __restrict__ l_ptr,
+    float * __restrict__ d_ptr,
+    half_t * __restrict__ do_ptr,
     float* __restrict__ dq_float_ptr,
     half_t* __restrict__ dq_ptr,
     half_t* __restrict__ dk_ptr,
