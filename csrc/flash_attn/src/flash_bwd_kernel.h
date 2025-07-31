@@ -24,49 +24,49 @@ using namespace cute;
 
 
 
-// each block handles kBlockM x headdim
-// use mma_dq to partition the block, and convert from float to half
-template <typename Kernel_traits, bool Is_causal>
-inline __device__ void convert_dq(float* dq_float_ptr,
-              half_t* dq_ptr,
-              int batch_size, int seq_len, int num_heads, int head_dim, int is_causal)
-{
-
-        constexpr int kBlockM = Kernel_traits::kBlockM;
-        constexpr int kBlockN = Kernel_traits::kBlockN;
-        constexpr int kHeadDim = Kernel_traits::kHeadDim;
-        Tensor mdQ_float = make_tensor(make_gmem_ptr(dq_float_ptr),
-                           make_shape(batch_size, seq_len, num_heads, head_dim),
-                           make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
-
-        Tensor gdQ_float = local_tile(mdQ_float(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                          make_coord(blockIdx.z, 0));
-
-
-        Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr),
-                           make_shape(batch_size, seq_len, num_heads, head_dim),
-                           make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
-
-        Tensor gdQ = local_tile(mdQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                          make_coord(blockIdx.z, 0));
-
-
-        typename Kernel_traits::TiledMma_dQ tiled_mma_dQ;
-        ThrMMA thr_mma_dQ = tiled_mma_dQ.get_slice(threadIdx.x);
-
-        Tensor tdQgdQ_float = thr_mma_dQ.partition_C(gdQ_float);
-        Tensor tdQgdQ = thr_mma_dQ.partition_C(gdQ);
-
-        Tensor tdQrdQ_float = thr_mma_dQ.make_fragment_C(tdQgdQ_float);
-
-        copy(tdQgdQ_float, tdQrdQ_float);
-
-        Tensor tdQrdQ = convert_type<half_t>(tdQrdQ_float);
-
-        copy(tdQrdQ, tdQgdQ);
-
-
-}
+//// each block handles kBlockM x headdim
+//// use mma_dq to partition the block, and convert from float to half
+//template <typename Kernel_traits, bool Is_causal>
+//inline __device__ void convert_dq(float* dq_float_ptr,
+//              half_t* dq_ptr,
+//              int batch_size, int seq_len, int num_heads, int head_dim, int is_causal)
+//{
+//
+//        constexpr int kBlockM = Kernel_traits::kBlockM;
+//        constexpr int kBlockN = Kernel_traits::kBlockN;
+//        constexpr int kHeadDim = Kernel_traits::kHeadDim;
+//        Tensor mdQ_float = make_tensor(make_gmem_ptr(dq_float_ptr),
+//                           make_shape(batch_size, seq_len, num_heads, head_dim),
+//                           make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//
+//        Tensor gdQ_float = local_tile(mdQ_float(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+//                          make_coord(blockIdx.z, 0));
+//
+//
+//        Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr),
+//                           make_shape(batch_size, seq_len, num_heads, head_dim),
+//                           make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//
+//        Tensor gdQ = local_tile(mdQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+//                          make_coord(blockIdx.z, 0));
+//
+//
+//        typename Kernel_traits::TiledMma_dQ tiled_mma_dQ;
+//        ThrMMA thr_mma_dQ = tiled_mma_dQ.get_slice(threadIdx.x);
+//
+//        Tensor tdQgdQ_float = thr_mma_dQ.partition_C(gdQ_float);
+//        Tensor tdQgdQ = thr_mma_dQ.partition_C(gdQ);
+//
+//        Tensor tdQrdQ_float = thr_mma_dQ.make_fragment_C(tdQgdQ_float);
+//
+//        copy(tdQgdQ_float, tdQrdQ_float);
+//
+//        Tensor tdQrdQ = convert_type<half_t>(tdQrdQ_float);
+//
+//        copy(tdQrdQ, tdQgdQ);
+//
+//
+//}
 
 
 
