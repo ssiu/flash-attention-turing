@@ -74,12 +74,12 @@ inline __device__ void convert_dq(float* dq_float_ptr,
 template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
 void compute_dq(
-    half_t __restrict__ q_ptr,
-    half_t __restrict__ k_ptr,
-    half_t __restrict__ v_ptr,
-    float __restrict__ l_ptr,
-    float __restrict__ d_ptr,
-    half_t __restrict__ do_ptr,
+    half_t * __restrict__ q_ptr,
+    half_t * __restrict__ k_ptr,
+    half_t * __restrict__ v_ptr,
+    float *__restrict__ l_ptr,
+    float * __restrict__ d_ptr,
+    half_t * __restrict__ do_ptr,
     half_t* __restrict__ dq_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
 )
@@ -680,12 +680,12 @@ void compute_dq(
 
 template <typename Kernel_traits, bool Is_causal>
 inline __device__ void compute_dk_dv(
-    half_t __restrict__ q_ptr,
-    half_t __restrict__ k_ptr,
-    half_t __restrict__ v_ptr,
-    float __restrict__ l_ptr,
-    float __restrict__ d_ptr,
-    half_t __restrict__ do_ptr,
+    half_t * __restrict__ q_ptr,
+    half_t * __restrict__ k_ptr,
+    half_t * __restrict__ v_ptr,
+    float * __restrict__ l_ptr,
+    float * __restrict__ d_ptr,
+    half_t * __restrict__ do_ptr,
     half_t* __restrict__ dk_ptr,
     half_t* __restrict__ dv_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
@@ -1467,12 +1467,12 @@ inline __device__ void compute_dk_dv(
 //template <typename Kernel_traits, bool Is_causal>
 //__global__ __launch_bounds__(256)
 //void compute_dq_dk_dv_kernel(
-//    half_t __restrict__ q_ptr,
-//    half_t __restrict__ k_ptr,
-//    half_t __restrict__ v_ptr,
+//    half_t * __restrict__ q_ptr,
+//    half_t * __restrict__ k_ptr,
+//    half_t * __restrict__ v_ptr,
 //    float __restrict__ l_ptr,
 //    float __restrict__ d_ptr,
-//    half_t __restrict__ do_ptr,
+//    half_t * __restrict__ do_ptr,
 //    float* __restrict__ dq_float_ptr,
 //    half_t* __restrict__ dq_ptr,
 //    half_t* __restrict__ dk_ptr,
