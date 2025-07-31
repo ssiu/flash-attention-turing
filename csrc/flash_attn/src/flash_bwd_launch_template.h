@@ -33,7 +33,7 @@ void flash_bwd_dq_kernel(
     int batch_size, int seq_len, int num_heads, int head_dim, int is_causal) {
 
         compute_dq(q_ptr, k_ptr, v_ptr, l_ptr, d_ptr, do_ptr, dq_ptr,
-        batch_size, seq_len, num_heads, head_dim, is_causal)
+        batch_size, seq_len, num_heads, head_dim, is_causal);
 
 }
 
@@ -54,7 +54,7 @@ void flash_bwd_dk_dv_kernel(
     half_t* __restrict__ dv_ptr,
     int batch_size, int seq_len, int num_heads, int head_dim, int is_causal){
         compute_dk_dv(q_ptr, k_ptr, v_ptr, l_ptr, d_ptr, do_ptr, dq_float_ptr, dq_ptr, dk_ptr, dv_ptr,
-        batch_size, seq_len, num_heads, head_dim, is_causal)
+        batch_size, seq_len, num_heads, head_dim, is_causal);
 
 }
 

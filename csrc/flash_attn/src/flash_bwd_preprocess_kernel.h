@@ -20,7 +20,7 @@
 using namespace cute;
 
 template <typename Kernel_traits, bool Is_causal>
-inline __device__ compute_dot_do_o(half_t* o_ptr,
+__device__ inline compute_dot_do_o(half_t* o_ptr,
                       half_t* do_ptr,
                       float*  d_ptr,
                       int batch_size, int seq_len, int num_heads, int head_dim, int is_causal)
