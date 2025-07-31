@@ -72,7 +72,7 @@ inline __device__ void convert_dq(float* dq_float_ptr,
 
 
 template <typename Kernel_traits, bool Is_causal>
-__inline__ device void compute_dq(
+inline device void compute_dq(
     half_t * __restrict__ q_ptr,
     half_t * __restrict__ k_ptr,
     half_t * __restrict__ v_ptr,
