@@ -73,7 +73,7 @@ inline __device__ void convert_dq(float* dq_float_ptr,
 
 template <typename Kernel_traits, bool Is_causal>
 __global__ __launch_bounds__(256)
-void compute_dq_kernel(
+void compute_dq(
     half_t const* __restrict__ q_ptr,
     half_t const* __restrict__ k_ptr,
     half_t const* __restrict__ v_ptr,
@@ -679,7 +679,7 @@ void compute_dq_kernel(
 
 
 template <typename Kernel_traits, bool Is_causal>
-inline __device__ void compute_dk_dv_kernel(
+inline __device__ void compute_dk_dv(
     half_t const* __restrict__ q_ptr,
     half_t const* __restrict__ k_ptr,
     half_t const* __restrict__ v_ptr,
