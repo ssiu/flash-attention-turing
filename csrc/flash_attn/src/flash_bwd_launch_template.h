@@ -6,6 +6,59 @@
 using half_t = cutlass::half_t;
 
 
+template<typename Kernel_traits, bool Is_causal>
+__global__ void flash_bwd_dot_do_o_kernel(half_t* o_ptr,
+                                            half_t* do_ptr,
+                                            float*  d_ptr,
+                                            int batch_size, int seq_len, int num_heads, int head_dim, int is_causal) {
+    compute_dot_do_o<Kernel_traits>(o_ptr,
+                                    do_ptr,
+                                    d_ptr,
+                                    batch_size, seq_len, num_heads, head_dim, is_causal);
+}
+
+
+
+template<typename Kernel_traits, bool Is_causal>
+__global__ __launch_bounds__(256)
+void flash_bwd_dq_kernel(
+    half_t const* __restrict__ q_ptr,
+    half_t const* __restrict__ k_ptr,
+    half_t const* __restrict__ v_ptr,
+    float const* __restrict__ l_ptr,
+    float const* __restrict__ d_ptr,
+    half_t const* __restrict__ do_ptr,
+    half_t* __restrict__ dq_ptr,
+    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal) {
+
+        compute_dq(q_ptr, k_ptr, v_ptr, l_ptr, d_ptr, do_ptr, dq_ptr,
+        batch_size, seq_len, num_heads, head_dim, is_causal)
+
+}
+
+
+
+template<typename Kernel_traits, bool Is_causal>
+__global__ __launch_bounds__(256)
+void flash_bwd_dk_dv_kernel(
+    half_t const* __restrict__ q_ptr,
+    half_t const* __restrict__ k_ptr,
+    half_t const* __restrict__ v_ptr,
+    float const* __restrict__ l_ptr,
+    float const* __restrict__ d_ptr,
+    half_t const* __restrict__ do_ptr,
+    float* __restrict__ dq_float_ptr,
+    half_t* __restrict__ dq_ptr,
+    half_t* __restrict__ dk_ptr,
+    half_t* __restrict__ dv_ptr,
+    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal){
+        compute_dk_dv(q_ptr, k_ptr, v_ptr, l_ptr, d_ptr, do_ptr, dq_float_ptr, dq_ptr, dk_ptr, dv_ptr,
+        batch_size, seq_len, num_heads, head_dim, is_causal)
+
+}
+
+
+
 
 template<typename Kernel_traits, bool Is_causal>
 void run_flash_bwd(Flash_bwd_params &params) {
@@ -22,7 +75,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
     // so each thread block process 32 rows
     dim3 dimGrid_dot_do_o(params.b, params.h, params.seqlen / 32);
     dim3 dimBlock_dot_do_o(1024);
-    compute_dot_do_o<Kernel_traits, Is_causal><<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(params.o_ptr,
+    flash_bwd_dot_do_o_kernel<Kernel_traits, Is_causal><<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(params.o_ptr,
                     params.do_ptr,
                     params.do_o_ptr,
                     params.b, params.seqlen, params.h, params.d, params.is_causal);
@@ -36,7 +89,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
 
     //auto dq_kernel = compute_dq_kernel<Kernel_traits, Is_causal>;
     cudaFuncSetAttribute(compute_dq_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    compute_dq_kernel<Kernel_traits, Is_causal><<<dimGrid_dq, dimBlock_dq, maxbytes>>>(params.q_ptr,
+    compute_bwd_dq_kernel<Kernel_traits, Is_causal><<<dimGrid_dq, dimBlock_dq, maxbytes>>>(params.q_ptr,
                                             params.k_ptr,
                                             params.v_ptr,
                                             params.l_ptr,
@@ -52,7 +105,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
 
     //auto dk_dv_kernel = compute_dk_dv_kernel<Kernel_traits, Is_causal>;
     cudaFuncSetAttribute(compute_dk_dv_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    compute_dk_dv_kernel<Kernel_traits, Is_causal><<<dimGrid_dk_dv, dimBlock_dk_dv, maxbytes>>>(params.q_ptr,
+    compute_bwd_dk_dv_kernel<Kernel_traits, Is_causal><<<dimGrid_dk_dv, dimBlock_dk_dv, maxbytes>>>(params.q_ptr,
                                             params.k_ptr,
                                             params.v_ptr,
                                             params.l_ptr,
