@@ -88,8 +88,8 @@ void run_flash_bwd(Flash_bwd_params &params) {
     dim3 dimGrid_dq(params.b, params.h, params.seqlen / kBlockM);
     dim3 dimBlock_dq(256);
 
-    //auto dq_kernel = compute_dq_kernel<Kernel_traits, Is_causal>;
-    cudaFuncSetAttribute(compute_dq_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    //auto dq_kernel = compute_bwd_dq_kernel<Kernel_traits, Is_causal>;
+    cudaFuncSetAttribute(compute_bwd_dq_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     compute_bwd_dq_kernel<Kernel_traits, Is_causal><<<dimGrid_dq, dimBlock_dq, maxbytes>>>(params.q_ptr,
                                             params.k_ptr,
                                             params.v_ptr,
@@ -104,8 +104,8 @@ void run_flash_bwd(Flash_bwd_params &params) {
     dim3 dimGrid_dk_dv(params.b, params.h, params.seqlen / kBlockN);
     dim3 dimBlock_dk_dv(256);
 
-    //auto dk_dv_kernel = compute_dk_dv_kernel<Kernel_traits, Is_causal>;
-    cudaFuncSetAttribute(compute_dk_dv_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    //auto dk_dv_kernel = compute_bwd_dk_dv_kernel<Kernel_traits, Is_causal>;
+    cudaFuncSetAttribute(compute_bwd_dk_dv_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     compute_bwd_dk_dv_kernel<Kernel_traits, Is_causal><<<dimGrid_dk_dv, dimBlock_dk_dv, maxbytes>>>(params.q_ptr,
                                             params.k_ptr,
                                             params.v_ptr,
@@ -120,7 +120,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
 //    dim3 dimGrid_dq_dk_dv(params.b, params.h, params.seqlen / kBlockN);
 //    dim3 dimBlock_dq_dk_dv(256);
 //
-//    //auto dk_dv_kernel = compute_dk_dv_kernel<Kernel_traits, Is_causal>;
+//    //auto dk_dv_kernel = compute_bwd_dk_dv_kernel<Kernel_traits, Is_causal>;
 //    cudaFuncSetAttribute(compute_dq_dk_dv_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
 //    compute_dq_dk_dv_kernel<Kernel_traits, Is_causal><<<dimGrid_dq_dk_dv, dimBlock_dq_dk_dv, maxbytes>>>(q,
 //                                            k,
