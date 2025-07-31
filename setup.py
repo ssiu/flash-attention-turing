@@ -24,7 +24,7 @@ setup(
             name="flash_attn_turing",
             sources=["csrc/flash_attn/flash_api.cpp",
                      #"csrc/flash_attn/src/flash_fwd_kernel.h",
-                     #"csrc/flash_attn/src/flash_bwd_kernel.cu",
+                     #"csrc/flash_attn/src/flash_bwd_kernel.h",
                      "csrc/flash_attn/src/flash_fwd_hdim64_fp16_sm75.cu",
                      "csrc/flash_attn/src/flash_fwd_hdim64_fp16_causal_sm75.cu",
                      "csrc/flash_attn/src/flash_fwd_hdim128_fp16_sm75.cu",

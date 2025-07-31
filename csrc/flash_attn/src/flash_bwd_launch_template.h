@@ -1,7 +1,8 @@
 
 #pragma once
 #include "flash.h"
-#include "flash_bwd_kernel.cu"
+#include "flash_bwd_kernel.h"
+#include "flash_bwd_preprocess_kernel.h"
 #include <cutlass/numeric_types.h>
 using half_t = cutlass::half_t;
 
