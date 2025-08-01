@@ -83,7 +83,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
     int maxbytes = 65536;
 
     // compute dQ
-    dim3 dimGrid_dq(params.b, params.h, params.seqlen / kBlockM);
+    dim3 dimGrid_dq(params.seqlen / kBlockM, params.b, params.h);
     dim3 dimBlock_dq(256);
 
     //auto dq_kernel = flash_bwd_dk_dv_kernel<Kernel_traits, Is_causal>;
