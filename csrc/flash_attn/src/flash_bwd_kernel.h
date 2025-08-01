@@ -2350,7 +2350,7 @@ inline __device__ void compute_dq(
                                                     seq_len,
                                                     num_heads,
                                                     head_dim,
-                                                    is_casual,
+                                                    is_causal,
                                                     bidb,
                                                     bidh,
                                                     m_block);
