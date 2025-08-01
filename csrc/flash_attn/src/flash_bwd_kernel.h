@@ -2357,18 +2357,18 @@ inline __device__ void compute_dq(
 
 }
 
-template <typename Kernel_traits, bool Is_causal>
-inline __device__ void compute_dk_dv(
-    half_t * __restrict__ q_ptr,
-    half_t * __restrict__ k_ptr,
-    half_t * __restrict__ v_ptr,
-    float * __restrict__ l_ptr,
-    float * __restrict__ d_ptr,
-    half_t * __restrict__ do_ptr,
-    half_t* __restrict__ dk_ptr,
-    half_t* __restrict__ dv_ptr,
-    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
-) {
-
-
-}
+//template <typename Kernel_traits, bool Is_causal>
+//inline __device__ void compute_dk_dv(
+//    half_t * __restrict__ q_ptr,
+//    half_t * __restrict__ k_ptr,
+//    half_t * __restrict__ v_ptr,
+//    float * __restrict__ l_ptr,
+//    float * __restrict__ d_ptr,
+//    half_t * __restrict__ do_ptr,
+//    half_t* __restrict__ dk_ptr,
+//    half_t* __restrict__ dv_ptr,
+//    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
+//) {
+//
+//
+//}
