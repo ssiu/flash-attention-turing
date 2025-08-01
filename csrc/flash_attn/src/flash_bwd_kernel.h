@@ -72,7 +72,7 @@ using namespace cute;
 
 
 template <typename Kernel_traits, bool Is_causal>
-inline __device__ void compute_dq(
+inline __device__ void compute_dq_1rowblock(
     half_t * __restrict__ q_ptr,
     half_t * __restrict__ k_ptr,
     half_t * __restrict__ v_ptr,
