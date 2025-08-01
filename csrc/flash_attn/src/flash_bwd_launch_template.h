@@ -99,7 +99,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
 
 
     // compute dK, dV
-    dim3 dimGrid_dk_dv(params.b, params.h, params.seqlen / kBlockN);
+    dim3 dimGrid_dk_dv(params.seqlen / kBlockN, params.b, params.h);
     dim3 dimBlock_dk_dv(256);
 
     //auto dk_dv_kernel = flash_bwd_dk_dv_kernel<Kernel_traits, Is_causal>;

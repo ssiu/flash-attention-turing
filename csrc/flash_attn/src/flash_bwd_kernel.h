@@ -681,7 +681,7 @@ inline __device__ void compute_dq_1rowblock(
 
 
 template <typename Kernel_traits, bool Is_causal>
-inline __device__ void compute_dk_dv(
+inline __device__ void compute_dk_dv_1colblock(
     half_t * __restrict__ q_ptr,
     half_t * __restrict__ k_ptr,
     half_t * __restrict__ v_ptr,
@@ -690,7 +690,8 @@ inline __device__ void compute_dk_dv(
     half_t * __restrict__ do_ptr,
     half_t* __restrict__ dk_ptr,
     half_t* __restrict__ dv_ptr,
-    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
+    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal,
+    int bidb, int bidh, int n_block
 )
 {   
     constexpr int kBlockM = Kernel_traits::kBlockM;
@@ -722,7 +723,7 @@ inline __device__ void compute_dk_dv(
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gQ = local_tile(mQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+    Tensor gQ = local_tile(mQ(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
 
@@ -731,16 +732,16 @@ inline __device__ void compute_dk_dv(
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
+    Tensor gK = local_tile(mK(bidb, _, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+                           make_coord(n_block, 0));
 
     // V
     Tensor mV = make_tensor(make_gmem_ptr(v_ptr),
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
+    Tensor gV = local_tile(mV(bidb, _, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+                           make_coord(n_block, 0));
 
 
     // L = m + log l
@@ -748,7 +749,7 @@ inline __device__ void compute_dk_dv(
                              make_shape(batch_size, num_heads, seq_len),
                              make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
 
-    Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
+    Tensor gL = local_tile(mL(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(_));
 
 
@@ -756,7 +757,7 @@ inline __device__ void compute_dk_dv(
                              make_shape(batch_size, num_heads, seq_len),
                              make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
 
-    Tensor gD = local_tile(mD(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
+    Tensor gD = local_tile(mD(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(_));
 
     // dO
@@ -764,7 +765,7 @@ inline __device__ void compute_dk_dv(
                              make_shape(batch_size, seq_len, num_heads, head_dim),
                              make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gdO = local_tile(mdO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+    Tensor gdO = local_tile(mdO(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
     // dV
@@ -772,16 +773,16 @@ inline __device__ void compute_dk_dv(
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gdV = local_tile(mdV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
+    Tensor gdV = local_tile(mdV(bidb, _, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+                           make_coord(n_block, 0));
 
     // dK
     Tensor mdK = make_tensor(make_gmem_ptr(dk_ptr),
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gdK = local_tile(mdK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
+    Tensor gdK = local_tile(mdK(bidb, _, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+                           make_coord(n_block, 0));
 
 
 
@@ -968,8 +969,8 @@ inline __device__ void compute_dk_dv(
 
     if constexpr (Is_causal) {
         // number of KV_TILES that does not need a mask
-        Q_TILE_NO_MASK = blockIdx.z + 1;
-        Q_TILE_MASK_START = blockIdx.z;
+        Q_TILE_NO_MASK = n_block + 1;
+        Q_TILE_MASK_START = n_block;
         Q_TILE_MASK_END = Q_TILE_NO_MASK;
 
     } else {
@@ -2357,18 +2358,39 @@ inline __device__ void compute_dq(
 
 }
 
-//template <typename Kernel_traits, bool Is_causal>
-//inline __device__ void compute_dk_dv(
-//    half_t * __restrict__ q_ptr,
-//    half_t * __restrict__ k_ptr,
-//    half_t * __restrict__ v_ptr,
-//    float * __restrict__ l_ptr,
-//    float * __restrict__ d_ptr,
-//    half_t * __restrict__ do_ptr,
-//    half_t* __restrict__ dk_ptr,
-//    half_t* __restrict__ dv_ptr,
-//    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
-//) {
-//
-//
-//}
+template <typename Kernel_traits, bool Is_causal>
+inline __device__ void compute_dk_dv(
+    half_t * __restrict__ q_ptr,
+    half_t * __restrict__ k_ptr,
+    half_t * __restrict__ v_ptr,
+    float * __restrict__ l_ptr,
+    float * __restrict__ d_ptr,
+    half_t * __restrict__ do_ptr,
+    half_t* __restrict__ dk_ptr,
+    half_t* __restrict__ dv_ptr,
+    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
+) {
+    const int n_block = blockIdx.x;
+    // The block index for the batch.
+    const int bidb = blockIdx.y;
+    // The block index for the head.
+    const int bidh = blockIdx.z;
+
+    compute_dk_dv_1colblock<Kernel_traits, Is_causal>(q_ptr,
+                                                    k_ptr,
+                                                    v_ptr,
+                                                    l_ptr,
+                                                    d_ptr,
+                                                    do_ptr,
+                                                    dk_ptr,
+                                                    dv_ptr,
+                                                    batch_size,
+                                                    seq_len,
+                                                    num_heads,
+                                                    head_dim,
+                                                    is_causal,
+                                                    bidb,
+                                                    bidh,
+                                                    n_block);
+
+}
