@@ -732,7 +732,7 @@ inline __device__ void compute_dk_dv_1colblock(
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
     //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
-
+    const BlockInfo binfo(seq_len, bidb);
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
     // for 8 warps, the 32x32 tiled mmas is like
