@@ -129,19 +129,33 @@ inline __device__ void compute_dq_1rowblock(
                            make_coord(m_block, 0));
 
     // K
-    Tensor mK = make_tensor(make_gmem_ptr(k_ptr),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//    Tensor mK = make_tensor(make_gmem_ptr(k_ptr),
+//                            make_shape(batch_size, seq_len, num_heads, head_dim),
+//                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//
+//    Tensor gK = local_tile(mK(bidb, _, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+//                           make_coord(_, 0));
 
-    Tensor gK = local_tile(mK(bidb, _, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+    Tensor mK = make_tensor(make_gmem_ptr(k_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
+                            make_shape(seq_len, num_heads, head_dim),
+                            make_stride(num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gK = local_tile(mK(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
     // V
-    Tensor mV = make_tensor(make_gmem_ptr(v_ptr),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//    Tensor mV = make_tensor(make_gmem_ptr(v_ptr),
+//                            make_shape(batch_size, seq_len, num_heads, head_dim),
+//                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//
+//    Tensor gV = local_tile(mV(bidb, _, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+//                           make_coord(_, 0));
 
-    Tensor gV = local_tile(mV(bidb, _, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+    Tensor mV = make_tensor(make_gmem_ptr(v_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
+                            make_shape(seq_len, num_heads, head_dim),
+                            make_stride(num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gV = local_tile(mV(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
 
@@ -162,23 +176,35 @@ inline __device__ void compute_dq_1rowblock(
                            make_coord(m_block));
 
     // dO
-    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr),
-                             make_shape(batch_size, seq_len, num_heads, head_dim),
-                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr ),
+//                             make_shape(batch_size, seq_len, num_heads, head_dim),
+//                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//
+//    Tensor gdO = local_tile(mdO(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+//                           make_coord(m_block, 0));
 
-    Tensor gdO = local_tile(mdO(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
+                             make_shape(seq_len, num_heads, head_dim),
+                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gdO = local_tile(mdO(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(m_block, 0));
 
 
     // dQ
-    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr),
+//                            make_shape(batch_size, seq_len, num_heads, head_dim),
+//                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//
+//    Tensor gdQ = local_tile(mdQ(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+//                           make_coord(m_block, 0));
 
-    Tensor gdQ = local_tile(mdQ(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
+                            make_shape(seq_len, num_heads, head_dim),
+                            make_stride(num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gdQ = local_tile(mdQ(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(m_block, 0));
-
-
     extern __shared__ char smem_[];
 
 
