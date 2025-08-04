@@ -122,10 +122,10 @@ inline __device__ void compute_dq_1rowblock(
 //    Tensor gQ = local_tile(mQ(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
 //                           make_coord(m_block, 0));
     Tensor mQ = make_tensor(make_gmem_ptr(q_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+                            make_shape(seq_len, num_heads, head_dim),
+                            make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gQ = local_tile(mQ(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+    Tensor gQ = local_tile(mQ(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(m_block, 0));
 
     // K
