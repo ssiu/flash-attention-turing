@@ -11,6 +11,7 @@
 #include <cutlass/numeric_conversion.h>
 #include <cutlass/numeric_types.h>
 
+#include "block_info.h"
 #include "kernel_traits.h"
 #include "utils.h"
 
@@ -38,11 +39,20 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
     constexpr int kBlockN = Kernel_traits::kBlockN;
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
 
-    Tensor mQ = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(q)),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+    const BlockInfo binfo(seq_len, bidb);
 
-    Tensor gQ = local_tile(mQ(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+//    Tensor mQ = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(q)),
+//                            make_shape(batch_size, seq_len, num_heads, head_dim),
+//                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//
+//    Tensor gQ = local_tile(mQ(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+//                           make_coord(m_block, 0));
+
+    Tensor mQ = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(q) + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
+                            make_shape(seq_len, num_heads, head_dim),
+                            make_stride(num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gQ = local_tile(mQ(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(m_block, 0));
 
     Tensor mK = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(k)),
