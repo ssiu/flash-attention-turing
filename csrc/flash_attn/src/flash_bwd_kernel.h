@@ -13,7 +13,7 @@
 
 #include "kernel_traits.h"
 #include "utils.h"
-
+#include "block_info.h"
 
 using namespace cute;
 
@@ -92,6 +92,8 @@ inline __device__ void compute_dq_1rowblock(
     //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
 
+    const BlockInfo binfo(seq_len, bidb);
+
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
     // for 8 warps, the 32x32 tiled mmas is like
@@ -113,13 +115,18 @@ inline __device__ void compute_dq_1rowblock(
 
 
     // Q
-    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr),
+//    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr),
+//                            make_shape(batch_size, seq_len, num_heads, head_dim),
+//                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+//
+//    Tensor gQ = local_tile(mQ(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+//                           make_coord(m_block, 0));
+    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
                             make_shape(batch_size, seq_len, num_heads, head_dim),
                             make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gQ = local_tile(mQ(bidb, _, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(m_block, 0));
-
 
     // K
     Tensor mK = make_tensor(make_gmem_ptr(k_ptr),
