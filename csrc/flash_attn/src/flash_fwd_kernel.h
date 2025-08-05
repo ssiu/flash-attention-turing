@@ -11,65 +11,80 @@
 #include <cutlass/numeric_conversion.h>
 #include <cutlass/numeric_types.h>
 
+#include "block_info.h"
 #include "kernel_traits.h"
 #include "utils.h"
 
 using namespace cute;
 
 
-
+// for some reason changing this into params struct is 15% slower for hdim = 128
 template <typename Kernel_traits, bool Is_causal>
-__global__ __launch_bounds__(256)
-void flash_fwd_kernel(
-    half_t* __restrict__ q,
-    half_t* __restrict__ k,
-    half_t* __restrict__ v,
-    half_t* __restrict__ o,
-    float* __restrict__ l,
-    int batch_size, int seq_len, int num_heads, int head_dim, int is_casual
-)
+inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
+                          half_t* __restrict__ k,
+                          half_t* __restrict__ v,
+                          half_t* __restrict__ o,
+                          float* __restrict__ l,
+                          int batch_size,
+                          int seq_len,
+                          int num_heads,
+                          int head_dim,
+                          int is_casual,
+                          int bidb,
+                          int bidh,
+                          int m_block)
 {
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
     constexpr int kBlockN = Kernel_traits::kBlockN;
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
 
-    Tensor mQ = make_tensor(make_gmem_ptr(q),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+    const BlockInfo binfo(seq_len, bidb);
 
-    Tensor gQ = local_tile(mQ(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
 
-    Tensor mK = make_tensor(make_gmem_ptr(k),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
+    Tensor mQ = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(q) + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
+                            make_shape(seq_len, num_heads, head_dim),
+                            make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gK = local_tile(mK(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+    Tensor gQ = local_tile(mQ(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(m_block, 0));
+
+
+
+
+    Tensor mK = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(k) + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
+                            make_shape(seq_len, num_heads, head_dim),
+                            make_stride(num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gK = local_tile(mK(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
-    // this is a (seq_len, head_dim) column major matrix, so its V^T in row major
-    Tensor mV = make_tensor(make_gmem_ptr(v),
-                            make_shape(batch_size, head_dim, num_heads, seq_len),
-                            make_stride(seq_len * num_heads * head_dim, Int<1>{}, head_dim, num_heads * head_dim));
 
-    Tensor gV = local_tile(mV(blockIdx.x, _, blockIdx.y, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
+
+
+    Tensor mV = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(v) + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
+                            make_shape(head_dim, num_heads, seq_len),
+                            make_stride(Int<1>{}, head_dim, num_heads * head_dim));
+
+    Tensor gV = local_tile(mV(_, bidh, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
                            make_coord(0, _));
 
-    Tensor mO = make_tensor(make_gmem_ptr(o),
-                            make_shape(batch_size, seq_len, num_heads, head_dim),
-                            make_stride(seq_len * num_heads * head_dim, num_heads * head_dim, head_dim, Int<1>{}));
 
-    Tensor gO = local_tile(mO(blockIdx.x, _, blockIdx.y, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
-                           make_coord(blockIdx.z, 0));
+
+    Tensor mO = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(o) + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
+                            make_shape(seq_len, num_heads, head_dim),
+                            make_stride(num_heads * head_dim, head_dim, Int<1>{}));
+
+    Tensor gO = local_tile(mO(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
+                           make_coord(m_block, 0));
 
     // L = m + log l
-    Tensor mL = make_tensor(make_gmem_ptr(l),
+    Tensor mL = make_tensor(make_gmem_ptr(reinterpret_cast<float*>(l)),
                              make_shape(batch_size, num_heads, seq_len),
                              make_stride(seq_len * num_heads, seq_len, Int<1>{}));
 
-    Tensor gL = local_tile(mL(blockIdx.x, blockIdx.y, _), Shape<Int<kBlockM>>{},
-                           make_coord(blockIdx.z));
+    Tensor gL = local_tile(mL(bidb, bidh, _), Shape<Int<kBlockM>>{},
+                           make_coord(m_block));
 
 //     if (thread0()){
 //         print(gL);
@@ -194,7 +209,7 @@ void flash_fwd_kernel(
 
     if constexpr (Is_causal) {
         // number of KV_TILES that does not need a mask
-        KV_TILE_NO_MASK = blockIdx.z * kBlockM / kBlockN;
+        KV_TILE_NO_MASK = m_block * kBlockM / kBlockN;
         KV_TILE_MASK_START = KV_TILE_NO_MASK;
         KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
         KV_TILE_MAX = KV_TILE_NO_MASK;
@@ -454,96 +469,6 @@ void flash_fwd_kernel(
 
 
 
-
-//             if (kv_tile == KV_TILE_MASK_START) {
-//
-//                 // only the first 4 warps need masks
-//                 if (warp_id < 4) {
-//                     // first put full masks from 2 * warp_id to 8
-//                     for (int i = (warp_id + 1) * 2; i < 8;i++) {
-//                         for (int j=0; j < tSrS_float(make_coord(_,_),_,i).size(); j++) {
-//                             tSrS_float(make_coord(_,_),_,i)[j] = -FLT_MAX;
-//                         }
-//                     }
-//
-//                     // now mask out the diagonal ones
-//
-//                     // warp_id * 2
-//                     for (int i=0;i<2;i ++) {
-//
-//                         int row = lane_id / 4;
-//                         int col = (lane_id % 4) * 2 + i;
-//                         if (row < col) {
-//                             tSrS_float(make_coord(i,0),0,warp_id * 2) = -FLT_MAX;
-//                         }
-//                     }
-//
-//                     // warp_id * 2 + 1
-//                     for (int i=0;i<2;i ++) {
-//                         tSrS_float(make_coord(i, 0), 0, warp_id * 2 + 1) = -FLT_MAX;
-//                     }
-//
-//
-//                     for (int i=0;i<2; i++) {
-//
-//                         int row = lane_id / 4;
-//                         int col = (lane_id % 4) * 2 + i;
-//                         if (row < col) {
-//                             tSrS_float(make_coord(i, 1), 0, warp_id * 2 + 1) = -FLT_MAX;
-//                         }
-//                     }
-//
-//                 }
-//
-//
-//             } else if (kv_tile == KV_TILE_MASK_START+1) {
-//                 // full mask for warp 0 - 3
-//                 if (warp_id < 4) {
-//                     for (int j=0; j < tSrS_float.size(); j++) {
-//                         tSrS_float[j] = -FLT_MAX ;
-//                     }
-//                 } else {
-//                     // first put full masks for warp 4 - 7 from (warp_id - 3) * 2 to 8
-//                     for (int i = (warp_id - 3) * 2; i < 8;i++) {
-//                         for (int j=0; j < tSrS_float(make_coord(_,_),_,i).size(); j++) {
-//                             tSrS_float(make_coord(_,_),_,i)[j] = -FLT_MAX;
-//                         }
-//                     }
-//
-//                     // now mask out the diagonal ones
-//                     // (warp_id - 4) * 2
-//                     for (int i=0;i<2;i ++) {
-//
-//                         int row = lane_id / 4;
-//                         int col = (lane_id % 4) * 2 + i;
-//                         if (row < col) {
-//                             tSrS_float(make_coord(i,0),0, (warp_id - 4) * 2) = -FLT_MAX;
-//                         }
-//                     }
-//
-//                     // warp_id * 2 + 1
-//                     for (int i=0;i<2;i ++) {
-//                         tSrS_float(make_coord(i, 0), 0, (warp_id - 4) * 2 + 1) = -FLT_MAX;
-//                     }
-//
-//
-//                     for (int i=0;i<2; i++) {
-//
-//                         int row = lane_id / 4;
-//                         int col = (lane_id % 4) * 2 + i;
-//                         if (row < col) {
-//                             tSrS_float(make_coord(i, 1), 0, (warp_id - 4) * 2 + 1) = -FLT_MAX;
-//                         }
-//                     }
-//
-//                 }
-//             }
-
-
-
-
-
-
             // compute m = rowmax(S)
             for (int i=0; i< 2; i++) {
                 rM[i] = rM_old[i];
@@ -692,3 +617,34 @@ void flash_fwd_kernel(
 }
 
 
+template<typename Kernel_traits, bool Is_causal>
+inline __device__ void compute_attn(half_t* __restrict__ q,
+                                      half_t* __restrict__ k,
+                                      half_t* __restrict__ v,
+                                      half_t* __restrict__ o,
+                                      float* __restrict__ l,
+                                      int batch_size,
+                                      int seq_len,
+                                      int num_heads,
+                                      int head_dim,
+                                      int is_casual) {
+    const int m_block = blockIdx.x;
+    // The block index for the batch.
+    const int bidb = blockIdx.y;
+    // The block index for the head.
+    const int bidh = blockIdx.z;
+
+    compute_attn_1rowblock<Kernel_traits, Is_causal>(q,
+                                                    k,
+                                                    v,
+                                                    o,
+                                                    l,
+                                                    batch_size,
+                                                    seq_len,
+                                                    num_heads,
+                                                    head_dim,
+                                                    is_casual,
+                                                    bidb,
+                                                    bidh,
+                                                    m_block);
+}

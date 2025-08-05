@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch.profiler import profile, record_function, ProfilerActivity
-from flash_attn_turing import flash_attn_fwd_func
+from flash_attn_turing import fwd
 import argparse
 
 torch.set_printoptions(precision=8)
@@ -45,7 +45,7 @@ def get_error(batch_size=1, seq_len=16, num_heads=1, head_dim=128, is_causal=1):
     value_torch = value.permute(0, 2, 1, 3).contiguous().clone()
 
 
-    output, l = flash_attn_fwd_func(query, key, value, batch_size, seq_len, num_heads, head_dim, is_causal)
+    output, l = fwd(query, key, value, bool(is_causal))
 
     print(l.shape)
     #print(l[:128])
