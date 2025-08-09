@@ -52,7 +52,7 @@ def test_flash_attn(
     d_output = torch.randn(batch_size, seqlen, nheads, d, device=device, dtype=dtype)
 
     output, l = fwd(query, key, value, causal)
-    d_query, d_key, d_value = bwd(query, key, value, output, l, d_output, bool(is_causal))
+    d_query, d_key, d_value = bwd(query, key, value, output, l, d_output, causal)
 
     output_torch,  d_query_torch, d_key_torch, d_value_torch = attention_ref(query, key, value, d_output, causal)
 
