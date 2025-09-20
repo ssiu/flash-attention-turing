@@ -25,7 +25,7 @@ struct Flash_fwd_params : public Qkv_params {
 
     // The pointer to the softmax sum.
     float * __restrict__ l_ptr;
-    int b, seqlen, d;
+    int b, seqlen_q, seqlen_k, d;
     bool is_causal;
 };
 

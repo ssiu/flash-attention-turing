@@ -23,16 +23,16 @@ template <typename Kernel_traits, bool Is_causal>
 inline __device__ void compute_dot_do_o(half_t* o_ptr,
                       half_t* do_ptr,
                       float*  d_ptr,
-                      int batch_size, int seq_len, int num_heads, int head_dim, int is_causal)
+                      int batch_size, int seqlen_q, int num_heads, int head_dim, int is_causal)
 {
-    // o_offset: (batch_size, seq_len, num_heads, head_dim)
-    // do_offset: (batch_size, seq_len, num_heads, head_dim)
-    // d_offset: (batch_size, num_heads, seq_len)
+    // o_offset: (batch_size, seqlen_q, num_heads, head_dim)
+    // do_offset: (batch_size, seqlen_q, num_heads, head_dim)
+    // d_offset: (batch_size, num_heads, seqlen_q)
 
 
     // block x = batch_size
     // block y = num_heads
-    // block z = seq_len / 32
+    // block z = seqlen_q / 32
 
     // each thread loads 4 elements from do and o
 
@@ -44,8 +44,8 @@ inline __device__ void compute_dot_do_o(half_t* o_ptr,
     int warp_id = threadIdx.x / 32;
     int lane_id = threadIdx.x % 32;
 
-    int do_o_offset = blockIdx.x * seq_len * num_heads * head_dim + blockIdx.z * 32 * num_heads * head_dim + blockIdx.y * head_dim;
-    int d_offset = blockIdx.x * num_heads * seq_len + blockIdx.y * seq_len + blockIdx.z * 32;
+    int do_o_offset = blockIdx.x * seqlen_q * num_heads * head_dim + blockIdx.z * 32 * num_heads * head_dim + blockIdx.y * head_dim;
+    int d_offset = blockIdx.x * num_heads * seqlen_q + blockIdx.y * seqlen_q + blockIdx.z * 32;
 
     // each threadblock computes a 32 x headdim block
     // each warp computes a single row

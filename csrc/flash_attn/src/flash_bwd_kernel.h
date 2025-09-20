@@ -33,10 +33,15 @@ inline __device__ void compute_dq_1rowblock(
     float * __restrict__ d_ptr,
     half_t * __restrict__ do_ptr,
     half_t* __restrict__ dq_ptr,
-    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal,
+    int batch_size, 
+    int seqlen_q, 
+    int seqlen_k, 
+    int num_heads, 
+    int head_dim, 
+    int is_causal,
     int bidb,
-      int bidh,
-      int m_block
+    int bidh,
+    int m_block
 )
 {
     constexpr int kBlockM = Kernel_traits::kBlockM;
@@ -45,7 +50,7 @@ inline __device__ void compute_dq_1rowblock(
     //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
 
-    const BlockInfo binfo(seq_len, bidb);
+    const BlockInfo binfo(seqlen_q, seqlen_k, bidb);
 
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
@@ -69,8 +74,8 @@ inline __device__ void compute_dq_1rowblock(
 
     // Q
 
-    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_q, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gQ = local_tile(mQ(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
@@ -78,8 +83,8 @@ inline __device__ void compute_dq_1rowblock(
 
     // K
 
-    Tensor mK = make_tensor(make_gmem_ptr(k_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mK = make_tensor(make_gmem_ptr(k_ptr + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_k, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gK = local_tile(mK(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
@@ -87,8 +92,8 @@ inline __device__ void compute_dq_1rowblock(
 
     // V
 
-    Tensor mV = make_tensor(make_gmem_ptr(v_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mV = make_tensor(make_gmem_ptr(v_ptr + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_k, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gV = local_tile(mV(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
@@ -97,24 +102,24 @@ inline __device__ void compute_dq_1rowblock(
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(l_ptr),
-                             make_shape(batch_size, num_heads, seq_len),
-                             make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
+                             make_shape(batch_size, num_heads, seqlen_q),
+                             make_stride(seqlen_q * num_heads,  seqlen_q, Int<1>{}));
 
     Tensor gL = local_tile(mL(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(m_block));
 
 
     Tensor mD = make_tensor(make_gmem_ptr(d_ptr),
-                             make_shape(batch_size, num_heads, seq_len),
-                             make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
+                             make_shape(batch_size, num_heads, seqlen_q),
+                             make_stride(seqlen_q * num_heads,  seqlen_q, Int<1>{}));
 
     Tensor gD = local_tile(mD(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(m_block));
 
     // dO
 
-    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                             make_shape(seq_len, num_heads, head_dim),
+    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+                             make_shape(seqlen_q, num_heads, head_dim),
                              make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gdO = local_tile(mdO(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
@@ -123,8 +128,8 @@ inline __device__ void compute_dq_1rowblock(
 
     // dQ
 
-    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_q, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gdQ = local_tile(mdQ(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
@@ -269,20 +274,51 @@ inline __device__ void compute_dq_1rowblock(
     auto tdQsKt_copy_view = smem_thr_copy_Kt.partition_S(sKt);
     auto tdQrKt_copy_view = smem_thr_copy_Kt.retile_D(tdQrKt);
 
+    // int KV_TILE_MAX = 0;
+    // int KV_TILE_NO_MASK = 0;
+    // int KV_TILE_MASK_START = 0;
+    // int KV_TILE_MASK_END = 0;
+
+    // if constexpr (Is_causal) {
+    //     // number of KV_TILES that does not need a mask
+    //     KV_TILE_NO_MASK = m_block * kBlockM / kBlockN;
+    //     KV_TILE_MASK_START = KV_TILE_NO_MASK;
+    //     KV_TILE_MASK_END = KV_TILE_MASK_START + kBlockM / kBlockN;
+    //     KV_TILE_MAX = KV_TILE_NO_MASK;
+    // } else {
+    //     KV_TILE_MAX = size<3>(tSgK);
+    // }
+
+
     int KV_TILE_MAX = 0;
     int KV_TILE_NO_MASK = 0;
     int KV_TILE_MASK_START = 0;
     int KV_TILE_MASK_END = 0;
-
+    int KV_TILE_SHIFT = 0;
     if constexpr (Is_causal) {
-        // number of KV_TILES that does not need a mask
-        KV_TILE_NO_MASK = m_block * kBlockM / kBlockN;
-        KV_TILE_MASK_START = KV_TILE_NO_MASK;
-        KV_TILE_MASK_END = KV_TILE_MASK_START + kBlockM / kBlockN;
-        KV_TILE_MAX = KV_TILE_NO_MASK;
+        if (seqlen_q <= seqlen_k) {
+            // number of KV_TILES that does not need a mask
+            //KV_TILE_NO_MASK = (m_block + seqlen_k - seqlen_q) * kBlockM / kBlockN;
+            KV_TILE_NO_MASK = (m_block + (seqlen_k - seqlen_q) / kBlockM) * kBlockM / kBlockN;
+            KV_TILE_MASK_START = KV_TILE_NO_MASK;
+            KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
+            KV_TILE_MAX = KV_TILE_NO_MASK;
+        } else {
+            // number of KV_TILES that does not need a mask
+            KV_TILE_SHIFT = (m_block - (seqlen_q - seqlen_k) / kBlockM) * kBlockM / kBlockN;
+            KV_TILE_NO_MASK = max(KV_TILE_SHIFT, 0);
+            KV_TILE_MASK_START = KV_TILE_NO_MASK;
+            //KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
+            KV_TILE_MASK_END = KV_TILE_SHIFT < 0 ? 0 : KV_TILE_MASK_START + (kBlockM / kBlockN);
+            KV_TILE_MAX = KV_TILE_NO_MASK;
+        }
+
     } else {
         KV_TILE_MAX = size<3>(tSgK);
     }
+
+    // if seqlen_q > seqlen_k we exit early for the blocks with rows that are fully masked
+    if (KV_TILE_SHIFT < 0) {return;}
 
 
     //auto KV_TILE_MAX = size<3>(tSgK);
@@ -647,7 +683,7 @@ inline __device__ void compute_dk_dv_1colblock(
     half_t * __restrict__ do_ptr,
     half_t* __restrict__ dk_ptr,
     half_t* __restrict__ dv_ptr,
-    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal,
+    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int head_dim, int is_causal,
     int bidb, int bidh, int n_block
 )
 {   
@@ -656,7 +692,7 @@ inline __device__ void compute_dk_dv_1colblock(
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
     //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
-    const BlockInfo binfo(seq_len, bidb);
+    const BlockInfo binfo(seqlen_q, seqlen_k, bidb);
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
     // for 8 warps, the 32x32 tiled mmas is like
@@ -677,8 +713,8 @@ inline __device__ void compute_dk_dv_1colblock(
 
     // Q
 
-    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_q, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gQ = local_tile(mQ(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
@@ -686,8 +722,8 @@ inline __device__ void compute_dk_dv_1colblock(
 
     // K
 
-    Tensor mK = make_tensor(make_gmem_ptr(k_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mK = make_tensor(make_gmem_ptr(k_ptr + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_k, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gK = local_tile(mK(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
@@ -695,8 +731,8 @@ inline __device__ void compute_dk_dv_1colblock(
 
     // V
 
-    Tensor mV = make_tensor(make_gmem_ptr(v_ptr+ binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mV = make_tensor(make_gmem_ptr(v_ptr+ binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_k, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gV = local_tile(mV(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
@@ -704,16 +740,16 @@ inline __device__ void compute_dk_dv_1colblock(
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(l_ptr),
-                             make_shape(batch_size, num_heads, seq_len),
-                             make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
+                             make_shape(batch_size, num_heads, seqlen_q),
+                             make_stride(seqlen_q * num_heads,  seqlen_q, Int<1>{}));
 
     Tensor gL = local_tile(mL(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(_));
 
 
     Tensor mD = make_tensor(make_gmem_ptr(d_ptr),
-                             make_shape(batch_size, num_heads, seq_len),
-                             make_stride(seq_len * num_heads,  seq_len, Int<1>{}));
+                             make_shape(batch_size, num_heads, seqlen_q),
+                             make_stride(seqlen_q * num_heads,  seqlen_q, Int<1>{}));
 
     Tensor gD = local_tile(mD(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(_));
@@ -721,24 +757,24 @@ inline __device__ void compute_dk_dv_1colblock(
     // dO
 
 
-    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr+ binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                             make_shape(seq_len, num_heads, head_dim),
+    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr+ binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+                             make_shape(seqlen_q, num_heads, head_dim),
                              make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gdO = local_tile(mdO(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
                            make_coord(_, 0));
     // dV
 
-    Tensor mdV = make_tensor(make_gmem_ptr(dv_ptr + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mdV = make_tensor(make_gmem_ptr(dv_ptr + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_k, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gdV = local_tile(mdV(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(n_block, 0));
     // dK
 
-    Tensor mdK = make_tensor(make_gmem_ptr(dk_ptr+ binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mdK = make_tensor(make_gmem_ptr(dk_ptr + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_k, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gdK = local_tile(mdK(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
@@ -921,23 +957,29 @@ inline __device__ void compute_dk_dv_1colblock(
     auto tdKrQt_copy_view = smem_thr_copy_dOt.retile_D(tdKrQt);
 
 
-
+    
     int Q_TILE_NO_MASK = 0;
     int Q_TILE_MASK_START = 0;
     int Q_TILE_MASK_END = 0;
-
+    int Q_TILE_SHIFT = 0;
     if constexpr (Is_causal) {
-        // number of KV_TILES that does not need a mask
-        Q_TILE_NO_MASK = n_block + 1;
-        Q_TILE_MASK_START = n_block;
-        Q_TILE_MASK_END = Q_TILE_NO_MASK;
-
-    } else {
-        Q_TILE_NO_MASK = 0;
+        // because we parallelize across KV_TILE,
+        // we need the blocks that need mask
+        // and the compute the blocks that do not need masking
+        if (seqlen_q < seqlen_k) {
+            Q_TILE_SHIFT = n_block - (seqlen_k - seqlen_q) / kBlockN;
+            Q_TILE_MASK_START = max(Q_TILE_SHIFT, 0);
+            Q_TILE_MASK_END = Q_TILE_SHIFT < 0 ? 0 : Q_TILE_MASK_START + 1;
+            Q_TILE_NO_MASK = Q_TILE_MASK_END;
+        } else {
+            Q_TILE_MASK_START = n_block + (seqlen_q - seqlen_k) / kBlockN;
+            Q_TILE_MASK_END = Q_TILE_MASK_START + 1; 
+            Q_TILE_NO_MASK = Q_TILE_MASK_END;
+        }
     }
 
-
     auto Q_TILE_MAX = size<3>(tSgQ);
+
     auto QK_BLOCK_MAX = size<2>(tSsK);
     auto PtdOt_BLOCK_MAX = size<2>(tdVsPt);
     // load K, V, dK, dV tiles
@@ -1436,7 +1478,7 @@ inline __device__ void compute_dq(
     float * __restrict__ d_ptr,
     half_t * __restrict__ do_ptr,
     half_t* __restrict__ dq_ptr,
-    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
+    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int head_dim, int is_causal
 ) {
 
     const int m_block = blockIdx.x;
@@ -1453,7 +1495,8 @@ inline __device__ void compute_dq(
                                                     do_ptr,
                                                     dq_ptr,
                                                     batch_size,
-                                                    seq_len,
+                                                    seqlen_q,
+                                                    seqlen_k,
                                                     num_heads,
                                                     head_dim,
                                                     is_causal,
@@ -1473,7 +1516,7 @@ inline __device__ void compute_dk_dv(
     half_t * __restrict__ do_ptr,
     half_t* __restrict__ dk_ptr,
     half_t* __restrict__ dv_ptr,
-    int batch_size, int seq_len, int num_heads, int head_dim, int is_causal
+    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int head_dim, int is_causal
 ) {
     const int n_block = blockIdx.x;
     // The block index for the batch.
@@ -1490,7 +1533,8 @@ inline __device__ void compute_dk_dv(
                                                     dk_ptr,
                                                     dv_ptr,
                                                     batch_size,
-                                                    seq_len,
+                                                    seqlen_q,
+                                                    seqlen_k,
                                                     num_heads,
                                                     head_dim,
                                                     is_causal,
