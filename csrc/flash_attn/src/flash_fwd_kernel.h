@@ -26,7 +26,8 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
                           half_t* __restrict__ o,
                           float* __restrict__ l,
                           int batch_size,
-                          int seq_len,
+                          int seqlen_q,
+                          int seqlen_k,
                           int num_heads,
                           int head_dim,
                           int is_casual,
@@ -39,11 +40,11 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
     constexpr int kBlockN = Kernel_traits::kBlockN;
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
 
-    const BlockInfo binfo(seq_len, bidb);
+    const BlockInfo binfo(seqlen_q, seqlen_k, bidb);
 
 
-    Tensor mQ = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(q) + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mQ = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(q) + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_q, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gQ = local_tile(mQ(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
@@ -52,8 +53,8 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
 
 
-    Tensor mK = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(k) + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mK = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(k) + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_k, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gK = local_tile(mK(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
@@ -62,8 +63,8 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
 
 
-    Tensor mV = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(v) + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(head_dim, num_heads, seq_len),
+    Tensor mV = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(v) + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
+                            make_shape(head_dim, num_heads, seqlen_k),
                             make_stride(Int<1>{}, head_dim, num_heads * head_dim));
 
     Tensor gV = local_tile(mV(_, bidh, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
@@ -71,8 +72,8 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
 
 
-    Tensor mO = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(o) + binfo.q_offset(seq_len * num_heads * head_dim, bidb)),
-                            make_shape(seq_len, num_heads, head_dim),
+    Tensor mO = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(o) + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+                            make_shape(seqlen_q, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
     Tensor gO = local_tile(mO(_, bidh, _), Shape<Int<kBlockM>, Int<kHeadDim>>{},
@@ -80,8 +81,8 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(reinterpret_cast<float*>(l)),
-                             make_shape(batch_size, num_heads, seq_len),
-                             make_stride(seq_len * num_heads, seq_len, Int<1>{}));
+                             make_shape(batch_size, num_heads, seqlen_q),
+                             make_stride(seqlen_q * num_heads, seqlen_q, Int<1>{}));
 
     Tensor gL = local_tile(mL(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(m_block));
@@ -206,16 +207,34 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
     int KV_TILE_NO_MASK = 0;
     int KV_TILE_MASK_START = 0;
     int KV_TILE_MASK_END = 0;
-
+    int KV_TILE_SHIFT = 0;
     if constexpr (Is_causal) {
-        // number of KV_TILES that does not need a mask
-        KV_TILE_NO_MASK = m_block * kBlockM / kBlockN;
-        KV_TILE_MASK_START = KV_TILE_NO_MASK;
-        KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
-        KV_TILE_MAX = KV_TILE_NO_MASK;
+        // because we parallelize across Q_TILE,
+        // we need the blocks that do not need a mask
+        // and then compute the blocks that need masking
+        if (seqlen_q <= seqlen_k) {
+            // number of KV_TILES that does not need a mask
+            //KV_TILE_NO_MASK = (m_block + seqlen_k - seqlen_q) * kBlockM / kBlockN;
+            KV_TILE_NO_MASK = (m_block + (seqlen_k - seqlen_q) / kBlockM) * kBlockM / kBlockN;
+            KV_TILE_MASK_START = KV_TILE_NO_MASK;
+            KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
+            KV_TILE_MAX = KV_TILE_NO_MASK;
+        } else {
+            // number of KV_TILES that does not need a mask
+            KV_TILE_SHIFT = (m_block - (seqlen_q - seqlen_k) / kBlockM) * kBlockM / kBlockN;
+            KV_TILE_NO_MASK = max(KV_TILE_SHIFT, 0);
+            KV_TILE_MASK_START = KV_TILE_NO_MASK;
+            //KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
+            KV_TILE_MASK_END = KV_TILE_SHIFT < 0 ? 0 : KV_TILE_MASK_START + (kBlockM / kBlockN);
+            KV_TILE_MAX = KV_TILE_NO_MASK;
+        }
+
     } else {
         KV_TILE_MAX = size<3>(tKgK);
     }
+
+    // if seqlen_q > seqlen_k we exit early for the blocks with rows that are fully masked
+    if (KV_TILE_SHIFT < 0) {return;}
 
     auto QK_BLOCK_MAX = size<2>(tSsK);
     auto PV_BLOCK_MAX = size<2>(tOsV);
@@ -461,7 +480,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
                         int row = row_offset + 8 * j;
                         int col = col_offset + i + 8 * l;
                         if (row < col) {
-                            tSrS_float(make_coord(i,j),0,l) = -FLT_MAX;
+                            tSrS_float(make_coord(i,j),0,l) = -1e20;
                         }
                     }
                 }
@@ -592,10 +611,20 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
     gL[thread_row + 8] = rM[1] + logf(rL[1]);
 
 
+
     for (int i =0; i<2; i++) {
-        for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
-            tOrO_float(make_coord(_,i),_,_)[j] /= rL[i];
+        // Sometimes the whole row of q might get masked out, for example where seqlen_q > seqlen_k,
+        // in which case rL will be zero.
+        if (rL[i] != 0.0f) {
+            for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
+                tOrO_float(make_coord(_,i),_,_)[j] /= rL[i];
+            }
+        } else {
+            for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
+                tOrO_float(make_coord(_,i),_,_)[j] = 0;
+            }
         }
+
     }
 
 
@@ -624,7 +653,8 @@ inline __device__ void compute_attn(half_t* __restrict__ q,
                                       half_t* __restrict__ o,
                                       float* __restrict__ l,
                                       int batch_size,
-                                      int seq_len,
+                                      int seqlen_q,
+                                      int seqlen_k,
                                       int num_heads,
                                       int head_dim,
                                       int is_casual) {
@@ -640,7 +670,8 @@ inline __device__ void compute_attn(half_t* __restrict__ q,
                                                     o,
                                                     l,
                                                     batch_size,
-                                                    seq_len,
+                                                    seqlen_q,
+                                                    seqlen_k,
                                                     num_heads,
                                                     head_dim,
                                                     is_casual,

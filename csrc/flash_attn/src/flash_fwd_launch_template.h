@@ -14,7 +14,8 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                           half_t* __restrict__ o,
                           float* __restrict__ l,
                           int batch_size,
-                          int seq_len,
+                          int seqlen_q,
+                          int seqlen_k,
                           int num_heads,
                           int head_dim,
                           int is_casual)
@@ -25,7 +26,8 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                                            o,
                                            l,
                                            batch_size,
-                                           seq_len,
+                                           seqlen_q,
+                                           seqlen_k,
                                            num_heads,
                                            head_dim,
                                            is_casual);
@@ -39,7 +41,7 @@ void run_flash_fwd(Flash_fwd_params &params) {
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
 
-    dim3 dimGrid(params.seqlen / kBlockM, params.b, params.h);
+    dim3 dimGrid(params.seqlen_q / kBlockM, params.b, params.h);
     dim3 dimBlock(256);
     int maxbytes = 65536;
 
@@ -54,7 +56,8 @@ void run_flash_fwd(Flash_fwd_params &params) {
                                                                                 params.o_ptr,
                                                                                 params.l_ptr,
                                                                                 params.b,
-                                                                                params.seqlen,
+                                                                                params.seqlen_q,
+                                                                                params.seqlen_k,
                                                                                 params.h,
                                                                                 params.d,
                                                                                 params.is_causal);

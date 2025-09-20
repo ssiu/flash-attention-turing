@@ -6,7 +6,8 @@
 void set_params_fprop(Flash_fwd_params &params,
                       // sizes
                       const size_t b,
-                      const size_t seqlen,
+                      const size_t seqlen_q,
+                      const size_t seqlen_k,
                       const size_t h,
                       const size_t d,
                       // device pointers
@@ -30,7 +31,8 @@ void set_params_fprop(Flash_fwd_params &params,
     params.l_ptr = reinterpret_cast<float*>(l.data_ptr());
     // Set the dimensions.
     params.b = b;
-    params.seqlen = seqlen;
+    params.seqlen_q = seqlen_q;
+    params.seqlen_k = seqlen_k;
     params.h = h;
     params.d = d;
     params.is_causal = is_causal;
@@ -40,7 +42,8 @@ void set_params_fprop(Flash_fwd_params &params,
 void set_params_dgrad(Flash_bwd_params &params,
                       // sizes
                       const size_t b,
-                      const size_t seqlen,
+                      const size_t seqlen_q,
+                      const size_t seqlen_k,
                       const size_t h,
                       const size_t d,
                       // device pointers
@@ -60,7 +63,8 @@ void set_params_dgrad(Flash_bwd_params &params,
 
     set_params_fprop(params,
                      b,
-                     seqlen,
+                     seqlen_q,
+                     seqlen_k,
                      h,
                      d,
                      q, k, v, out, l,
@@ -111,13 +115,15 @@ mha_fwd(torch::Tensor q,
     const auto sizes = q.sizes();
 
     int batch_size = sizes[0];
-    int seqlen = sizes[1];
+    int seqlen_q = sizes[1];
     int num_heads = sizes[2];
     int head_size = sizes[3];
 
+    int seqlen_k = k.size(1);
+
     torch::Tensor o = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
 
-    std::vector<int64_t> size = {batch_size, num_heads, seqlen};
+    std::vector<int64_t> size = {batch_size, num_heads, seqlen_q};
     torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
 
     TORCH_CHECK(o.is_cuda(), "Tensor o is not on CUDA");
@@ -132,7 +138,8 @@ mha_fwd(torch::Tensor q,
     Flash_fwd_params params;
     set_params_fprop(params,
                      batch_size,
-                     seqlen,
+                     seqlen_q,
+                     seqlen_k,
                      num_heads,
                      head_size,
                      q, k, v, o, l,
@@ -166,10 +173,11 @@ mha_bwd(torch::Tensor q,
     const auto sizes = q.sizes();
 
     int batch_size = sizes[0];
-    int seqlen = sizes[1];
+    int seqlen_q = sizes[1];
     int num_heads = sizes[2];
     int head_size = sizes[3];
 
+    int seqlen_k = k.size(1);
 
     torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
     torch::Tensor dk = torch::empty(k.sizes(), k.options().dtype(torch::kFloat16));
@@ -181,7 +189,8 @@ mha_bwd(torch::Tensor q,
 
     set_params_dgrad(params,
                      batch_size,
-                    seqlen,
+                    seqlen_q,
+                    seqlen_k,
                     num_heads,
                     head_size,
                     q,

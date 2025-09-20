@@ -151,6 +151,7 @@ def main():
     d_value_torch = value_torch.grad.permute(0, 2, 1, 3).contiguous().clone()
 
 
+
     print("Comparing O")
     sum_error, avg_error, max_error, output_value, output_torch_value = \
         get_error(output, output_torch, batch_size, seq_len, num_heads, head_dim)
