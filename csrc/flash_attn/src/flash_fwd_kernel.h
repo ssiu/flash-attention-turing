@@ -320,14 +320,16 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
         // compute P = softmax(S)
         CUTE_UNROLL
         for (int i =0; i<2; i++) {
-            float max_scaled = rM[i] * float(M_LOG2E);
+            //float max_scaled = rM[i] * float(M_LOG2E);
             CUTE_UNROLL
             for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                //tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
-                tSrS_float(make_coord(_,i),_,_)[j] = exp2f(tSrS_float(make_coord(_,i),_,_)[j] * float(M_LOG2E) - max_scaled);
+                tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
+                // using FMA instructions inside exp is slower
+                //tSrS_float(make_coord(_,i),_,_)[j] = exp2f(tSrS_float(make_coord(_,i),_,_)[j] * float(M_LOG2E) - max_scaled);
             }
-
-            rL[i] = exp2f(rM_old[i] * float(M_LOG2E) - max_scaled) * rL_old[i];
+            
+            rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
+            // rL[i] = exp2f(rM_old[i] * float(M_LOG2E) - max_scaled) * rL_old[i];
             rD[i] = 0.0f;
         }
 
