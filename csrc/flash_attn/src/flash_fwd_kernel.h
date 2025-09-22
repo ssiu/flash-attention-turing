@@ -468,7 +468,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
 
 
-            accum_s_mask.template apply_mask<Is_causal>(
+            accum_s_mask.template apply_mask_fwd<Is_causal>(
                 tSrS_float, warp_id, lane_id, kv_tile, KV_TILE_MASK_START, kBlockN
             );
 
