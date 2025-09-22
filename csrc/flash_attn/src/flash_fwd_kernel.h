@@ -430,7 +430,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
     // these are the blocks that need masking
     Mask<Is_causal> accum_s_mask(seqlen_q, seqlen_k);
-    constexpr bool Is_even_MN = true; 
+    // constexpr bool Is_even_MN = true; 
 
     if (Is_causal) {
 
@@ -468,7 +468,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
 
 
-            accum_s_mask.template apply_mask<Is_causal, Is_even_MN>(
+            accum_s_mask.template apply_mask<Is_causal>(
                 tSrS_float, warp_id, lane_id, kv_tile, KV_TILE_MASK_START, kBlockN
             );
 
