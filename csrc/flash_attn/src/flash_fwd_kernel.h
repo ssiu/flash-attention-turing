@@ -14,6 +14,7 @@
 #include "block_info.h"
 #include "kernel_traits.h"
 #include "utils.h"
+#include "mask.h"
 
 using namespace cute;
 
@@ -428,7 +429,8 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
 
     // these are the blocks that need masking
-
+    Mask<Is_causal> mask(seqlen_q, seqlen_k);
+    constexpr bool Is_even_MN = true; 
 
     if (Is_causal) {
 
@@ -466,28 +468,9 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
 
 
-            // We assume kBlockM = 128 and kBlockN = {64, 128} depending on head_dim (either 64 or 128).
-            // Because we are using 8 warps, each warp is responsible for 16 rows.
-            // Therefore, tSrS_float has layout ((_2,_2),_1, MMA_N),
-            // since a Turing tensor core atom is 16 x 8 x 8.
-
-
-            // row and col offset for tSrS_float((0, 0)), 0, 0)
-            int row_offset = (warp_id * 16) + (lane_id / 4);
-            int col_offset = (lane_id % 4) * 2 + (kv_tile - KV_TILE_MASK_START) * kBlockN;
-
-            for (int i=0; i<2; i++) {
-                for (int j=0;j<2;j++) {
-                    for (int l = 0; l < size<2>(tSrS_float); l++) {
-                        int row = row_offset + 8 * j;
-                        int col = col_offset + i + 8 * l;
-                        if (row < col) {
-                            tSrS_float(make_coord(i,j),0,l) = -1e20;
-                        }
-                    }
-                }
-            }
-
+            mask.template apply_mask<Is_causal, Is_even_MN>(
+                tSrS_float, warp_id, lane_id, kv_tile, KV_TILE_MASK_START, kBlockN
+            );
 
 
             // compute m = rowmax(S)
