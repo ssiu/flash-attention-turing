@@ -37,7 +37,7 @@ struct Mask {
             CUTE_UNROLL
             for (int i=0; i<2; i++) {
                 for (int j=0;j<2;j++) {
-                    for (int l = 0; l < size<2>(tSrS_float); l++) {
+                    for (int l = 0; l < size<2>(tensor); l++) {
                         if constexpr (Causal_mask) {
                             int row = row_offset + 8 * j;
                             int col = col_offset + i + 8 * l;
