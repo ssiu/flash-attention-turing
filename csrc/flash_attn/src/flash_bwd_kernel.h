@@ -453,6 +453,7 @@ inline __device__ void compute_dq_1rowblock(
 
     }
 
+    Mask<Is_causal> accum_SdP_mask(seqlen_q, seqlen_k);
 
     if (Is_causal) {
 
@@ -519,28 +520,31 @@ inline __device__ void compute_dq_1rowblock(
 //                 //print_tensor(sdS(1, _));
 //             }
 
-            //apply mask
-            int row_offset = (warp_id % 2) * 16 + (lane_id / 4);
-            int col_offset = (warp_id / 2) * 8 + (lane_id % 4) * 2;
-            for (int i=0; i<2; i++) {
-                for (int j=0;j<2;j++) {
-                    for (int k=0;k<2;k++) {
-                        for (int l=0;l<2;l++) {
-                            int row = row_offset + 8 * j + 32 * k;
-                            int col = col_offset + i + 32 * l;
-                            if (row < col) {
-                                tSrS_float(make_coord(i,j),k,l) = -FLT_MAX;
-                                tdPrdP_float(make_coord(i,j),k,l) = 0;
-                            }
-                            // print("((%d, %d), %d, %d)\n", i, j, k, l);
-                            // print("row = %d, col = %d\n", row_offset + 8 * j + 32 * k, col_offset + i + 32 * l );
-                            // print("%d\n", 64 * (row_offset + 8 * j + 32 * k) + col_offset + i + 32 * l);
-                            // printf("%d\n", tc(make_coord(i,j),k,l));
-                            // print("====================\n");
-                        }
-                    }
-                }
-            }
+            accum_SdP_mask.template apply_mask_fwd<Is_causal>(
+                tSrS_float, tdPrdP_float, warp_id, lane_id
+            );
+            // //apply mask
+            // int row_offset = (warp_id % 2) * 16 + (lane_id / 4);
+            // int col_offset = (warp_id / 2) * 8 + (lane_id % 4) * 2;
+            // for (int i=0; i<2; i++) {
+            //     for (int j=0;j<2;j++) {
+            //         for (int k=0;k<2;k++) {
+            //             for (int l=0;l<2;l++) {
+            //                 int row = row_offset + 8 * j + 32 * k;
+            //                 int col = col_offset + i + 32 * l;
+            //                 if (row < col) {
+            //                     tSrS_float(make_coord(i,j),k,l) = -FLT_MAX;
+            //                     tdPrdP_float(make_coord(i,j),k,l) = 0;
+            //                 }
+            //                 // print("((%d, %d), %d, %d)\n", i, j, k, l);
+            //                 // print("row = %d, col = %d\n", row_offset + 8 * j + 32 * k, col_offset + i + 32 * l );
+            //                 // print("%d\n", 64 * (row_offset + 8 * j + 32 * k) + col_offset + i + 32 * l);
+            //                 // printf("%d\n", tc(make_coord(i,j),k,l));
+            //                 // print("====================\n");
+            //             }
+            //         }
+            //     }
+            // }
 
 //             if (blockIdx.z ==0 && warp_id == 0 && lane_id == 0 && kv_tile == 0) {
 //                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
