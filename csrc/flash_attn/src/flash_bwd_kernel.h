@@ -521,7 +521,7 @@ inline __device__ void compute_dq_1rowblock(
 //                 //print_tensor(sdS(1, _));
 //             }
 
-            accum_SdP_mask.template apply_mask_fwd<Is_causal>(
+            accum_SdP_mask.template apply_mask_bwd_dq<Is_causal>(
                 tSrS_float, tdPrdP_float, warp_id, lane_id
             );
             // //apply mask
