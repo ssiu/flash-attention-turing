@@ -14,6 +14,7 @@
 #include "kernel_traits.h"
 #include "utils.h"
 #include "block_info.h"
+#include "mask.h"
 
 using namespace cute;
 
