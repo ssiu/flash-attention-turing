@@ -204,36 +204,36 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
 
 
-    int KV_TILE_MAX = 0;
-    int KV_TILE_NO_MASK = 0;
-    int KV_TILE_MASK_START = 0;
-    int KV_TILE_MASK_END = 0;
-    int KV_TILE_SHIFT = 0;
-    // 0 -> KV_TILE_NO_MASK = KV_TILE_MASK_START -> KV_TILE_MASK_END
-    if constexpr (Is_causal) {
-        // because we parallelize across Q_TILE,
-        // we need the blocks that do not need a mask
-        // and then compute the blocks that need masking
-        if (seqlen_q <= seqlen_k) {
-            // number of KV_TILES that does not need a mask
-            //KV_TILE_NO_MASK = (m_block + seqlen_k - seqlen_q) * kBlockM / kBlockN;
-            KV_TILE_NO_MASK = (m_block + (seqlen_k - seqlen_q) / kBlockM) * kBlockM / kBlockN;
-            KV_TILE_MASK_START = KV_TILE_NO_MASK;
-            KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
-            KV_TILE_MAX = KV_TILE_NO_MASK;
-        } else {
-            // number of KV_TILES that does not need a mask
-            KV_TILE_SHIFT = (m_block - (seqlen_q - seqlen_k) / kBlockM) * kBlockM / kBlockN;
-            KV_TILE_NO_MASK = max(KV_TILE_SHIFT, 0);
-            KV_TILE_MASK_START = KV_TILE_NO_MASK;
-            //KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
-            KV_TILE_MASK_END = KV_TILE_SHIFT < 0 ? 0 : KV_TILE_MASK_START + (kBlockM / kBlockN);
-            KV_TILE_MAX = KV_TILE_NO_MASK;
-        }
+    // int KV_TILE_MAX = 0;
+    // int KV_TILE_NO_MASK = 0;
+    // int KV_TILE_MASK_START = 0;
+    // int KV_TILE_MASK_END = 0;
+    // int KV_TILE_SHIFT = 0;
+    // // 0 -> KV_TILE_NO_MASK = KV_TILE_MASK_START -> KV_TILE_MASK_END
+    // if constexpr (Is_causal) {
+    //     // because we parallelize across Q_TILE,
+    //     // we need the blocks that do not need a mask
+    //     // and then compute the blocks that need masking
+    //     if (seqlen_q <= seqlen_k) {
+    //         // number of KV_TILES that does not need a mask
+    //         //KV_TILE_NO_MASK = (m_block + seqlen_k - seqlen_q) * kBlockM / kBlockN;
+    //         KV_TILE_NO_MASK = (m_block + (seqlen_k - seqlen_q) / kBlockM) * kBlockM / kBlockN;
+    //         KV_TILE_MASK_START = KV_TILE_NO_MASK;
+    //         KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
+    //         KV_TILE_MAX = KV_TILE_NO_MASK;
+    //     } else {
+    //         // number of KV_TILES that does not need a mask
+    //         KV_TILE_SHIFT = (m_block - (seqlen_q - seqlen_k) / kBlockM) * kBlockM / kBlockN;
+    //         KV_TILE_NO_MASK = max(KV_TILE_SHIFT, 0);
+    //         KV_TILE_MASK_START = KV_TILE_NO_MASK;
+    //         //KV_TILE_MASK_END = KV_TILE_NO_MASK + (kBlockM / kBlockN);
+    //         KV_TILE_MASK_END = KV_TILE_SHIFT < 0 ? 0 : KV_TILE_MASK_START + (kBlockM / kBlockN);
+    //         KV_TILE_MAX = KV_TILE_NO_MASK;
+    //     }
 
-    } else {
-        KV_TILE_MAX = size<3>(tKgK);
-    }
+    // } else {
+    //     KV_TILE_MAX = size<3>(tKgK);
+    // }
 
     const int n_block_min = 0; 
     int n_block_shift = 0;
