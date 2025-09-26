@@ -236,6 +236,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
     }
 
     const int n_block_min = 0; 
+    int n_block_shift = 0;
     int n_block_max = ceil_div(seqlen_k, kBlockN);
     if constexpr(Is_causal) {
         if (seqlen_q <= seqlen_k) {
