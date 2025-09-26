@@ -209,6 +209,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
     int KV_TILE_MASK_START = 0;
     int KV_TILE_MASK_END = 0;
     int KV_TILE_SHIFT = 0;
+    // 0 -> KV_TILE_NO_MASK = KV_TILE_MASK_START -> KV_TILE_MASK_END
     if constexpr (Is_causal) {
         // because we parallelize across Q_TILE,
         // we need the blocks that do not need a mask
@@ -234,8 +235,24 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
         KV_TILE_MAX = size<3>(tKgK);
     }
 
+    const int n_block_min = 0; 
+    int n_block_max = ceil_div(seqlen_k, kBlockN);
+    if constexpr(Is_causal) {
+        if (seqlen_q <= seqlen_k) {
+            n_block_max = (m_block + 1 + (seqlen_k - seqlen_q) / kBlockM) * kBlockM / kBlockN;
+        } else {
+            n_block_shift = (m_block - (seqlen_q - seqlen_k) / kBlockM) * kBlockM / kBlockN;
+            n_block_max = max(n_block_shift, 0) + (kBlockM / kBlockN);
+        }        
+    }
+
+
+    const int n_masking_steps = (!is_casual) ? 1 : ceil_div(kBlockM, kBlockN); 
+
     // if seqlen_q > seqlen_k we exit early for the blocks with rows that are fully masked
-    if (KV_TILE_SHIFT < 0) {return;}
+    if (n_block_shift < 0) {return;}
+
+    int n_block = n_block_max - 1;
 
     auto QK_BLOCK_MAX = size<2>(tSsK);
     auto PV_BLOCK_MAX = size<2>(tOsV);
@@ -243,14 +260,177 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
     // prologue
 
     copy(gmem_tiled_copy_QK, tQgQ, tQsQ);
-    copy(gmem_tiled_copy_QK, tKgK(_,_,_,0), tKrK);
+
+
+    // these are the blocks that need masking
+    Mask<Is_causal> accum_s_mask(seqlen_q, seqlen_k);
+    // constexpr bool Is_even_MN = true; 
+
+
+
+    copy(gmem_tiled_copy_QK, tKgK(_,_,_,n_block), tKrK);
+
+    for (int masking_step = 0; masking_step < n_masking_steps; ++masking_step, --n_block) {
+
+        copy(gmem_tiled_copy_QK, tKrK, tKsK);
+
+        __syncthreads();
+
+        clear(tSrS_float);
+
+        if (masking_step > 0) {
+            copy(gmem_tiled_copy_QK, tKgK(_,_,_,n_block - 1), tKrK);
+        }
+
+        CUTE_UNROLL
+        for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
+            copy(s2r_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
+            copy(s2r_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
+
+            gemm(tiled_mma, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
+
+        }
+
+        __syncthreads();
+        copy(gmem_tiled_copy_V, tVgV(_,_,_,n_block), tVsV);
+        __syncthreads();
+
+
+        // for now we rescale before we apply causal mask
+        for (int i=0;i< tSrS_float.size();i ++ ) {
+            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+        }
+
+
+
+        accum_s_mask.template apply_mask_fwd<Is_causal>(
+            tSrS_float, warp_id, lane_id, n_block, n_block_max - (kBlockM / kBlockN), kBlockN
+        );
+
+
+        // compute m = rowmax(S)
+        for (int i=0; i< 2; i++) {
+            rM[i] = rM_old[i];
+        }
+
+
+        // intra-thread reduction
+
+        for (int i=0; i< 2; i++) {
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                rM[i] = fmaxf(rM[i], tSrS_float(make_coord(_,i),_,_)[j]);
+            }
+        }
+
+
+        // intra-warp reduction
+        for (int i=0; i<2; i++) {
+            for (int offset = 2; offset > 0; offset /= 2) {
+                rM[i] = fmaxf(rM[i], __shfl_down_sync(mask, rM[i], offset));
+            }
+        }
+
+
+        // sync rM
+
+        for (int i =0; i<2; i++) {
+            rM[i] = __shfl_sync(mask, rM[i], lane_id_to_read_from);
+        }
+
+
+        // compute P = softmax(S)
+        for (int i =0; i<2; i++) {
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
+            }
+        }
+
+        // rescale l and also reset rD to 0
+        for (int i =0; i<2; i++) {
+            rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
+            rD[i] = 0.0f;
+        }
+        // compute sum(sP)
+
+        // thread reduction
+
+        for (int i =0; i<2; i++) {
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
+            }
+        }
+
+
+
+        // warp reduction
+        for (int i =0; i<2; i++) {
+            for (int offset = 2; offset > 0; offset /= 2) {
+                rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
+            }
+        }
+
+
+
+        // can just keep the correct rL to lane 0
+        for (int i =0; i<2; i++) {
+            rL[i] += rD[i];
+        }
+
+
+
+        // sync rL
+        for (int i =0; i<2; i++) {
+            rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
+        }
+
+
+
+        Tensor tOrP = convert_type<half_t>(tSrS_float);
+
+
+        // rescale O
+
+        for (int i =0; i<2; i++) {
+            for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
+                tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
+            }
+        }
+
+
+
+        CUTE_UNROLL
+        for (int pv_block = 0; pv_block < PV_BLOCK_MAX; pv_block++) {
+            copy(s2r_tiled_copy_V, tOsV_copy_view(_,_,pv_block), tOrV_copy_view(_,_,pv_block));
+
+            gemm(tiled_mma, tOrP(_,_,pv_block), tOrV(_,_,pv_block), tOrO_float);
+
+        }
+
+        // update m and l
+        for (int i = 0; i< 2;i++) {
+            rM_old[i] = rM[i];
+            rL_old[i] = rL[i];
+        }
+
+        __syncthreads();
+
+    }
+    
+
+
+
+
+
+
+
+    copy(gmem_tiled_copy_QK, tKgK(_,_,_,n_block), tKrK);
     //copy(gmem_tiled_copy_V, tVgV(_,_,_,0), tVrV);
 
     clear(tOrO_float);
 
     // main loop
     CUTE_NO_UNROLL
-    for (int kv_tile = 0; kv_tile < KV_TILE_MAX; ++kv_tile) {
+    for (; n_block >= n_block_min; --n_block) {
 
 
         copy(gmem_tiled_copy_QK, tKrK, tKsK);
@@ -260,8 +440,8 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
         clear(tSrS_float);
 
-        if (kv_tile + 1 < KV_TILE_MAX) {
-            copy(gmem_tiled_copy_QK, tKgK(_,_,_,kv_tile + 1), tKrK);
+        if (n_block > n_block_min) {
+            copy(gmem_tiled_copy_QK, tKgK(_,_,_, n_block - 1), tKrK);
             //copy(gmem_tiled_copy_V, tVgV(_,_,_,kv_tile + 1), tVrV);
         }
 
@@ -275,7 +455,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
         }
 
         __syncthreads();
-        copy(gmem_tiled_copy_V, tVgV(_,_,_,kv_tile), tVsV);
+        copy(gmem_tiled_copy_V, tVgV(_,_,_,n_block), tVsV);
         __syncthreads();
 
 //         if (thread0) {
@@ -428,169 +608,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
 
 
-    // these are the blocks that need masking
-    Mask<Is_causal> accum_s_mask(seqlen_q, seqlen_k);
-    // constexpr bool Is_even_MN = true; 
-
-    if (Is_causal) {
-
-        copy(gmem_tiled_copy_QK, tKgK(_,_,_,KV_TILE_MASK_START), tKrK);
-        for (int kv_tile = KV_TILE_MASK_START; kv_tile < KV_TILE_MASK_END; ++kv_tile) {
-
-            copy(gmem_tiled_copy_QK, tKrK, tKsK);
-
-            __syncthreads();
-
-            clear(tSrS_float);
-
-            if (kv_tile + 1 < KV_TILE_MASK_END) {
-                copy(gmem_tiled_copy_QK, tKgK(_,_,_,kv_tile + 1), tKrK);
-            }
-
-            CUTE_UNROLL
-            for (int qk_block = 0; qk_block < QK_BLOCK_MAX; qk_block++) {
-                copy(s2r_tiled_copy_Q, tSsQ_copy_view(_,_,qk_block), tSrQ_copy_view(_,_,qk_block));
-                copy(s2r_tiled_copy_K, tSsK_copy_view(_,_,qk_block), tSrK_copy_view(_,_,qk_block));
-
-                gemm(tiled_mma, tSrQ(_,_,qk_block), tSrK(_,_,qk_block), tSrS_float);
-
-            }
-
-            __syncthreads();
-            copy(gmem_tiled_copy_V, tVgV(_,_,_,kv_tile), tVsV);
-            __syncthreads();
-
-
-            // for now we rescale before we apply causal mask
-            for (int i=0;i< tSrS_float.size();i ++ ) {
-                tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
-            }
-
-
-
-            accum_s_mask.template apply_mask_fwd<Is_causal>(
-                tSrS_float, warp_id, lane_id, kv_tile, KV_TILE_MASK_START, kBlockN
-            );
-
-
-            // compute m = rowmax(S)
-            for (int i=0; i< 2; i++) {
-                rM[i] = rM_old[i];
-            }
-
-
-            // intra-thread reduction
-
-            for (int i=0; i< 2; i++) {
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                    rM[i] = fmaxf(rM[i], tSrS_float(make_coord(_,i),_,_)[j]);
-                }
-            }
-
-
-            // intra-warp reduction
-            for (int i=0; i<2; i++) {
-                for (int offset = 2; offset > 0; offset /= 2) {
-                   rM[i] = fmaxf(rM[i], __shfl_down_sync(mask, rM[i], offset));
-                }
-            }
-
-
-            // sync rM
-
-            for (int i =0; i<2; i++) {
-                rM[i] = __shfl_sync(mask, rM[i], lane_id_to_read_from);
-            }
-
-
-            // compute P = softmax(S)
-            for (int i =0; i<2; i++) {
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                    tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
-                }
-            }
-
-            // rescale l and also reset rD to 0
-            for (int i =0; i<2; i++) {
-                rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
-                rD[i] = 0.0f;
-            }
-            // compute sum(sP)
-
-            // thread reduction
-
-            for (int i =0; i<2; i++) {
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                    rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
-                }
-            }
-
-
-
-            // warp reduction
-            for (int i =0; i<2; i++) {
-                for (int offset = 2; offset > 0; offset /= 2) {
-                   rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
-                }
-            }
-
-
-
-            // can just keep the correct rL to lane 0
-            for (int i =0; i<2; i++) {
-                rL[i] += rD[i];
-            }
-
-            // if (thread0()){
-            //     printf("kv_tile = %d, rL after adding rD: %f\n", kv_tile, rL[0]);
-            // }
-
-
-            // sync rL
-            for (int i =0; i<2; i++) {
-                rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
-            }
-
-
-
-//             constexpr int num_element = decltype(size(tSrS_float))::value;
-//
-//             cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-//             auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
-//
-//             Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
-            Tensor tOrP = convert_type<half_t>(tSrS_float);
-
-
-            // rescale O
-
-            for (int i =0; i<2; i++) {
-                for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
-                    tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
-                }
-            }
-
-
-
-            CUTE_UNROLL
-            for (int pv_block = 0; pv_block < PV_BLOCK_MAX; pv_block++) {
-                copy(s2r_tiled_copy_V, tOsV_copy_view(_,_,pv_block), tOrV_copy_view(_,_,pv_block));
-
-                gemm(tiled_mma, tOrP(_,_,pv_block), tOrV(_,_,pv_block), tOrO_float);
-
-            }
-
-            // update m and l
-            for (int i = 0; i< 2;i++) {
-                rM_old[i] = rM[i];
-                rL_old[i] = rL[i];
-            }
-
-            __syncthreads();
-
-        }
-    }
-
+ 
 
     gL[thread_row] = rM[0] + logf(rL[0]);
     gL[thread_row + 8] = rM[1] + logf(rL[1]);
