@@ -485,7 +485,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
         if (seqlen_q == 128 && seqlen_k == 128 && threadIdx.x == 0 && threadIdx.x == 0) {
             printf("is_causal is %d, tSrS_float is %f\n", is_casual, tSrS_float(make_coord(0,0),0,0));
-            print_tensor(tSrS_float);
+            //print_tensor(tSrS_float);
         }
         // compute m = rowmax(S)
         for (int i=0; i< 2; i++) {
