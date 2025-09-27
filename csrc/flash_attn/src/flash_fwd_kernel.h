@@ -242,7 +242,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
         n_block_max = (m_block + 1 + (seqlen_k - seqlen_q) / kBlockM) * kBlockM / kBlockN;
     }        
     
-    const int masking_steps = 0;//(!Is_causal) ? 1 : ceil_div(kBlockM, kBlockN); 
+    const int masking_steps = (!Is_causal) ? 1 : ceil_div(kBlockM, kBlockN); 
     int n_block_no_mask = n_block_max - masking_steps;
 
     // if seqlen_q > seqlen_k we exit early for the blocks with rows that are fully masked
