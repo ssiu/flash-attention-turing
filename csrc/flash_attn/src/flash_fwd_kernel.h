@@ -239,9 +239,9 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
     const int n_block_min = 0; 
     int n_block_max = ceil_div(seqlen_k, kBlockN);
     if constexpr(Is_causal) {
-            n_block_max = (m_block + 1 + (seqlen_k - seqlen_q) / kBlockM) * kBlockM / kBlockN;
-        }        
-    }
+        n_block_max = (m_block + 1 + (seqlen_k - seqlen_q) / kBlockM) * kBlockM / kBlockN;
+    }        
+    
     const int masking_steps = (!is_casual) ? 1 : ceil_div(kBlockM, kBlockN); 
     int n_block_no_mask = n_block_max - masking_steps;
 
