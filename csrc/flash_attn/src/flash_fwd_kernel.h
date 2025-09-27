@@ -484,7 +484,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
         );
 
         if (seqlen_q == 128 && seqlen_k == 128 && thread(0)) {
-            print(tSrS_float);
+            printf("%d\n", tSrS_float(make_coord(0,0),0,0));
         }
         // compute m = rowmax(S)
         for (int i=0; i< 2; i++) {
