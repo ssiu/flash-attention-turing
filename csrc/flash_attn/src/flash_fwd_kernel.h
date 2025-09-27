@@ -483,8 +483,9 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
             tSrS_float, warp_id, lane_id, n_block, n_block_max, kBlockN
         );
 
-        if (seqlen_q == 128 && seqlen_k == 128 && thread0) {
+        if (seqlen_q == 128 && seqlen_k == 128 && threadIdx.x == 0 && threadIdx.x == 0) {
             printf("tSrS_float is %d\n", tSrS_float(make_coord(0,0),0,0));
+            print_tensor(tSrS_float);
         }
         // compute m = rowmax(S)
         for (int i=0; i< 2; i++) {
