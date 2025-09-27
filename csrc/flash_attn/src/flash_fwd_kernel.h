@@ -517,11 +517,18 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
         }
 
 
+
         // compute P = softmax(S)
         for (int i =0; i<2; i++) {
             for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
                 tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
             }
+        }
+
+
+        if (seqlen_q == 128 && seqlen_k == 128 && blockIdx.x == 0 && blockIdx.y == 0 && blockIdx.z == 0 && threadIdx.x == 0) {
+            printf("masking_steps = %d, is_causal is %d, tSrS_float after exp is %f\n", masking_steps, is_casual, tSrS_float(make_coord(0,0),0,0));
+            //print_tensor(tSrS_float);
         }
 
         // rescale l and also reset rD to 0
