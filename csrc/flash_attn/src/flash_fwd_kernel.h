@@ -527,7 +527,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
 
         if (seqlen_q == 128 && seqlen_k == 128 && blockIdx.x == 0 && blockIdx.y == 0 && blockIdx.z == 0 && threadIdx.x == 0) {
-            printf("masking_steps = %d, is_causal is %d, tSrS_float after exp is %f\n", masking_steps, is_casual, tSrS_float(make_coord(0,0),0,0));
+            printf("masking_steps = %d, is_causal is %d, m is %f, tSrS_float after exp is %f\n", masking_steps, is_casual, rM[0], tSrS_float(make_coord(0,0),0,0));
             //print_tensor(tSrS_float);
         }
 
