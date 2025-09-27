@@ -261,7 +261,7 @@ inline __device__ void compute_attn_1rowblock(half_t* __restrict__ q,
 
     // main loop
     CUTE_NO_UNROLL
-    for (int n_block = 0; n_block < n_block_no_mask; ++n_block) {
+    for (int n_block = n_block_min; n_block < n_block_no_mask; ++n_block) {
 
 
         copy(gmem_tiled_copy_QK, tKrK, tKsK);
