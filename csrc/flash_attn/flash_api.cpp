@@ -124,7 +124,7 @@ mha_fwd(torch::Tensor q,
     torch::Tensor o = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
 
     std::vector<int64_t> size = {batch_size, num_heads, seqlen_q};
-    torch::Tensor l = torch::empty(size, q.options().dtype(torch::kFloat32).device(device));
+    torch::Tensor l = torch::zeros(size, q.options().dtype(torch::kFloat32).device(device));
 
     TORCH_CHECK(o.is_cuda(), "Tensor o is not on CUDA");
 
@@ -145,6 +145,11 @@ mha_fwd(torch::Tensor q,
                      q, k, v, o, l,
                      is_causal
                      );
+
+    // std::cout << "Q ptr: " << q.data_ptr() << "\n";
+    // std::cout << "K ptr: " << k.data_ptr() << "\n";
+    // std::cout << "V ptr: " << v.data_ptr() << "\n";
+    // std::cout << "O ptr: " << o.data_ptr() << "\n";
 
     run_mha_fwd(params);
 
@@ -180,10 +185,10 @@ mha_bwd(torch::Tensor q,
     int seqlen_k = k.size(1);
 
     torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
-    torch::Tensor dk = torch::empty(k.sizes(), k.options().dtype(torch::kFloat16));
-    torch::Tensor dv = torch::empty(v.sizes(), v.options().dtype(torch::kFloat16));
+    torch::Tensor dk = torch::zeros(k.sizes(), k.options().dtype(torch::kFloat16));
+    torch::Tensor dv = torch::zeros(v.sizes(), v.options().dtype(torch::kFloat16));
 
-    torch::Tensor do_o = torch::empty(l.sizes(), l.options());
+    torch::Tensor do_o = torch::zeros(l.sizes(), l.options());
 
     Flash_bwd_params params;
 

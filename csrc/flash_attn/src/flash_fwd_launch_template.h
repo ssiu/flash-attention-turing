@@ -3,9 +3,10 @@
 #include "flash.h"
 #include "flash_fwd_kernel.h"
 #include <cutlass/numeric_types.h>
+#include "static_switch.h"
 using half_t = cutlass::half_t;
 
-template <typename Kernel_traits, bool Is_causal>
+template <typename Kernel_traits, bool Is_causal, bool Is_even_MN>
 __global__ __launch_bounds__(256)
 // for some reason changing this into params struc is 10% slower for hdim = 128
 void flash_fwd_kernel(half_t* __restrict__ q,
@@ -20,7 +21,7 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                           int head_dim,
                           int is_casual)
 {
-    compute_attn<Kernel_traits, Is_causal>(q,
+    compute_attn<Kernel_traits, Is_causal, Is_even_MN>(q,
                                            k,
                                            v,
                                            o,
@@ -40,27 +41,32 @@ void run_flash_fwd(Flash_fwd_params &params) {
     //auto kernel = flash_fwd_kernel<Kernel_traits, Is_causal>;
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
+    constexpr int kBlockN = Kernel_traits::kBlockN;
 
-    dim3 dimGrid(params.seqlen_q / kBlockM, params.b, params.h);
+    const int num_m_block = (params.seqlen_q + kBlockM - 1) / kBlockM;
+
+    const bool is_even_MN  = params.seqlen_q % kBlockM == 0 && params.seqlen_k % kBlockN == 0;
+
+    dim3 dimGrid(num_m_block, params.b, params.h);
     dim3 dimBlock(256);
     int maxbytes = 65536;
 
 
+    BOOL_SWITCH(is_even_MN, Is_even_MN, [&] {
+        cudaFuncSetAttribute(flash_fwd_kernel<Kernel_traits, Is_causal, Is_even_MN>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+        flash_fwd_kernel<Kernel_traits, Is_causal, Is_even_MN><<<dimGrid, dimBlock, maxbytes>>>(params.q_ptr,
+                                                                                    params.k_ptr,
+                                                                                    params.v_ptr,
+                                                                                    params.o_ptr,
+                                                                                    params.l_ptr,
+                                                                                    params.b,
+                                                                                    params.seqlen_q,
+                                                                                    params.seqlen_k,
+                                                                                    params.h,
+                                                                                    params.d,
+                                                                                    params.is_causal);
 
-    cudaFuncSetAttribute(flash_fwd_kernel<Kernel_traits, Is_causal>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-
-
-    flash_fwd_kernel<Kernel_traits, Is_causal><<<dimGrid, dimBlock, maxbytes>>>(params.q_ptr,
-                                                                                params.k_ptr,
-                                                                                params.v_ptr,
-                                                                                params.o_ptr,
-                                                                                params.l_ptr,
-                                                                                params.b,
-                                                                                params.seqlen_q,
-                                                                                params.seqlen_k,
-                                                                                params.h,
-                                                                                params.d,
-                                                                                params.is_causal);
+    });
 
 }
 

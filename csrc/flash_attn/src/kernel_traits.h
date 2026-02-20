@@ -26,7 +26,14 @@ struct Flash_kernel_traits {
 
     using SmemCopyAtomK = Copy_Atom<SM75_U32x4_LDSM_N, elem_type>;
 
+
     using SmemCopyAtomV = Copy_Atom<SM75_U16x8_LDSM_T, elem_type>;
+
+    // using SmemCopyAtomV = std::conditional_t<
+    //     kHeadDim == 64,
+    //     Copy_Atom<SM75_U16x4_LDSM_T, elem_type>,
+    //     Copy_Atom<SM75_U16x8_LDSM_T, elem_type>
+    // >;
 
     using Gmem_copy_struct = AutoVectorizingCopyWithAssumedAlignment<128>;
 
@@ -42,6 +49,7 @@ struct Flash_fwd_kernel_traits : public Base {
     using SmemCopyAtomQ = typename Base::SmemCopyAtomQ;
     using SmemCopyAtomK = typename Base::SmemCopyAtomK;
     using SmemCopyAtomV = typename Base::SmemCopyAtomV;
+    using SmemCopyAtomVt = typename Base::SmemCopyAtomV;
 
     static constexpr int kBlockM = kBlockM_;
     static constexpr int kBlockN = kBlockN_;
@@ -68,19 +76,33 @@ struct Flash_fwd_kernel_traits : public Base {
         Shape<Int<kBlockN>, Int<kHeadDim>>{}));
 
 
+    // using SmemLayoutAtomV = decltype(
+    //     composition(Swizzle<3, 3, 3>{},
+    //                 Layout<Shape<_64, _16>,
+    //                 Stride<_1, _64>>{}));
+
+    // using SmemLayoutV = decltype(tile_to_shape(
+    //     SmemLayoutAtomV{},
+    //     Shape<Int<kHeadDim>, Int<kBlockN>>{}));
+
     using SmemLayoutAtomV = decltype(
         composition(Swizzle<3, 3, 3>{},
-                    Layout<Shape<_64, _16>,
-                    Stride<_1, _64>>{}));
+                    Layout<Shape<_16, _64>,
+                    Stride<_64, _1>>{}));
 
     using SmemLayoutV = decltype(tile_to_shape(
         SmemLayoutAtomV{},
-        Shape<Int<kHeadDim>, Int<kBlockN>>{}));
+        Shape<Int<kBlockN>, Int<kHeadDim>>{}));
+
+    using SmemLayoutVTransposed = decltype(
+        composition(SmemLayoutV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
 
 
     using GmemLayoutAtomQK = Layout<Shape <_32, _8>, Stride<_8, _1>>;
 
-    using GmemLayoutAtomV = Layout<Shape <_8, _32>, Stride<_1, _8>>;
+    // using GmemLayoutAtomV = Layout<Shape <_8, _32>, Stride<_1, _8>>;
+    using GmemLayoutAtomV = Layout<Shape <_32, _8>, Stride<_8, _1>>;
+
 
     using GmemLayoutAtomO = Layout<Shape <_32, _8>, Stride<_8, _1>>;
 
@@ -90,10 +112,14 @@ struct Flash_fwd_kernel_traits : public Base {
                             GmemLayoutAtomQK{},
                             Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
 
+    // using GmemTiledCopyV = decltype(
+    //         make_tiled_copy(Copy_Atom<typename Base::Gmem_copy_struct, Element>{},
+    //                         GmemLayoutAtomV{},
+    //                         Layout<Shape<_8, _1>>{}));  // Val layout, 8 vals per read
     using GmemTiledCopyV = decltype(
             make_tiled_copy(Copy_Atom<typename Base::Gmem_copy_struct, Element>{},
                             GmemLayoutAtomV{},
-                            Layout<Shape<_8, _1>>{}));  // Val layout, 8 vals per read
+                            Layout<Shape<_1, _8>>{}));  // Val layout, 8 vals per read
 
     using GmemTiledCopyO = decltype(
             make_tiled_copy(Copy_Atom<typename Base::Gmem_copy_struct, Element>{},
