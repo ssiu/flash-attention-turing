@@ -34,7 +34,8 @@ inline __device__ void compute_dot_do_o(half_t* o_ptr,
     // block y = num_heads
     // block z = seqlen_q / 32
 
-    // each thread loads 4 elements from do and o
+    // each thread loads 4 elements from do and o if head_dim = 128
+    // 2 elements if head_dim = 64
 
     half_t rdO[4];
     half_t rO[4];
@@ -63,25 +64,26 @@ inline __device__ void compute_dot_do_o(half_t* o_ptr,
     int thread_row = warp_id;
     int thread_col = lane_id * elements_per_thread;
 
-    for (int i=0;i<elements_per_thread;i++) {
-        rO[i] = o_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];
-        rdO[i] = do_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];
+    if (blockIdx.z * 32 + thread_row < seqlen_q) {
+        for (int i=0;i<elements_per_thread;i++) {
+            rO[i] = o_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];
+            rdO[i] = do_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];
+        }
+
+        // thread reduction
+        for (int i=0;i<elements_per_thread;i ++) {
+            sum += static_cast<float>(rO[i]) * static_cast<float>(rdO[i]);
+
+        }
+
+
+        // warp reduction
+        for (int offset = 16; offset > 0; offset /= 2) {
+                sum += __shfl_down_sync(0xffffffff, sum, offset);
+        }
+
+        if (lane_id == 0) {
+           d_ptr[d_offset + thread_row] = sum;
+        }
     }
-
-    // thread reduction
-    for (int i=0;i<elements_per_thread;i ++) {
-        sum += static_cast<float>(rO[i]) * static_cast<float>(rdO[i]);
-
-    }
-
-
-    // warp reduction
-    for (int offset = 16; offset > 0; offset /= 2) {
-            sum += __shfl_down_sync(0xffffffff, sum, offset);
-    }
-
-    if (lane_id == 0) {
-       d_ptr[d_offset + thread_row] = sum;
-    }
-
 }
