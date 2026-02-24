@@ -18,6 +18,8 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                           int seqlen_q,
                           int seqlen_k,
                           int num_heads,
+                          int num_heads_k,
+                          int h_h_k_ratio,
                           int head_dim,
                           int is_casual)
 {
@@ -30,6 +32,8 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                                            seqlen_q,
                                            seqlen_k,
                                            num_heads,
+                                           num_heads_k,
+                                           h_h_k_ratio,
                                            head_dim,
                                            is_casual);
 }
@@ -63,6 +67,8 @@ void run_flash_fwd(Flash_fwd_params &params) {
                                                                                     params.seqlen_q,
                                                                                     params.seqlen_k,
                                                                                     params.h,
+                                                                                    params.h_k,
+                                                                                    params.h_h_k_ratio,
                                                                                     params.d,
                                                                                     params.is_causal);
 

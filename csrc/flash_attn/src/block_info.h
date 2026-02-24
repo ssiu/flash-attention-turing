@@ -22,6 +22,3 @@ struct BlockInfo {
     const int actual_seqlen_q;
     const int actual_seqlen_k;
 };
-
-
-

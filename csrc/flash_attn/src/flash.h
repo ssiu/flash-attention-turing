@@ -14,6 +14,8 @@ struct Qkv_params {
     int h;
     // In the case of multi-query and grouped-query attention (MQA/GQA), nheads_k could be
     // different from nheads (query).
+    int h_k;
+    int h_h_k_ratio;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

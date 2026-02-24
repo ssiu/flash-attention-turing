@@ -9,6 +9,7 @@ void set_params_fprop(Flash_fwd_params &params,
                       const size_t seqlen_q,
                       const size_t seqlen_k,
                       const size_t h,
+                      const size_t h_k,
                       const size_t d,
                       // device pointers
                       const at::Tensor q,
@@ -34,6 +35,8 @@ void set_params_fprop(Flash_fwd_params &params,
     params.seqlen_q = seqlen_q;
     params.seqlen_k = seqlen_k;
     params.h = h;
+    params.h_k = h_k;
+    params.h_h_k_ratio = h / h_k;
     params.d = d;
     params.is_causal = is_causal;
 }
@@ -45,6 +48,7 @@ void set_params_dgrad(Flash_bwd_params &params,
                       const size_t seqlen_q,
                       const size_t seqlen_k,
                       const size_t h,
+                      const size_t h_k,
                       const size_t d,
                       // device pointers
                       const at::Tensor q,
@@ -66,6 +70,7 @@ void set_params_dgrad(Flash_bwd_params &params,
                      seqlen_q,
                      seqlen_k,
                      h,
+                     h_k,
                      d,
                      q, k, v, out, l,
                      is_causal
@@ -120,6 +125,14 @@ mha_fwd(torch::Tensor q,
     int head_size = sizes[3];
 
     int seqlen_k = k.size(1);
+    int num_heads_k = k.size(2);
+
+    TORCH_CHECK(q.dim() == 4 && k.dim() == 4 && v.dim() == 4, "q, k, v must be rank-4 tensors");
+    TORCH_CHECK(k.size(0) == batch_size && v.size(0) == batch_size, "k/v batch size must match q");
+    TORCH_CHECK(v.size(1) == seqlen_k, "k and v seqlen_k must match");
+    TORCH_CHECK(v.size(2) == num_heads_k, "k and v num_heads must match");
+    TORCH_CHECK(k.size(3) == head_size && v.size(3) == head_size, "q/k/v head_dim must match");
+    TORCH_CHECK(num_heads % num_heads_k == 0, "num_heads_q must be divisible by num_heads_k for GQA/MQA");
 
     torch::Tensor o = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
 
@@ -141,6 +154,7 @@ mha_fwd(torch::Tensor q,
                      seqlen_q,
                      seqlen_k,
                      num_heads,
+                     num_heads_k,
                      head_size,
                      q, k, v, o, l,
                      is_causal
@@ -183,10 +197,26 @@ mha_bwd(torch::Tensor q,
     int head_size = sizes[3];
 
     int seqlen_k = k.size(1);
+    int num_heads_k = k.size(2);
+
+    TORCH_CHECK(q.dim() == 4 && k.dim() == 4 && v.dim() == 4, "q, k, v must be rank-4 tensors");
+    TORCH_CHECK(out.dim() == 4 && dout.dim() == 4, "out and dout must be rank-4 tensors");
+    TORCH_CHECK(k.size(0) == batch_size && v.size(0) == batch_size, "k/v batch size must match q");
+    TORCH_CHECK(v.size(1) == seqlen_k, "k and v seqlen_k must match");
+    TORCH_CHECK(v.size(2) == num_heads_k, "k and v num_heads must match");
+    TORCH_CHECK(k.size(3) == head_size && v.size(3) == head_size, "q/k/v head_dim must match");
+    TORCH_CHECK(out.sizes() == q.sizes() && dout.sizes() == q.sizes(), "out and dout must match q shape");
+    TORCH_CHECK(num_heads % num_heads_k == 0, "num_heads_q must be divisible by num_heads_k for GQA/MQA");
 
     torch::Tensor dq = torch::zeros(q.sizes(), q.options().dtype(torch::kFloat16));
     torch::Tensor dk = torch::zeros(k.sizes(), k.options().dtype(torch::kFloat16));
     torch::Tensor dv = torch::zeros(v.sizes(), v.options().dtype(torch::kFloat16));
+    torch::Tensor dk_expanded = dk;
+    torch::Tensor dv_expanded = dv;
+    if (num_heads != num_heads_k) {
+        dk_expanded = torch::zeros({batch_size, seqlen_k, num_heads, head_size}, k.options().dtype(torch::kFloat16));
+        dv_expanded = torch::zeros({batch_size, seqlen_k, num_heads, head_size}, v.options().dtype(torch::kFloat16));
+    }
 
     torch::Tensor do_o = torch::zeros(l.sizes(), l.options());
 
@@ -197,6 +227,7 @@ mha_bwd(torch::Tensor q,
                     seqlen_q,
                     seqlen_k,
                     num_heads,
+                    num_heads_k,
                     head_size,
                     q,
                     k,
@@ -205,12 +236,25 @@ mha_bwd(torch::Tensor q,
                     l,
                     dout,
                     dq,
-                    dk,
-                    dv,
+                    dk_expanded,
+                    dv_expanded,
                     do_o,
                     is_causal);
 
     run_mha_bwd(params);
+
+    if (num_heads != num_heads_k) {
+        torch::sum_out(
+            dk,
+            torch::reshape(dk_expanded, {batch_size, seqlen_k, num_heads_k, num_heads / num_heads_k, head_size}),
+            {3}
+        );
+        torch::sum_out(
+            dv,
+            torch::reshape(dv_expanded, {batch_size, seqlen_k, num_heads_k, num_heads / num_heads_k, head_size}),
+            {3}
+        );
+    }
 
 
     return {dq, dk, dv};
