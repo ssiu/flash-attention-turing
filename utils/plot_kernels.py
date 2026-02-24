@@ -170,7 +170,7 @@ for hdim in HDIMS:
 
         df_duration = df_combined[df_combined["Metric Name"] == "duration"].copy()
         df_throughput = df_combined[df_combined["Metric Name"] == "compute throughput"].copy()
-        output_prefix = f"{hdim}_{is_causal}"
+        causal_suffix = is_causal.lower()
 
         # Convert duration ns -> ms for easier comparison on plots
         df_duration["Metric Value"] = df_duration["Metric Value"] / 1_000_000
@@ -196,9 +196,9 @@ for hdim in HDIMS:
         plot_grouped_bars(
             df_fwd_speedup,
             ["pytorch_fwd", "flash_fwd"],
-            "Forward Speedup by Seq Len",
+            f"fwd, hdim = {hdim}, causal = {is_causal}, speedup",
             "Speedup (x)",
-            f"{output_prefix}_forward_speedup.png",
+            f"forward_{hdim}_{causal_suffix}_speedup.png",
             value_style="speedup",
         )
 
@@ -206,9 +206,9 @@ for hdim in HDIMS:
         plot_grouped_bars(
             df_throughput,
             ["flash_fwd", "pytorch_fwd"],
-            "Forward Compute Throughput by Seq Len",
+            f"fwd, hdim = {hdim}, causal = {is_causal}, compute throughput",
             "Compute Throughput (%)",
-            f"{output_prefix}_forward_throughput.png",
+            f"forward_{hdim}_{causal_suffix}_throughput.png",
             value_style="percent",
         )
 
@@ -229,9 +229,9 @@ for hdim in HDIMS:
         plot_grouped_bars(
             df_bwd_speedup,
             ["pytorch_bwd", "flash_bwd"],
-            "Backward Speedup by Seq Len",
+            f"bwd, hdim = {hdim}, causal = {is_causal}, speedup",
             "Speedup (x)",
-            f"{output_prefix}_backward_speedup.png",
+            f"backward_{hdim}_{causal_suffix}_speedup.png",
             value_style="speedup",
         )
 
@@ -239,8 +239,8 @@ for hdim in HDIMS:
         plot_grouped_bars(
             df_throughput,
             ["pytorch_bwd", "flash_bwd_dq", "flash_bwd_dk_dv"],
-            "Backward Compute Throughput by Seq Len",
+            f"bwd, hdim = {hdim}, causal = {is_causal}, compute throughput",
             "Compute Throughput (%)",
-            f"{output_prefix}_backward_throughput.png",
+            f"backward_{hdim}_{causal_suffix}_throughput.png",
             value_style="percent",
         )

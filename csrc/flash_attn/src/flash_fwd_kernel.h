@@ -31,6 +31,8 @@ inline __device__ void compute_attn_1rowblock(
                           const int seqlen_q,
                           const int seqlen_k,
                           const int num_heads,
+                          const int num_heads_k,
+                          const int h_h_k_ratio,
                           const int head_dim,
                           const int is_casual,
                           const int bidb,
@@ -55,11 +57,11 @@ inline __device__ void compute_attn_1rowblock(
 
 
 
-    Tensor mK = make_tensor(make_gmem_ptr(k + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
-                            make_shape(seqlen_k, num_heads, head_dim),
-                            make_stride(num_heads * head_dim, head_dim, Int<1>{}));
+    Tensor mK = make_tensor(make_gmem_ptr(k + binfo.k_offset(seqlen_k * num_heads_k * head_dim, bidb)),
+                            make_shape(seqlen_k, num_heads_k, head_dim),
+                            make_stride(num_heads_k * head_dim, head_dim, Int<1>{}));
 
-    Tensor gK = local_tile(mK(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+    Tensor gK = local_tile(mK(_, bidh / h_h_k_ratio, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
 
@@ -72,11 +74,11 @@ inline __device__ void compute_attn_1rowblock(
     // Tensor gV = local_tile(mV(_, bidh, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
     //                        make_coord(0, _));
 
-    Tensor mV = make_tensor(make_gmem_ptr(v + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
-                            make_shape(seqlen_k, num_heads, head_dim),
-                            make_stride(num_heads * head_dim, head_dim, Int<1>{}));
+    Tensor mV = make_tensor(make_gmem_ptr(v + binfo.k_offset(seqlen_k * num_heads_k * head_dim, bidb)),
+                            make_shape(seqlen_k, num_heads_k, head_dim),
+                            make_stride(num_heads_k * head_dim, head_dim, Int<1>{}));
 
-    Tensor gV = local_tile(mV(_, bidh, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
+    Tensor gV = local_tile(mV(_, bidh / h_h_k_ratio, _), Shape<Int<kBlockN>, Int<kHeadDim>>{},
                            make_coord(_, 0));
 
 
@@ -786,6 +788,8 @@ inline __device__ void compute_attn(half_t* __restrict__ q,
                                       int seqlen_q,
                                       int seqlen_k,
                                       int num_heads,
+                                      int num_heads_k,
+                                      int h_h_k_ratio,
                                       int head_dim,
                                       int is_casual) {
     const int m_block = blockIdx.x;
@@ -803,6 +807,8 @@ inline __device__ void compute_attn(half_t* __restrict__ q,
                                                     seqlen_q,
                                                     seqlen_k,
                                                     num_heads,
+                                                    num_heads_k,
+                                                    h_h_k_ratio,
                                                     head_dim,
                                                     is_casual,
                                                     bidb,
