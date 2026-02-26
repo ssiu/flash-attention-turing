@@ -14,6 +14,8 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                           half_t* __restrict__ v,
                           half_t* __restrict__ o,
                           float* __restrict__ l,
+                          int* __restrict__ cu_seqlens_q,
+                          int* __restrict__ cu_seqlens_k,
                           int batch_size,
                           int seqlen_q,
                           int seqlen_k,
@@ -21,6 +23,7 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                           int num_heads_k,
                           int h_h_k_ratio,
                           int head_dim,
+                          int is_seqlens_k_cumulative,
                           int is_casual)
 {
     compute_attn<Kernel_traits, Is_causal, Is_even_MN>(q,
@@ -28,6 +31,8 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                                            v,
                                            o,
                                            l,
+                                           cu_seqlens_q,
+                                           cu_seqlens_k,
                                            batch_size,
                                            seqlen_q,
                                            seqlen_k,
@@ -35,6 +40,7 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                                            num_heads_k,
                                            h_h_k_ratio,
                                            head_dim,
+                                           is_seqlens_k_cumulative,
                                            is_casual);
 }
 
@@ -49,7 +55,9 @@ void run_flash_fwd(Flash_fwd_params &params) {
 
     const int num_m_block = (params.seqlen_q + kBlockM - 1) / kBlockM;
 
-    const bool is_even_MN  = params.seqlen_q % kBlockM == 0 && params.seqlen_k % kBlockN == 0;
+    const bool is_even_MN  = params.cu_seqlens_q_ptr == nullptr &&
+                             params.seqlen_q % kBlockM == 0 &&
+                             params.seqlen_k % kBlockN == 0;
 
     dim3 dimGrid(num_m_block, params.b, params.h);
     dim3 dimBlock(256);
@@ -63,6 +71,8 @@ void run_flash_fwd(Flash_fwd_params &params) {
                                                                                     params.v_ptr,
                                                                                     params.o_ptr,
                                                                                     params.l_ptr,
+                                                                                    params.cu_seqlens_q_ptr,
+                                                                                    params.cu_seqlens_k_ptr,
                                                                                     params.b,
                                                                                     params.seqlen_q,
                                                                                     params.seqlen_k,
@@ -70,6 +80,7 @@ void run_flash_fwd(Flash_fwd_params &params) {
                                                                                     params.h_k,
                                                                                     params.h_h_k_ratio,
                                                                                     params.d,
+                                                                                    params.is_seqlens_k_cumulative,
                                                                                     params.is_causal);
 
     });

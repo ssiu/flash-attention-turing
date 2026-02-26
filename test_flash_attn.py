@@ -11,7 +11,9 @@ import numpy as np
 
 from flash_attn_turing import (
     fwd,
-    bwd
+    bwd,
+    varlen_fwd,
+    varlen_bwd,
 )
 
 torch.set_printoptions(threshold=torch.inf)
@@ -370,6 +372,21 @@ def memory_efficient_attention_ref(query, key, value, d_output=None, causal=Fals
             d_key_torch.permute(0, 2, 1, 3).contiguous(),
             d_value_torch.permute(0, 2, 1, 3).contiguous(),
         )
+
+
+def _cu_seqlens_from_lens(lengths, device):
+    cu = [0]
+    for x in lengths:
+        cu.append(cu[-1] + int(x))
+    return torch.tensor(cu, device=device, dtype=torch.int32)
+
+
+def _pack_varlen_dense(x, lengths):
+    # x: [B, S, H, D], pack first lengths[b] tokens from each batch row
+    chunks = [x[b, : int(lengths[b])] for b in range(len(lengths))]
+    if len(chunks) == 0:
+        return x.new_empty((0, x.shape[2], x.shape[3]))
+    return torch.cat(chunks, dim=0).contiguous()
 
 
 
@@ -890,3 +907,83 @@ def test_flash_attn_bwd(
     _assert_metrics(dq_metrics, name="dQ", **bwd_tols)
     _assert_metrics(dk_metrics, name="dK", **bwd_tols)
     _assert_metrics(dv_metrics, name="dV", **bwd_tols)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16])
+@pytest.mark.parametrize("d", [64])
+@pytest.mark.parametrize("batch_size", [3])
+@pytest.mark.parametrize("nheads, nheads_k", [(8, 8), (8, 2)])
+@pytest.mark.parametrize(
+    "lens_q,lens_k",
+    [
+        ([17, 64, 9], [19, 64, 11]),
+        ([65, 31, 7], [64, 47, 13]),
+    ],
+)
+@pytest.mark.parametrize("causal", [False, True])
+def test_flash_attn_varlen_bwd(batch_size, nheads, nheads_k, lens_q, lens_k, d, causal, dtype):
+    device = "cuda"
+    assert len(lens_q) == batch_size and len(lens_k) == batch_size
+
+    max_seqlen_q = max(lens_q)
+    max_seqlen_k = max(lens_k)
+
+    query = torch.randn(batch_size, max_seqlen_q, nheads, d, device=device, dtype=dtype)
+    key = torch.randn(batch_size, max_seqlen_k, nheads_k, d, device=device, dtype=dtype)
+    value = torch.randn(batch_size, max_seqlen_k, nheads_k, d, device=device, dtype=dtype)
+    d_output = torch.randn(batch_size, max_seqlen_q, nheads, d, device=device, dtype=dtype)
+
+    # Packed varlen inputs for the extension API.
+    q_packed = _pack_varlen_dense(query, lens_q)
+    k_packed = _pack_varlen_dense(key, lens_k)
+    v_packed = _pack_varlen_dense(value, lens_k)
+    do_packed = _pack_varlen_dense(d_output, lens_q)
+    cu_q = _cu_seqlens_from_lens(lens_q, device)
+    cu_k = _cu_seqlens_from_lens(lens_k, device)
+
+    # Reference by evaluating each sample at its true length and repacking.
+    ref_out = []
+    ref_dq = []
+    ref_dk = []
+    ref_dv = []
+    for b in range(batch_size):
+        lq = int(lens_q[b])
+        lk = int(lens_k[b])
+        out_b, dq_b, dk_b, dv_b = memory_efficient_attention_ref(
+            query[b:b + 1, :lq],
+            key[b:b + 1, :lk],
+            value[b:b + 1, :lk],
+            d_output[b:b + 1, :lq],
+            causal,
+        )
+        ref_out.append(out_b.squeeze(0))
+        ref_dq.append(dq_b.squeeze(0))
+        ref_dk.append(dk_b.squeeze(0))
+        ref_dv.append(dv_b.squeeze(0))
+
+    out_ref = torch.cat(ref_out, dim=0).contiguous()
+    dq_ref = torch.cat(ref_dq, dim=0).contiguous()
+    dk_ref = torch.cat(ref_dk, dim=0).contiguous()
+    dv_ref = torch.cat(ref_dv, dim=0).contiguous()
+
+    out, l = varlen_fwd(q_packed, k_packed, v_packed, cu_q, cu_k, max_seqlen_q, max_seqlen_k, causal)
+    dq, dk, dv = varlen_bwd(q_packed, k_packed, v_packed, out, l, do_packed, cu_q, cu_k, max_seqlen_q, max_seqlen_k, causal)
+
+    out_metrics = _error_metrics(out, out_ref)
+    dq_metrics = _error_metrics(dq, dq_ref)
+    dk_metrics = _error_metrics(dk, dk_ref)
+    dv_metrics = _error_metrics(dv, dv_ref)
+
+    bwd_tols = dict(
+        atol=5e-3,
+        rtol=1000,
+        rtol_l2=100,
+        mean_atol=2e-4,
+        mean_rtol=1e-2,
+        mean_rtol_l2=100,
+    )
+
+    _assert_metrics(out_metrics, name="varlen_output", **bwd_tols)
+    _assert_metrics(dq_metrics, name="varlen_dQ", **bwd_tols)
+    _assert_metrics(dk_metrics, name="varlen_dK", **bwd_tols)
+    _assert_metrics(dv_metrics, name="varlen_dV", **bwd_tols)

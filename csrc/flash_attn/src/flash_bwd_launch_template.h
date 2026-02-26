@@ -12,10 +12,12 @@ template<typename Kernel_traits, bool Is_causal>
 __global__ void flash_bwd_dot_do_o_kernel(half_t* o_ptr,
                                             half_t* do_ptr,
                                             float*  d_ptr,
+                                            int* cu_seqlens_q_ptr,
                                             int batch_size, int seqlen_q, int num_heads, int head_dim, int is_causal) {
     compute_dot_do_o<Kernel_traits, Is_causal>(o_ptr,
                                     do_ptr,
                                     d_ptr,
+                                    cu_seqlens_q_ptr,
                                     batch_size, seqlen_q, num_heads, head_dim, is_causal);
 }
 
@@ -31,9 +33,12 @@ void flash_bwd_dq_kernel(
     float * __restrict__ d_ptr,
     half_t * __restrict__ do_ptr,
     half_t * __restrict__ dq_ptr,
+    int * __restrict__ cu_seqlens_q_ptr,
+    int * __restrict__ cu_seqlens_k_ptr,
+    int is_seqlens_k_cumulative,
     int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, int is_causal) {
 
-        compute_dq<Kernel_traits, Is_causal, Is_even_MN>(q_ptr, k_ptr, v_ptr, l_ptr, d_ptr, do_ptr, dq_ptr,
+        compute_dq<Kernel_traits, Is_causal, Is_even_MN>(q_ptr, k_ptr, v_ptr, l_ptr, d_ptr, do_ptr, dq_ptr, cu_seqlens_q_ptr, cu_seqlens_k_ptr, is_seqlens_k_cumulative,
         batch_size, seqlen_q, seqlen_k, num_heads, num_heads_k, h_h_k_ratio, head_dim, is_causal);
 
 }
@@ -51,8 +56,11 @@ void flash_bwd_dk_dv_kernel(
     half_t * __restrict__ do_ptr,
     half_t* __restrict__ dk_ptr,
     half_t* __restrict__ dv_ptr,
+    int * __restrict__ cu_seqlens_q_ptr,
+    int * __restrict__ cu_seqlens_k_ptr,
+    int is_seqlens_k_cumulative,
     int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, int is_causal){
-        compute_dk_dv<Kernel_traits, Is_causal, Is_even_MN>(q_ptr, k_ptr, v_ptr, l_ptr, d_ptr, do_ptr, dk_ptr, dv_ptr,
+        compute_dk_dv<Kernel_traits, Is_causal, Is_even_MN>(q_ptr, k_ptr, v_ptr, l_ptr, d_ptr, do_ptr, dk_ptr, dv_ptr, cu_seqlens_q_ptr, cu_seqlens_k_ptr, is_seqlens_k_cumulative,
         batch_size, seqlen_q, seqlen_k, num_heads, num_heads_k, h_h_k_ratio, head_dim, is_causal);
 
 }
@@ -68,7 +76,9 @@ void run_flash_bwd(Flash_bwd_params &params) {
 
     constexpr int kBlockM = Kernel_traits::kBlockM;
     constexpr int kBlockN = Kernel_traits::kBlockN;
-    const bool is_even_MN  = params.seqlen_q % kBlockM == 0 && params.seqlen_k % kBlockN == 0;
+    const bool is_even_MN  = params.cu_seqlens_q_ptr == nullptr &&
+                             params.seqlen_q % kBlockM == 0 &&
+                             params.seqlen_k % kBlockN == 0;
     // compute dO \circ O
     // we use 1 warp to compute a single row
     // each thread block we launch 1024 = 32 x 32 threads = 32 warps
@@ -78,6 +88,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
     flash_bwd_dot_do_o_kernel<Kernel_traits, Is_causal><<<dimGrid_dot_do_o, dimBlock_dot_do_o>>>(params.o_ptr,
                     params.do_ptr,
                     params.do_o_ptr,
+                    params.cu_seqlens_q_ptr,
                     params.b, params.seqlen_q, params.h, params.d, params.is_causal);
 
 
@@ -100,6 +111,9 @@ void run_flash_bwd(Flash_bwd_params &params) {
                                             params.do_o_ptr,
                                             params.do_ptr,
                                             params.dq_ptr,
+                                            params.cu_seqlens_q_ptr,
+                                            params.cu_seqlens_k_ptr,
+                                            params.is_seqlens_k_cumulative,
                                             params.b, params.seqlen_q, params.seqlen_k, params.h, params.h_k, params.h_h_k_ratio, params.d, params.is_causal);
     });
 
@@ -121,6 +135,9 @@ void run_flash_bwd(Flash_bwd_params &params) {
                                                  params.do_ptr,
                                                  params.dk_ptr,
                                                  params.dv_ptr,
+                                                 params.cu_seqlens_q_ptr,
+                                                 params.cu_seqlens_k_ptr,
+                                                 params.is_seqlens_k_cumulative,
                                                  params.b, params.seqlen_q, params.seqlen_k, params.h, params.h_k, params.h_h_k_ratio, params.d, params.is_causal);
      });
 

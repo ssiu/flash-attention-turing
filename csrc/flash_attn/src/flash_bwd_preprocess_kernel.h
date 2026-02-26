@@ -15,6 +15,7 @@
 
 #include "kernel_traits.h"
 #include "utils.h"
+#include "block_info.h"
 
 
 using namespace cute;
@@ -23,6 +24,7 @@ template <typename Kernel_traits, bool Is_causal>
 inline __device__ void compute_dot_do_o(half_t* o_ptr,
                       half_t* do_ptr,
                       float*  d_ptr,
+                      int* cu_seqlens_q,
                       int batch_size, int seqlen_q, int num_heads, int head_dim, int is_causal)
 {
     // o_offset: (batch_size, seqlen_q, num_heads, head_dim)
@@ -45,8 +47,13 @@ inline __device__ void compute_dot_do_o(half_t* o_ptr,
     int warp_id = threadIdx.x / 32;
     int lane_id = threadIdx.x % 32;
 
-    int do_o_offset = blockIdx.x * seqlen_q * num_heads * head_dim + blockIdx.z * 32 * num_heads * head_dim + blockIdx.y * head_dim;
-    int d_offset = blockIdx.x * num_heads * seqlen_q + blockIdx.y * seqlen_q + blockIdx.z * 32;
+    const int bidb = blockIdx.x;
+    const int max_seqlen_q = seqlen_q;
+    const BlockInfo binfo(max_seqlen_q, max_seqlen_q, bidb, cu_seqlens_q, cu_seqlens_q);
+    const int actual_seqlen_q = binfo.actual_seqlen_q;
+
+    int do_o_offset = binfo.q_offset(num_heads * head_dim, bidb) + blockIdx.z * 32 * num_heads * head_dim + blockIdx.y * head_dim;
+    int d_offset = bidb * num_heads * max_seqlen_q + blockIdx.y * max_seqlen_q + blockIdx.z * 32;
 
     // each threadblock computes a 32 x headdim block
     // each warp computes a single row
@@ -64,7 +71,7 @@ inline __device__ void compute_dot_do_o(half_t* o_ptr,
     int thread_row = warp_id;
     int thread_col = lane_id * elements_per_thread;
 
-    if (blockIdx.z * 32 + thread_row < seqlen_q) {
+    if (blockIdx.z * 32 + thread_row < actual_seqlen_q) {
         for (int i=0;i<elements_per_thread;i++) {
             rO[i] = o_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];
             rdO[i] = do_ptr[do_o_offset + thread_row * num_heads * head_dim + thread_col + i];

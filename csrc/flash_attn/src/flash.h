@@ -16,6 +16,11 @@ struct Qkv_params {
     // different from nheads (query).
     int h_k;
     int h_h_k_ratio;
+
+    // Optional varlen cumulative sequence lengths (device pointers, int32).
+    int *__restrict__ cu_seqlens_q_ptr;
+    int *__restrict__ cu_seqlens_k_ptr;
+    bool is_seqlens_k_cumulative;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
