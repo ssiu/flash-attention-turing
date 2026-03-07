@@ -34,7 +34,9 @@ inline __device__ void compute_dq_1rowblock(
     float * __restrict__ d_ptr,
     const half_t * __restrict__ do_ptr,
     half_t* __restrict__ dq_ptr,
-    int batch_size, 
+    int * __restrict__ cu_seqlens_q,
+    int * __restrict__ cu_seqlens_k,
+    int batch_size,
     int seqlen_q, 
     int seqlen_k, 
     int num_heads, 
@@ -53,7 +55,18 @@ inline __device__ void compute_dq_1rowblock(
     //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
 
-    const BlockInfo binfo(seqlen_q, seqlen_k, bidb);
+    const int max_seqlen_q = seqlen_q;
+    const int max_seqlen_k = seqlen_k;
+    const BlockInfo binfo(max_seqlen_q, max_seqlen_k, bidb, cu_seqlens_q, cu_seqlens_k);
+
+    seqlen_q = binfo.actual_seqlen_q;
+    seqlen_k = binfo.actual_seqlen_k;
+
+
+    if (m_block * kBlockM >= seqlen_q) {
+        return;
+    }
+    
 
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
@@ -78,7 +91,7 @@ inline __device__ void compute_dq_1rowblock(
 
     // Q
 
-    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr + binfo.q_offset(num_heads * head_dim, bidb)),
                             make_shape(seqlen_q, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
@@ -87,7 +100,7 @@ inline __device__ void compute_dq_1rowblock(
 
     // K
 
-    Tensor mK = make_tensor(make_gmem_ptr(k_ptr + binfo.k_offset(seqlen_k * num_heads_k * head_dim, bidb)),
+    Tensor mK = make_tensor(make_gmem_ptr(k_ptr + binfo.k_offset(num_heads_k * head_dim, bidb)),
                             make_shape(seqlen_k, num_heads_k, head_dim),
                             make_stride(num_heads_k * head_dim, head_dim, Int<1>{}));
 
@@ -96,7 +109,7 @@ inline __device__ void compute_dq_1rowblock(
 
     // V
 
-    Tensor mV = make_tensor(make_gmem_ptr(v_ptr + binfo.k_offset(seqlen_k * num_heads_k * head_dim, bidb)),
+    Tensor mV = make_tensor(make_gmem_ptr(v_ptr + binfo.k_offset(num_heads_k * head_dim, bidb)),
                             make_shape(seqlen_k, num_heads_k, head_dim),
                             make_stride(num_heads_k * head_dim, head_dim, Int<1>{}));
 
@@ -106,23 +119,23 @@ inline __device__ void compute_dq_1rowblock(
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(l_ptr),
-                             make_shape(batch_size, num_heads, seqlen_q),
-                             make_stride(seqlen_q * num_heads,  seqlen_q, Int<1>{}));
+                             make_shape(batch_size, num_heads, max_seqlen_q),
+                             make_stride(max_seqlen_q * num_heads,  max_seqlen_q, Int<1>{}));
 
     Tensor gL = local_tile(mL(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(m_block));
 
 
     Tensor mD = make_tensor(make_gmem_ptr(d_ptr),
-                             make_shape(batch_size, num_heads, seqlen_q),
-                             make_stride(seqlen_q * num_heads,  seqlen_q, Int<1>{}));
+                             make_shape(batch_size, num_heads, max_seqlen_q),
+                             make_stride(max_seqlen_q * num_heads,  max_seqlen_q, Int<1>{}));
 
     Tensor gD = local_tile(mD(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(m_block));
 
     // dO
 
-    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr + binfo.q_offset(num_heads * head_dim, bidb)),
                              make_shape(seqlen_q, num_heads, head_dim),
                              make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
@@ -132,7 +145,7 @@ inline __device__ void compute_dq_1rowblock(
 
     // dQ
 
-    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+    Tensor mdQ = make_tensor(make_gmem_ptr(dq_ptr + binfo.q_offset(num_heads * head_dim, bidb)),
                             make_shape(seqlen_q, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
@@ -820,6 +833,8 @@ inline __device__ void compute_dq_1rowblock(
 //            printf("\n");
 //        }
 //    }
+    #undef seqlen_q
+    #undef seqlen_k
 }
 
 
@@ -834,6 +849,8 @@ inline __device__ void compute_dk_dv_1colblock(
     half_t * __restrict__ do_ptr,
     half_t* __restrict__ dk_ptr,
     half_t* __restrict__ dv_ptr,
+    int * __restrict__ cu_seqlens_q,
+    int * __restrict__ cu_seqlens_k,
     int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, int is_causal,
     int bidb, int bidh, int n_block
 )
@@ -843,7 +860,16 @@ inline __device__ void compute_dk_dv_1colblock(
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
     //constexpr int kNWarps = 8;
     //constexpr int kNThreads = kNWarps * 32;
-    const BlockInfo binfo(seqlen_q, seqlen_k, bidb);
+    const int max_seqlen_q = seqlen_q;
+    const int max_seqlen_k = seqlen_k;
+    const BlockInfo binfo(max_seqlen_q, max_seqlen_k, bidb, cu_seqlens_q, cu_seqlens_k);
+    seqlen_q = binfo.actual_seqlen_q;
+    seqlen_k = binfo.actual_seqlen_k;
+    
+    if (n_block * kBlockN >= seqlen_k) {
+        return;
+    }
+
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
     // for 8 warps, the 32x32 tiled mmas is like
@@ -864,7 +890,7 @@ inline __device__ void compute_dk_dv_1colblock(
 
     // Q
 
-    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+    Tensor mQ = make_tensor(make_gmem_ptr(q_ptr + binfo.q_offset(num_heads * head_dim, bidb)),
                             make_shape(seqlen_q, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
@@ -873,7 +899,7 @@ inline __device__ void compute_dk_dv_1colblock(
 
     // K
 
-    Tensor mK = make_tensor(make_gmem_ptr(k_ptr + binfo.k_offset(seqlen_k * num_heads_k * head_dim, bidb)),
+    Tensor mK = make_tensor(make_gmem_ptr(k_ptr + binfo.k_offset(num_heads_k * head_dim, bidb)),
                             make_shape(seqlen_k, num_heads_k, head_dim),
                             make_stride(num_heads_k * head_dim, head_dim, Int<1>{}));
 
@@ -882,7 +908,7 @@ inline __device__ void compute_dk_dv_1colblock(
 
     // V
 
-    Tensor mV = make_tensor(make_gmem_ptr(v_ptr+ binfo.k_offset(seqlen_k * num_heads_k * head_dim, bidb)),
+    Tensor mV = make_tensor(make_gmem_ptr(v_ptr+ binfo.k_offset(num_heads_k * head_dim, bidb)),
                             make_shape(seqlen_k, num_heads_k, head_dim),
                             make_stride(num_heads_k * head_dim, head_dim, Int<1>{}));
 
@@ -891,16 +917,16 @@ inline __device__ void compute_dk_dv_1colblock(
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(l_ptr),
-                             make_shape(batch_size, num_heads, seqlen_q),
-                             make_stride(seqlen_q * num_heads,  seqlen_q, Int<1>{}));
+                             make_shape(batch_size, num_heads, max_seqlen_q),
+                             make_stride(max_seqlen_q * num_heads,  max_seqlen_q, Int<1>{}));
 
     Tensor gL = local_tile(mL(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(_));
 
 
     Tensor mD = make_tensor(make_gmem_ptr(d_ptr),
-                             make_shape(batch_size, num_heads, seqlen_q),
-                             make_stride(seqlen_q * num_heads,  seqlen_q, Int<1>{}));
+                             make_shape(batch_size, num_heads, max_seqlen_q),
+                             make_stride(max_seqlen_q * num_heads,  max_seqlen_q, Int<1>{}));
 
     Tensor gD = local_tile(mD(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(_));
@@ -908,7 +934,7 @@ inline __device__ void compute_dk_dv_1colblock(
     // dO
 
 
-    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr+ binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+    Tensor mdO = make_tensor(make_gmem_ptr(do_ptr+ binfo.q_offset(num_heads * head_dim, bidb)),
                              make_shape(seqlen_q, num_heads, head_dim),
                              make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
@@ -916,7 +942,7 @@ inline __device__ void compute_dk_dv_1colblock(
                            make_coord(_, 0));
     // dV
 
-    Tensor mdV = make_tensor(make_gmem_ptr(dv_ptr + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
+    Tensor mdV = make_tensor(make_gmem_ptr(dv_ptr + binfo.k_offset(num_heads * head_dim, bidb)),
                             make_shape(seqlen_k, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
@@ -924,7 +950,7 @@ inline __device__ void compute_dk_dv_1colblock(
                            make_coord(n_block, 0));
     // dK
 
-    Tensor mdK = make_tensor(make_gmem_ptr(dk_ptr + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
+    Tensor mdK = make_tensor(make_gmem_ptr(dk_ptr + binfo.k_offset(num_heads * head_dim, bidb)),
                             make_shape(seqlen_k, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
@@ -1645,7 +1671,8 @@ inline __device__ void compute_dk_dv_1colblock(
 
     // copy(gmem_tiled_copy_QKV, tdKsdK_copy, tdKgdK_copy);
     // copy(gmem_tiled_copy_QKV, tdVsdV_copy, tdVgdV_copy);
-
+    #undef seqlen_q
+    #undef seqlen_k
 }
 
 
@@ -1659,6 +1686,8 @@ inline __device__ void compute_dq(
     float * __restrict__ d_ptr,
     half_t * __restrict__ do_ptr,
     half_t* __restrict__ dq_ptr,
+    int * __restrict__ cu_seqlens_q,
+    int * __restrict__ cu_seqlens_k,
     int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, int is_causal
 ) {
 
@@ -1675,6 +1704,9 @@ inline __device__ void compute_dq(
                                                     d_ptr,
                                                     do_ptr,
                                                     dq_ptr,
+                                                    cu_seqlens_q,
+                                                    cu_seqlens_k,
+                                                    
                                                     batch_size,
                                                     seqlen_q,
                                                     seqlen_k,
@@ -1699,6 +1731,8 @@ inline __device__ void compute_dk_dv(
     half_t * __restrict__ do_ptr,
     half_t* __restrict__ dk_ptr,
     half_t* __restrict__ dv_ptr,
+    int * __restrict__ cu_seqlens_q,
+    int * __restrict__ cu_seqlens_k,
     int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, int is_causal
 ) {
     const int n_block = blockIdx.x;
@@ -1715,6 +1749,8 @@ inline __device__ void compute_dk_dv(
                                                     do_ptr,
                                                     dk_ptr,
                                                     dv_ptr,
+                                                    cu_seqlens_q,
+                                                    cu_seqlens_k,
                                                     batch_size,
                                                     seqlen_q,
                                                     seqlen_k,
