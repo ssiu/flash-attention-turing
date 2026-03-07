@@ -14,6 +14,8 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                           half_t* __restrict__ v,
                           half_t* __restrict__ o,
                           float* __restrict__ l,
+                          int* __restrict__ cu_seqlens_q,
+                          int* __restrict__ cu_seqlens_k,
                           int batch_size,
                           int seqlen_q,
                           int seqlen_k,
@@ -28,6 +30,8 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                                            v,
                                            o,
                                            l,
+                                           cu_seqlens_q,
+                                           cu_seqlens_k,
                                            batch_size,
                                            seqlen_q,
                                            seqlen_k,
@@ -49,7 +53,10 @@ void run_flash_fwd(Flash_fwd_params &params) {
 
     const int num_m_block = (params.seqlen_q + kBlockM - 1) / kBlockM;
 
-    const bool is_even_MN  = params.seqlen_q % kBlockM == 0 && params.seqlen_k % kBlockN == 0;
+    const bool is_even_MN  = params.cu_seqlens_q == nullptr &&
+                             params.cu_seqlens_k == nullptr &&
+                             params.seqlen_q % kBlockM == 0 &&
+                             params.seqlen_k % kBlockN == 0;
 
     dim3 dimGrid(num_m_block, params.b, params.h);
     dim3 dimBlock(256);
@@ -63,6 +70,8 @@ void run_flash_fwd(Flash_fwd_params &params) {
                                                                                     params.v_ptr,
                                                                                     params.o_ptr,
                                                                                     params.l_ptr,
+                                                                                    params.cu_seqlens_q,
+                                                                                    params.cu_seqlens_k,
                                                                                     params.b,
                                                                                     params.seqlen_q,
                                                                                     params.seqlen_k,

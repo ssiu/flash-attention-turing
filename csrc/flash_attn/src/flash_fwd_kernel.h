@@ -27,9 +27,11 @@ inline __device__ void compute_attn_1rowblock(
                           const half_t* __restrict__ v,
                           half_t* __restrict__ o,
                           float* __restrict__ l,
+                          const int* __restrict__ cu_seqlens_q,
+                          const int* __restrict__ cu_seqlens_k,
                           const int batch_size,
-                          const int seqlen_q,
-                          const int seqlen_k,
+                          const int max_seqlen_q,
+                          const int max_seqlen_k,
                           const int num_heads,
                           const int num_heads_k,
                           const int h_h_k_ratio,
@@ -44,10 +46,18 @@ inline __device__ void compute_attn_1rowblock(
     constexpr int kBlockN = Kernel_traits::kBlockN;
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
 
-    const BlockInfo binfo(seqlen_q, seqlen_k, bidb);
+
+    const BlockInfo</*Varlen=*/!Is_even_MN> binfo(max_seqlen_q, max_seqlen_k, bidb, cu_seqlens_q, cu_seqlens_k);
+    const int seqlen_q = binfo.actual_seqlen_q;
+    const int seqlen_k = binfo.actual_seqlen_k;
 
 
-    Tensor mQ = make_tensor(make_gmem_ptr(q + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+    if (m_block * kBlockM >= seqlen_q) {
+        return;
+    }
+
+
+    Tensor mQ = make_tensor(make_gmem_ptr(q + binfo.q_offset(num_heads * head_dim, bidb)),
                             make_shape(seqlen_q, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
@@ -57,7 +67,7 @@ inline __device__ void compute_attn_1rowblock(
 
 
 
-    Tensor mK = make_tensor(make_gmem_ptr(k + binfo.k_offset(seqlen_k * num_heads_k * head_dim, bidb)),
+    Tensor mK = make_tensor(make_gmem_ptr(k + binfo.k_offset(num_heads_k * head_dim, bidb)),
                             make_shape(seqlen_k, num_heads_k, head_dim),
                             make_stride(num_heads_k * head_dim, head_dim, Int<1>{}));
 
@@ -74,7 +84,7 @@ inline __device__ void compute_attn_1rowblock(
     // Tensor gV = local_tile(mV(_, bidh, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
     //                        make_coord(0, _));
 
-    Tensor mV = make_tensor(make_gmem_ptr(v + binfo.k_offset(seqlen_k * num_heads_k * head_dim, bidb)),
+    Tensor mV = make_tensor(make_gmem_ptr(v + binfo.k_offset(num_heads_k * head_dim, bidb)),
                             make_shape(seqlen_k, num_heads_k, head_dim),
                             make_stride(num_heads_k * head_dim, head_dim, Int<1>{}));
 
@@ -82,7 +92,7 @@ inline __device__ void compute_attn_1rowblock(
                            make_coord(_, 0));
 
 
-    Tensor mO = make_tensor(make_gmem_ptr(o + binfo.q_offset(seqlen_q * num_heads * head_dim, bidb)),
+    Tensor mO = make_tensor(make_gmem_ptr(o + binfo.q_offset(num_heads * head_dim, bidb)),
                             make_shape(seqlen_q, num_heads, head_dim),
                             make_stride(num_heads * head_dim, head_dim, Int<1>{}));
 
@@ -91,8 +101,8 @@ inline __device__ void compute_attn_1rowblock(
 
     // L = m + log l
     Tensor mL = make_tensor(make_gmem_ptr(reinterpret_cast<float*>(l)),
-                             make_shape(batch_size, num_heads, seqlen_q),
-                             make_stride(seqlen_q * num_heads, seqlen_q, Int<1>{}));
+                             make_shape(batch_size, num_heads, max_seqlen_q),
+                             make_stride(max_seqlen_q * num_heads, max_seqlen_q, Int<1>{}));
 
     Tensor gL = local_tile(mL(bidb, bidh, _), Shape<Int<kBlockM>>{},
                            make_coord(m_block));
@@ -774,7 +784,8 @@ inline __device__ void compute_attn_1rowblock(
 
     }
 
-
+#undef seqlen_q
+#undef seqlen_k
 }
 
 
@@ -784,6 +795,8 @@ inline __device__ void compute_attn(half_t* __restrict__ q,
                                       half_t* __restrict__ v,
                                       half_t* __restrict__ o,
                                       float* __restrict__ l,
+                                      int* __restrict__ cu_seqlens_q,
+                                      int* __restrict__ cu_seqlens_k,
                                       int batch_size,
                                       int seqlen_q,
                                       int seqlen_k,
@@ -803,6 +816,8 @@ inline __device__ void compute_attn(half_t* __restrict__ q,
                                                     v,
                                                     o,
                                                     l,
+                                                    cu_seqlens_q,
+                                                    cu_seqlens_k,
                                                     batch_size,
                                                     seqlen_q,
                                                     seqlen_k,

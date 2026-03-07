@@ -2,6 +2,7 @@
 # one for time, for each seq len
 # one for throughput, for each seq len
 # assume 512, 1024, 2048, 4096, 16384
+import io
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -115,13 +116,25 @@ def clean_metric_names(metric_name):
     else:
         return metric_name
 
-def count_skip_rows(file_path):
-    marker_line = "==PROF== Disconnected from process"
-    with open(file_path, 'r') as file:
-        for i, line in enumerate(file):
-            if marker_line in line:
-                return i + 1  # Skip the marker line as well
-    return 0  # Default to 0 if the marker is not found
+def read_profiler_csv(file_path):
+    header_prefix = '"ID","Process ID","Process Name"'
+
+    with open(file_path, "r") as file:
+        lines = file.readlines()
+
+    header_idx = None
+    for i, line in enumerate(lines):
+        if line.startswith(header_prefix):
+            header_idx = i
+            break
+
+    if header_idx is None:
+        return pd.DataFrame(
+            columns=["Kernel Name", "Metric Name", "Metric Unit", "Metric Value"]
+        )
+
+    csv_buffer = io.StringIO("".join(lines[header_idx:]))
+    return pd.read_csv(csv_buffer)
 
 def compute_speed_up(df):
     df["Speed Up"] = 1
@@ -150,8 +163,10 @@ for hdim in HDIMS:
             if not os.path.exists(csv_file_path):
                 continue
 
-            skip_rows = count_skip_rows(csv_file_path)
-            df = pd.read_csv(csv_file_path, skiprows=skip_rows)
+            df = read_profiler_csv(csv_file_path)
+
+            if df.empty:
+                continue
 
             filtered_df = filter_df(df)
             filtered_df["Kernel Name"] = filtered_df["Kernel Name"].apply(clean_kernel_names)
