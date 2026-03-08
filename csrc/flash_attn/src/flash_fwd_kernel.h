@@ -283,7 +283,11 @@ inline __device__ void compute_attn_1rowblock(
     // prologue
 
     // copy(gmem_tiled_copy_QK, tQgQ, tQsQ);
-    masked_copy_read<Is_even_MN>(gmem_tiled_copy_QK, tQgQ, tQsQ, warp_id, lane_id, seqlen_q - m_block * kBlockM);
+    masked_copy<Is_even_MN>(
+        gmem_tiled_copy_QK, tQgQ, tQsQ, warp_id, lane_id, 
+        seqlen_q - m_block * kBlockM, 
+        /*clear_D=*/true);
+
 //    __syncthreads();
 
 //    if (thread0()) {
@@ -309,7 +313,10 @@ inline __device__ void compute_attn_1rowblock(
     Mask<Is_causal> accum_s_mask(seqlen_q, seqlen_k);
     // constexpr bool Is_even_MN = true; 
 
-    masked_copy_read<Is_even_MN>(gmem_tiled_copy_QK, tKgK(_,_,_,n_block), tKrK, warp_id, lane_id, seqlen_k - n_block * kBlockN);
+    masked_copy<Is_even_MN>(
+        gmem_tiled_copy_QK, tKgK(_,_,_,n_block), tKrK, warp_id, lane_id, 
+        seqlen_k - n_block * kBlockN,
+        /*clear_D=*/true);
     //copy(gmem_tiled_copy_QK, tKgK(_,_,_,n_block), tKrK);
     for (int masking_step = 0; masking_step < n_masking_steps; ++masking_step, --n_block) {
 
@@ -326,7 +333,10 @@ inline __device__ void compute_attn_1rowblock(
 
         if (n_block > n_block_min) {
 
-            masked_copy_read<Is_even_MN>(gmem_tiled_copy_QK, tKgK(_,_,_,n_block-1), tKrK, warp_id, lane_id, seqlen_k - (n_block-1) * kBlockN);
+            masked_copy<Is_even_MN>(
+                gmem_tiled_copy_QK, tKgK(_,_,_,n_block-1), tKrK, warp_id, lane_id, 
+                seqlen_k - (n_block-1) * kBlockN
+                /*clear_D=*/true);
             // copy(gmem_tiled_copy_QK, tKgK(_,_,_,n_block - 1 ), tKrK);
         }
 
@@ -340,7 +350,10 @@ inline __device__ void compute_attn_1rowblock(
         }
 
         __syncthreads();
-        masked_copy_read<Is_even_MN>(gmem_tiled_copy_QK, tVgV(_,_,_,n_block), tVsV, warp_id, lane_id, seqlen_k - n_block * kBlockN);
+        masked_copy<Is_even_MN>(
+            gmem_tiled_copy_QK, tVgV(_,_,_,n_block), tVsV, warp_id, lane_id, 
+            seqlen_k - n_block * kBlockN,
+            /*clear_D=*/true);
 
         // copy(gmem_tiled_copy_V, tVgV(_,_,_,n_block), tVsV);
         __syncthreads();
@@ -748,7 +761,10 @@ inline __device__ void compute_attn_1rowblock(
 //        print_tensor(sO);
 //    }
     //copy(gmem_tiled_copy_O, tOsO_copy, tOgO_copy);
-    masked_copy_store<Is_even_MN>(gmem_tiled_copy_O, tOsO_copy, tOgO_copy, warp_id, lane_id, seqlen_q - m_block * kBlockM);
+    masked_copy<Is_even_MN>(
+        gmem_tiled_copy_O, tOsO_copy, tOgO_copy, warp_id, lane_id, 
+        seqlen_q - m_block * kBlockM, 
+        /*clear_D=*/false);
 //    if (thread0()) {
 //        printf("\n");
 //        print_tensor(tOsO_copy);
@@ -784,8 +800,6 @@ inline __device__ void compute_attn_1rowblock(
 
     }
 
-#undef seqlen_q
-#undef seqlen_k
 }
 
 
