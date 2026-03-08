@@ -92,8 +92,8 @@ def save_2x2_grid(
 
     placement = [
         ("False", "speedup", (0, 0)),
-        ("True", "speedup", (0, 1)),
-        ("False", "throughput", (1, 0)),
+        ("False", "throughput", (0, 1)),
+        ("True", "speedup", (1, 0)),
         ("True", "throughput", (1, 1)),
     ]
 
