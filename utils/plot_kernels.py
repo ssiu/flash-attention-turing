@@ -5,10 +5,12 @@
 import io
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import os
 
-def plot_grouped_bars(df, kernels, title, ylabel, output_name, value_style="number"):
+def plot_grouped_bars(df, kernels, title, ylabel, output_name=None, value_style="number", ax=None):
     # Keep non-flash bars on the left and flash bars on the right.
     kernels = [k for k in kernels if "flash" not in k] + [k for k in kernels if "flash" in k]
     df_plot = df[df["Kernel Name"].isin(kernels)].copy()
@@ -28,7 +30,12 @@ def plot_grouped_bars(df, kernels, title, ylabel, output_name, value_style="numb
     # Keep bar thickness consistent across plots; match the 3-bar plot thickness.
     bar_width = 0.5 / 3
 
-    fig, ax = plt.subplots(figsize=(12, 6))
+    own_fig = ax is None
+    if own_fig:
+        fig, ax = plt.subplots(figsize=(12, 6))
+    else:
+        fig = ax.figure
+
     all_bars = []
     for i, kernel in enumerate(kernels):
         offset = (i - (len(kernels) - 1) / 2) * bar_width
@@ -63,8 +70,56 @@ def plot_grouped_bars(df, kernels, title, ylabel, output_name, value_style="numb
     ax.set_xticklabels(seq_lens)
     ax.legend()
     ax.margins(y=0.12)
-    plt.tight_layout()
-    plt.savefig(output_name, dpi=300, bbox_inches=None)
+    if own_fig:
+        fig.tight_layout()
+        if output_name:
+            fig.savefig(output_name, dpi=300, bbox_inches=None)
+        plt.close(fig)
+
+
+def save_2x2_grid(
+    hdim,
+    direction,
+    data_by_metric,
+    metric_configs,
+    output_name,
+    is_causals,
+):
+    """Render a 2x2 grid combining causal/no-causal and metric variants."""
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    fig.suptitle(f"{direction}, hdim={hdim}", fontsize=16)
+    has_data = False
+
+    placement = [
+        ("False", "speedup", (0, 0)),
+        ("True", "speedup", (0, 1)),
+        ("False", "throughput", (1, 0)),
+        ("True", "throughput", (1, 1)),
+    ]
+
+    for is_causal, metric, (row, col) in placement:
+        ax = axes[row, col]
+        df = data_by_metric.get(metric, {}).get(is_causal)
+        if df is None or df.empty:
+            ax.text(0.5, 0.5, "No data", ha="center", va="center", fontsize=12)
+            ax.set_axis_off()
+            continue
+
+        config = metric_configs[metric]
+        plot_grouped_bars(
+            df,
+            config["kernels"],
+            f"causal={is_causal}, {config['title_suffix']}",
+            config["ylabel"],
+            value_style=config["value_style"],
+            ax=ax,
+        )
+        has_data = True
+
+    if has_data:
+        fig.tight_layout(rect=(0, 0, 1, 0.96))
+        fig.savefig(output_name, dpi=300, bbox_inches=None)
+    plt.close(fig)
 
 
 # remove pytorch reduction kernels
@@ -155,6 +210,9 @@ SEQLENS  = [500, 512, 1000, 1024, 2000, 2048, 4000, 4096, 8000, 8192, 16000, 163
 IS_CAUSALS = ["False", "True"]
 
 for hdim in HDIMS:
+    forward_data = {"speedup": {}, "throughput": {}}
+    backward_data = {"speedup": {}, "throughput": {}}
+
     for is_causal in IS_CAUSALS:
         df_list = []
 
@@ -208,24 +266,10 @@ for hdim in HDIMS:
 
         # Forward speedup: pytorch fixed to 1, flash = pytorch/flash
         df_fwd_speedup = build_speedup_df(df_duration, "pytorch_fwd", "flash_fwd", "flash_fwd")
-        plot_grouped_bars(
-            df_fwd_speedup,
-            ["pytorch_fwd", "flash_fwd"],
-            f"fwd, hdim = {hdim}, causal = {is_causal}, speedup",
-            "Speedup (x)",
-            f"forward_{hdim}_{causal_suffix}_speedup.png",
-            value_style="speedup",
-        )
+        forward_data["speedup"][is_causal] = df_fwd_speedup
 
         # Forward throughput: flash_fwd vs pytorch_fwd
-        plot_grouped_bars(
-            df_throughput,
-            ["flash_fwd", "pytorch_fwd"],
-            f"fwd, hdim = {hdim}, causal = {is_causal}, compute throughput",
-            "Compute Throughput (%)",
-            f"forward_{hdim}_{causal_suffix}_throughput.png",
-            value_style="percent",
-        )
+        forward_data["throughput"][is_causal] = df_throughput.copy()
 
         # Backward duration: sum flash_bwd_* and compare with pytorch_bwd
         flash_bwd_duration = (
@@ -241,21 +285,53 @@ for hdim in HDIMS:
 
         df_bwd_duration = pd.concat([flash_bwd_duration, pytorch_bwd_duration], ignore_index=True)
         df_bwd_speedup = build_speedup_df(df_bwd_duration, "pytorch_bwd", "flash_bwd", "flash_bwd")
-        plot_grouped_bars(
-            df_bwd_speedup,
-            ["pytorch_bwd", "flash_bwd"],
-            f"bwd, hdim = {hdim}, causal = {is_causal}, speedup",
-            "Speedup (x)",
-            f"backward_{hdim}_{causal_suffix}_speedup.png",
-            value_style="speedup",
-        )
+        backward_data["speedup"][is_causal] = df_bwd_speedup
 
         # Backward throughput: pytorch_bwd vs flash_bwd_dq vs flash_bwd_dk_dv
-        plot_grouped_bars(
-            df_throughput,
-            ["pytorch_bwd", "flash_bwd_dq", "flash_bwd_dk_dv"],
-            f"bwd, hdim = {hdim}, causal = {is_causal}, compute throughput",
-            "Compute Throughput (%)",
-            f"backward_{hdim}_{causal_suffix}_throughput.png",
-            value_style="percent",
-        )
+        backward_data["throughput"][is_causal] = df_throughput.copy()
+
+    forward_configs = {
+        "speedup": {
+            "kernels": ["pytorch_fwd", "flash_fwd"],
+            "ylabel": "Speedup",
+            "value_style": "speedup",
+            "title_suffix": "speedup",
+        },
+        "throughput": {
+            "kernels": ["flash_fwd", "pytorch_fwd"],
+            "ylabel": "Compute Throughput (%)",
+            "value_style": "percent",
+            "title_suffix": "compute throughput",
+        },
+    }
+    save_2x2_grid(
+        hdim,
+        "fwd",
+        forward_data,
+        forward_configs,
+        f"forward_{hdim}_combined.png",
+        IS_CAUSALS,
+    )
+
+    backward_configs = {
+        "speedup": {
+            "kernels": ["pytorch_bwd", "flash_bwd"],
+            "ylabel": "Speedup",
+            "value_style": "speedup",
+            "title_suffix": "speedup",
+        },
+        "throughput": {
+            "kernels": ["pytorch_bwd", "flash_bwd_dq", "flash_bwd_dk_dv"],
+            "ylabel": "Compute Throughput (%)",
+            "value_style": "percent",
+            "title_suffix": "compute throughput",
+        },
+    }
+    save_2x2_grid(
+        hdim,
+        "bwd",
+        backward_data,
+        backward_configs,
+        f"backward_{hdim}_combined.png",
+        IS_CAUSALS,
+    )
