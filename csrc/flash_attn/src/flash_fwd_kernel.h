@@ -335,7 +335,7 @@ inline __device__ void compute_attn_1rowblock(
 
             masked_copy<Is_even_MN>(
                 gmem_tiled_copy_QK, tKgK(_,_,_,n_block-1), tKrK, warp_id, lane_id, 
-                seqlen_k - (n_block-1) * kBlockN
+                seqlen_k - (n_block-1) * kBlockN,
                 /*clear_D=*/true);
             // copy(gmem_tiled_copy_QK, tKgK(_,_,_,n_block - 1 ), tKrK);
         }
