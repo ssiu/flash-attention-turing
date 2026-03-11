@@ -1,14 +1,4 @@
-"""Python interface for FlashAttention Turing extension.
-
-Call stack (dense):
-    flash_attn_func
-      -> FlashAttnFunc.apply
-      -> FlashAttnFunc.forward
-      -> _flash_attn_forward
-      -> flash_attn_gpu.fwd  (pybind -> C++/CUDA)
-
-Backward mirrors the same structure with _flash_attn_backward / flash_attn_gpu.bwd.
-"""
+"""Python interface for FlashAttention Turing extension."""
 
 from typing import Optional, Tuple
 
@@ -85,78 +75,6 @@ def _flash_attn_varlen_backward(
     cu_seqlens_q = maybe_contiguous(cu_seqlens_q)
     cu_seqlens_k = maybe_contiguous(cu_seqlens_k)
     return flash_attn_gpu.varlen_bwd(
-        q,
-        k,
-        v,
-        out,
-        lse,
-        dout,
-        cu_seqlens_q,
-        cu_seqlens_k,
-        max_seqlen_q,
-        max_seqlen_k,
-        causal,
-    )
-
-
-# Compatibility aliases used by local tests/benchmarks.
-def fwd(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    causal: bool = False,
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    return _flash_attn_forward(q, k, v, causal)
-
-
-def bwd(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    out: torch.Tensor,
-    lse: torch.Tensor,
-    dout: torch.Tensor,
-    causal: bool = False,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    return _flash_attn_backward(q, k, v, out, lse, dout, causal)
-
-
-def varlen_fwd(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    cu_seqlens_q: torch.Tensor,
-    cu_seqlens_k: torch.Tensor,
-    max_seqlen_q: int,
-    max_seqlen_k: int,
-    causal: bool = False,
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    return _flash_attn_varlen_forward(
-        q,
-        k,
-        v,
-        cu_seqlens_q,
-        cu_seqlens_k,
-        max_seqlen_q,
-        max_seqlen_k,
-        causal,
-    )
-
-
-def varlen_bwd(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    out: torch.Tensor,
-    lse: torch.Tensor,
-    dout: torch.Tensor,
-    cu_seqlens_q: torch.Tensor,
-    cu_seqlens_k: torch.Tensor,
-    max_seqlen_q: int,
-    max_seqlen_k: int,
-    causal: bool = False,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    return _flash_attn_varlen_backward(
         q,
         k,
         v,
@@ -263,19 +181,3 @@ def flash_attn_varlen_func(
         max_seqlen_k,
         causal,
     )
-
-
-__all__ = [
-    "_flash_attn_forward",
-    "_flash_attn_backward",
-    "_flash_attn_varlen_forward",
-    "_flash_attn_varlen_backward",
-    "fwd",
-    "bwd",
-    "varlen_fwd",
-    "varlen_bwd",
-    "flash_attn_func",
-    "flash_attn_varlen_func",
-    "FlashAttnFunc",
-    "FlashAttnVarlenFunc",
-]

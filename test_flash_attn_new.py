@@ -9,11 +9,9 @@ from torch.nn.attention import bias
 import pandas as pd
 import numpy as np
 
-from flash_attn_turing import (
-    fwd,
-    bwd,
-    varlen_fwd,
-    varlen_bwd,
+from flash_attention_interface import (
+    flash_attn_func,
+    flash_attn_varlen_func,
 )
 
 torch.set_printoptions(threshold=torch.inf)
@@ -354,6 +352,10 @@ def test_flash_attn_bwd(
     value = torch.randn(batch_size, seqlen_k, nheads_k, d, device=device, dtype=dtype)
     d_output = torch.randn(batch_size, seqlen_q, nheads, d, device=device, dtype=dtype)
 
+    query_flash = query.clone().detach().requires_grad_(True)
+    key_flash = key.clone().detach().requires_grad_(True)
+    value_flash = value.clone().detach().requires_grad_(True)
+
     torch.set_printoptions(
         threshold=1_000_000,  # big enough to avoid truncation
         linewidth=300,
@@ -375,10 +377,22 @@ def test_flash_attn_bwd(
     d_key_torch = d_key_torch.detach().clone()
     d_value_torch = d_value_torch.detach().clone()
 
-    output, l = fwd(query, key, value, causal)
+    output_flash = flash_attn_func(query_flash, key_flash, value_flash, causal)
     torch.cuda.synchronize()
-    d_query, d_key, d_value = bwd(query, key, value, output, l, d_output, causal)
+    grad_output = d_output.contiguous()
+    d_query, d_key, d_value = torch.autograd.grad(
+        outputs=output_flash,
+        inputs=(query_flash, key_flash, value_flash),
+        grad_outputs=grad_output,
+        retain_graph=False,
+        allow_unused=False,
+    )
     torch.cuda.synchronize()
+
+    output = output_flash.detach()
+    d_query = d_query.detach()
+    d_key = d_key.detach()
+    d_value = d_value.detach()
 
     output_metrics = _error_metrics(output, output_torch)
     dq_metrics = _error_metrics(d_query, d_query_torch)
@@ -503,36 +517,6 @@ def test_flash_attn_bwd(
         df_kv_abs = _topk_rows_by_score(df_kv_abs, df_kv_abs["abs_score"])
         df_kv_rel = _topk_rows_by_score(df_kv_rel, df_kv_rel["rel_score"])
 
-        l_np = l.detach().cpu().numpy()
-        if l_np.shape == (batch_size, nheads, seqlen_q):
-            b_l, h_l, s_l = np.indices(l_np.shape)
-            l_df = pd.DataFrame({
-                "batch": b_l.flatten(),
-                "head": h_l.flatten(),
-                "seqlen": s_l.flatten(),
-                "l": l_np.flatten(),
-            })
-        elif l_np.shape == (batch_size, seqlen_q, nheads):
-            b_l, s_l, h_l = np.indices(l_np.shape)
-            l_df = pd.DataFrame({
-                "batch": b_l.flatten(),
-                "seqlen": s_l.flatten(),
-                "head": h_l.flatten(),
-                "l": l_np.flatten(),
-            })
-        elif l_np.shape == (batch_size, seqlen_q):
-            b_l, s_l = np.indices(l_np.shape)
-            l_df = pd.DataFrame({
-                "batch": b_l.flatten(),
-                "seqlen": s_l.flatten(),
-                "l": l_np.flatten(),
-            })
-        else:
-            dim_idx = np.indices(l_np.shape)
-            l_cols = {f"dim{i}": dim_idx[i].flatten() for i in range(l_np.ndim)}
-            l_df = pd.DataFrame(l_cols)
-            l_df["l"] = l_np.flatten()
-
         now = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_dir = "/outputs"
         os.makedirs(out_dir, exist_ok=True)
@@ -545,7 +529,6 @@ def test_flash_attn_bwd(
             df_rel.to_excel(writer, sheet_name="output_dq_rel", index=False)
             df_kv_abs.to_excel(writer, sheet_name="dk_dv_kv_abs", index=False)
             df_kv_rel.to_excel(writer, sheet_name="dk_dv_kv_rel", index=False)
-            l_df.to_excel(writer, sheet_name="l_values", index=False)
         print(f"Saved Excel debug file (failure case): {excel_path}")
 
     _assert_metrics(output_metrics, name="output", **bwd_tols)
@@ -751,12 +734,14 @@ def test_flash_attn_bwd_varlen(
         d_output_padded = torch.randn(batch_size, max_seqlen_q, nheads, d, device=device, dtype=dtype)
         d_output_packed = _pack_padded_tensor(d_output_padded, seqlens_q)
 
+    q_packed_flash = q_packed.clone().detach().requires_grad_(True)
+    k_packed_flash = k_packed.clone().detach().requires_grad_(True)
+    v_packed_flash = v_packed.clone().detach().requires_grad_(True)
 
-
-    out_packed, l = varlen_fwd(
-        q_packed,
-        k_packed,
-        v_packed,
+    out_packed_flash = flash_attn_varlen_func(
+        q_packed_flash,
+        k_packed_flash,
+        v_packed_flash,
         cu_seqlens_q,
         cu_seqlens_k,
         max_seqlen_q,
@@ -765,22 +750,20 @@ def test_flash_attn_bwd_varlen(
     )
     torch.cuda.synchronize()
 
-    dq_packed, dk_packed, dv_packed = varlen_bwd(
-        q_packed,
-        k_packed,
-        v_packed,
-        out_packed,
-        l,
-        d_output_packed,
-        cu_seqlens_q,
-        cu_seqlens_k,
-        max_seqlen_q,
-        max_seqlen_k,
-        causal,
+    grad_output_packed = d_output_packed.contiguous()
+    dq_packed, dk_packed, dv_packed = torch.autograd.grad(
+        outputs=out_packed_flash,
+        inputs=(q_packed_flash, k_packed_flash, v_packed_flash),
+        grad_outputs=grad_output_packed,
+        retain_graph=False,
+        allow_unused=False,
     )
     torch.cuda.synchronize()
 
-
+    out_packed = out_packed_flash.detach()
+    dq_packed = dq_packed.detach()
+    dk_packed = dk_packed.detach()
+    dv_packed = dv_packed.detach()
 
     output_ref = []
     dq_ref = []
@@ -827,7 +810,6 @@ def test_flash_attn_bwd_varlen(
     # print(f"seqlens_q = {seqlens_q}, seqlens_k = {seqlens_k}")
     # print(f"v_packed = {v_packed}")
     # print(f"seqlens_q = {seqlens_q}, seqlens_k = {seqlens_k}")
-    # print(f"l = {l}")
     # print(f"seqlens_q = {seqlens_q}, seqlens_k = {seqlens_k}")
     # print(f"out = {out_packed}, output_ref = {output_ref_packed}")
     # print(f"seqlens_q = {seqlens_q}, seqlens_k = {seqlens_k}")
@@ -948,8 +930,6 @@ def test_flash_attn_bwd_varlen(
         batch_idx = np.repeat(token_batch_q, nheads * d)
         seqlen_idx = np.repeat(token_pos_q, nheads * d)
 
-        l_np = l.detach().cpu().numpy()
-
         df = pd.DataFrame({
             "batch": batch_idx,
             "seqlen": seqlen_idx,
@@ -964,15 +944,6 @@ def test_flash_attn_bwd_varlen(
             "query": query_np.reshape(-1),
             "d_output": d_output_np.reshape(-1),
         })
-        if l_np.shape == (batch_size, nheads, max_seqlen_q):
-            l_values = l_np[batch_idx, head_idx, seqlen_idx]
-        elif l_np.shape == (batch_size, max_seqlen_q, nheads):
-            l_values = l_np[batch_idx, seqlen_idx, head_idx]
-        elif l_np.shape == (batch_size, max_seqlen_q):
-            l_values = l_np[batch_idx, seqlen_idx]
-        else:
-            l_values = np.full(batch_idx.shape, np.nan, dtype=np.float32)
-        df["l_value"] = l_values
         df["output_rel"] = _rel_err_col(df, "output_diff", "output_ref")
         df["d_query_rel"] = _rel_err_col(df, "d_query_diff", "d_query_ref")
         abs_score = _max_abs_score(df, ["output_diff", "d_query_diff"])
@@ -1020,36 +991,6 @@ def test_flash_attn_bwd_varlen(
         df_kv_abs = _topk_rows_by_score(df_kv_abs, df_kv_abs["abs_score"])
         df_kv_rel = _topk_rows_by_score(df_kv_rel, df_kv_rel["rel_score"])
 
-        l_np = l.detach().cpu().numpy()
-        if l_np.shape == (batch_size, nheads, max_seqlen_q):
-            b_l, h_l, s_l = np.indices(l_np.shape)
-            l_df = pd.DataFrame({
-                "batch": b_l.flatten(),
-                "head": h_l.flatten(),
-                "seqlen": s_l.flatten(),
-                "l": l_np.flatten(),
-            })
-        elif l_np.shape == (batch_size, max_seqlen_q, nheads):
-            b_l, s_l, h_l = np.indices(l_np.shape)
-            l_df = pd.DataFrame({
-                "batch": b_l.flatten(),
-                "seqlen": s_l.flatten(),
-                "head": h_l.flatten(),
-                "l": l_np.flatten(),
-            })
-        elif l_np.shape == (batch_size, max_seqlen_q):
-            b_l, s_l = np.indices(l_np.shape)
-            l_df = pd.DataFrame({
-                "batch": b_l.flatten(),
-                "seqlen": s_l.flatten(),
-                "l": l_np.flatten(),
-            })
-        else:
-            dim_idx = np.indices(l_np.shape)
-            l_cols = {f"dim{i}": dim_idx[i].flatten() for i in range(l_np.ndim)}
-            l_df = pd.DataFrame(l_cols)
-            l_df["l"] = l_np.flatten()
-
         now = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_dir = "/outputs"
         os.makedirs(out_dir, exist_ok=True)
@@ -1062,7 +1003,6 @@ def test_flash_attn_bwd_varlen(
             df_rel.to_excel(writer, sheet_name="output_dq_rel", index=False)
             df_kv_abs.to_excel(writer, sheet_name="dk_dv_kv_abs", index=False)
             df_kv_rel.to_excel(writer, sheet_name="dk_dv_kv_rel", index=False)
-            l_df.to_excel(writer, sheet_name="l_values", index=False)
         print(f"Saved Excel debug file (failure case): {excel_path}")
 
     _assert_metrics(output_metrics, name="output", **bwd_tols)
