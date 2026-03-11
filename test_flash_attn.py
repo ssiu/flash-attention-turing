@@ -9,7 +9,7 @@ from torch.nn.attention import bias
 import pandas as pd
 import numpy as np
 
-from flash_attn_turing import (
+from flash_attention_interface import (
     fwd,
     bwd,
     varlen_fwd,
