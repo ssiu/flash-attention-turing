@@ -70,7 +70,7 @@ inline __device__ void compute_dq_1rowblock(
 
     using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
 
-    // for 8 warps, the 32x32 tiled mmas is like
+    // for 8 warps, the 32x32 tiled mma is like
     // -------------------------------------
     // | Warp 0 | Warp 2 | Warp 4 | Warp 6 |
     // -------------------------------------
