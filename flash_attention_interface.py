@@ -17,7 +17,13 @@ def _flash_attn_forward(
     causal: bool,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     q, k, v = [maybe_contiguous(x) for x in (q, k, v)]
-    return flash_attn_gpu.fwd(q, k, v, causal)
+    out, lse = flash_attn_gpu.fwd(
+        q,
+        k,
+        v,
+        causal,
+    )
+    return out, lse
 
 
 def _flash_attn_backward(
@@ -30,7 +36,16 @@ def _flash_attn_backward(
     causal: bool,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     q, k, v, out, lse, dout = [maybe_contiguous(x) for x in (q, k, v, out, lse, dout)]
-    return flash_attn_gpu.bwd(q, k, v, out, lse, dout, causal)
+    dq, dk, dv = flash_attn_gpu.bwd(
+        q,
+        k,
+        v,
+        out,
+        lse,
+        dout,
+        causal,
+    )
+    return dq, dk, dv
 
 
 def _flash_attn_varlen_forward(
@@ -44,9 +59,7 @@ def _flash_attn_varlen_forward(
     causal: bool,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     q, k, v = [maybe_contiguous(x) for x in (q, k, v)]
-    cu_seqlens_q = maybe_contiguous(cu_seqlens_q)
-    cu_seqlens_k = maybe_contiguous(cu_seqlens_k)
-    return flash_attn_gpu.varlen_fwd(
+    out, lse = flash_attn_gpu.varlen_fwd(
         q,
         k,
         v,
@@ -56,6 +69,7 @@ def _flash_attn_varlen_forward(
         max_seqlen_k,
         causal,
     )
+    return out, lse
 
 
 def _flash_attn_varlen_backward(
@@ -72,9 +86,7 @@ def _flash_attn_varlen_backward(
     causal: bool,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     q, k, v, out, lse, dout = [maybe_contiguous(x) for x in (q, k, v, out, lse, dout)]
-    cu_seqlens_q = maybe_contiguous(cu_seqlens_q)
-    cu_seqlens_k = maybe_contiguous(cu_seqlens_k)
-    return flash_attn_gpu.varlen_bwd(
+    dq, dk, dv = flash_attn_gpu.varlen_bwd(
         q,
         k,
         v,
@@ -87,6 +99,7 @@ def _flash_attn_varlen_backward(
         max_seqlen_k,
         causal,
     )
+    return dq, dk, dv
 
 
 class FlashAttnFunc(torch.autograd.Function):

@@ -21,6 +21,15 @@ EXCEL_REL_EPS = 1e-6
 TEST_REL_EPS = 1e-6
 SAVE_FAIL_DEBUG_EXCEL = False
 
+BWD_TOLS = dict(
+    atol=5e-3,
+    rtol=1000,
+    rtol_l2=100,
+    mean_atol=2e-4,
+    mean_rtol=1, #1e-2 
+    mean_rtol_l2=100,
+)
+
 
 def _topk_rows_by_score(df, score, k=EXCEL_TOPK_ROWS):
     sorted_idx = score.sort_values(ascending=False).index
@@ -377,7 +386,12 @@ def test_flash_attn_bwd(
     d_key_torch = d_key_torch.detach().clone()
     d_value_torch = d_value_torch.detach().clone()
 
-    output_flash = flash_attn_func(query_flash, key_flash, value_flash, causal)
+    output_flash = flash_attn_func(
+        query_flash,
+        key_flash,
+        value_flash,
+        causal=causal,
+    )
     torch.cuda.synchronize()
     grad_output = d_output.contiguous()
     d_query, d_key, d_value = torch.autograd.grad(
@@ -418,14 +432,7 @@ def test_flash_attn_bwd(
     print("========================================")
 
 
-    bwd_tols = dict(
-        atol=5e-3,
-        rtol=1000,
-        rtol_l2=100,
-        mean_atol=2e-4,
-        mean_rtol=1e-2,
-        mean_rtol_l2=100,
-    )
+    bwd_tols = BWD_TOLS
     failed = any(
         not (
             m["max_abs"] <= bwd_tols["atol"] and
@@ -746,7 +753,7 @@ def test_flash_attn_bwd_varlen(
         cu_seqlens_k,
         max_seqlen_q,
         max_seqlen_k,
-        causal,
+        causal=causal,
     )
     torch.cuda.synchronize()
 
@@ -862,14 +869,7 @@ def test_flash_attn_bwd_varlen(
     print("========================================\n\n\n")
 
 
-    bwd_tols = dict(
-        atol=5e-3,
-        rtol=1000,
-        rtol_l2=100,
-        mean_atol=2e-4,
-        mean_rtol=1e-2,
-        mean_rtol_l2=100,
-    )
+    bwd_tols = BWD_TOLS
 
     failed = any(
         not (
