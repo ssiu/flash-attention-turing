@@ -304,7 +304,7 @@ inline __device__ void compute_dq_1rowblock(
     // int causal_offset_local = 0;
     // const int m_block_diff = (m_block_max - 1) - m_block;
 //    int shifted_m_block = m_block;
-    constexpr int n_masking_steps = (!Is_causal)
+    int n_masking_steps = (!Is_causal)
         ? 1
         : ((Is_even_MN && Is_causal) ? ceil_div(kBlockM, kBlockN) : ceil_div(kBlockM, kBlockN) + 1);
 
