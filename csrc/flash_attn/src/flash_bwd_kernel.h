@@ -329,7 +329,7 @@ inline __device__ void compute_dq_1rowblock(
         //     // take away kBlockM to get the index at the bottom for the above block
         //     causal_offset_local = causal_offset_local + kBlockN * causal_offset_global - kBlockM;
         // }
-        n_block_max = fminf(n_block_max, ceil_div(((m_block + 1) * kBlockM + seqlen_k - seqlen_q) / kBlockN));
+        n_block_max = fminf(n_block_max, ceil_div((m_block + 1) * kBlockM + seqlen_k - seqlen_q, kBlockN));
     
     }
 
