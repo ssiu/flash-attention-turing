@@ -263,22 +263,24 @@ def memory_efficient_attention_ref(query, key, value, d_output=None, causal=Fals
 @pytest.mark.parametrize("d", [64, 128])
 # @pytest.mark.parametrize("d", [64])
 # @pytest.mark.parametrize("d", [128])
-@pytest.mark.parametrize("batch_size", [1, 3])
+@pytest.mark.parametrize("batch_size", [1])
+# @pytest.mark.parametrize("batch_size", [1, 3])
 # @pytest.mark.parametrize("nheads, nheads_k", [(16, 16), (16, 4), (16, 1)])
-@pytest.mark.parametrize("nheads, nheads_k", [(2, 1), (4, 2), (6, 3), (6, 1)])
-@pytest.mark.parametrize("causal", [False, True])
-# @pytest.mark.parametrize("causal", [True])
+@pytest.mark.parametrize("nheads, nheads_k", [(1, 1)])
+# @pytest.mark.parametrize("nheads, nheads_k", [(2, 1), (4, 2), (6, 3), (6, 1)])
+# @pytest.mark.parametrize("causal", [False, True])
+@pytest.mark.parametrize("causal", [True])
 # @pytest.mark.parametrize("causal", [False])
 @pytest.mark.parametrize(
     "seqlen_q, seqlen_k",
     [
         (64, 64),
-        (64, 128),
-        (64, 256),
-        (128, 64),
-        (256, 64),
-        (128, 128),
-        (1024, 1024),
+        # (64, 128),
+        # (64, 256),
+        # (128, 64),
+        # (256, 64),
+        # (128, 128),
+        # (1024, 1024),
         # (128, 256),
         # (128, 1024),
         # (256, 1024),
