@@ -299,35 +299,41 @@ inline __device__ void compute_dq_1rowblock(
     const int m_block_max = ceil_div(seqlen_q, kBlockM);
     int n_block_max = ceil_div(seqlen_k, kBlockN);
 
-    int n_masking_steps = 1;
+    // int n_masking_steps = 1;
 
-    int causal_offset_local = 0;
-    const int m_block_diff = (m_block_max - 1) - m_block;
+    // int causal_offset_local = 0;
+    // const int m_block_diff = (m_block_max - 1) - m_block;
 //    int shifted_m_block = m_block;
+    constexpr int n_masking_steps = (!Is_causal)
+        ? 1
+        : ((Is_even_MN && Is_causal) ? ceil_div(kBlockM, kBlockN) : ceil_div(kBlockM, kBlockN) + 1);
 
     if constexpr(Is_causal) {
-        causal_offset_local = ((seqlen_k - 1) % kBlockN) - ((seqlen_q - 1) % kBlockM);
+        // causal_offset_local = ((seqlen_k - 1) % kBlockN) - ((seqlen_q - 1) % kBlockM);
 
-//        shifted_m_block = (m_block + (seqlen_k - seqlen_q) / kBlockM);
-//        n_block_max = (shifted_m_block + 1) * kBlockM / kBlockN;
-        int causal_offset_local_div = 0;
-        if (causal_offset_local >= 0) {
-            causal_offset_local_div = ceil_div(causal_offset_local, kBlockN);
-        } else {
-            causal_offset_local_div = causal_offset_local / kBlockN;
-        }
-        const int causal_offset_global = 1 - causal_offset_local_div;
 
-        if (m_block == m_block_max - 1) {
-            n_masking_steps = fminf(1 + causal_offset_global, n_block_max);
-        } else {
-            n_block_max = fmaxf(n_block_max - causal_offset_global - (m_block_diff - 1) * (kBlockM / kBlockN), 0);
-            n_masking_steps = fminf(3, n_block_max);
-            // add
-            // take away kBlockM to get the index at the bottom for the above block
-            causal_offset_local = causal_offset_local + kBlockN * causal_offset_global - kBlockM;
-        }
+        // int causal_offset_local_div = 0;
+        // if (causal_offset_local >= 0) {
+        //     causal_offset_local_div = ceil_div(causal_offset_local, kBlockN);
+        // } else {
+        //     causal_offset_local_div = causal_offset_local / kBlockN;
+        // }
+        // const int causal_offset_global = 1 - causal_offset_local_div;
+
+        // if (m_block == m_block_max - 1) {
+        //     n_masking_steps = fminf(1 + causal_offset_global, n_block_max);
+        // } else {
+        //     n_block_max = fmaxf(n_block_max - causal_offset_global - (m_block_diff - 1) * (kBlockM / kBlockN), 0);
+        //     n_masking_steps = fminf(3, n_block_max);
+        //     // add
+        //     // take away kBlockM to get the index at the bottom for the above block
+        //     causal_offset_local = causal_offset_local + kBlockN * causal_offset_global - kBlockM;
+        // }
+        n_block_max = fminf(n_block_max, ceil_div(((m_block + 1) * kBlockM + seqlen_k - seqlen_q) / kBlockN));
+    
     }
+
+
     // if seqlen_q > seqlen_k we exit early for the blocks with rows that are fully masked
     if (n_block_max == 0) {return;}
 
@@ -452,7 +458,7 @@ inline __device__ void compute_dq_1rowblock(
 //       }
 
         accum_SdP_mask.template apply_mask_bwd_dq<Is_causal, Is_even_MN>(
-            tSrS_float, tdPrdP_float, warp_id, lane_id, n_block, kBlockM, kBlockN, seqlen_k, head_dim, causal_offset_local
+            tSrS_float, tdPrdP_float, warp_id, lane_id, m_block, n_block, seqlen_q, seqlen_k, kBlockM, kBlockN, head_dim
         );
 
 //        if (thread(0)) {

@@ -80,12 +80,13 @@ struct Mask {
                                                         Tensor<Engine_dP, Layout_dP> &tensor_dP,
                                                         int warp_id,
                                                         int lane_id,
+                                                        int m_block,
                                                         int n_block,
+                                                        const int seqlen_q,
+                                                        const int seqlen_k,
                                                         int kBlockM,
                                                         int kBlockN,
-                                                        const int seqlen_k,
-                                                        const int head_dim,
-                                                        int &causal_offset_local) {
+                                                        const int head_dim) {
 
         constexpr bool Need_masking = Causal_mask || !Is_even_MN;
         // if (cute::thread0()) { printf("Has_alibi = %d, Causal_mask=%d, Is_local=%d, Is_even_MN = %d, Need_masking = %d\n", Has_alibi, Causal_mask, Is_local, Is_even_MN, Need_masking); }
@@ -94,6 +95,7 @@ struct Mask {
             // int global_col_offset = n_block * kBlockN; 
             int row_offset = (warp_id % 2) * 16 + (lane_id / 4);
             int col_offset = (warp_id / 2) * 8 + (lane_id % 4) * 2;
+            int global_row_offset = m_block * kBlockM;
             int global_col_offset = n_block * kBlockN;
             CUTE_UNROLL
             for (int i=0; i<2; i++) {
@@ -102,6 +104,7 @@ struct Mask {
                         for (int l=0;l<2;l++) {
                             int row = row_offset + 8 * j + 32 * k;
                             int col = col_offset + i + 32 * l;
+                            int global_row = global_row_offset + row;
                             int global_col = global_col_offset + col;
                             if constexpr (Causal_mask) {
 //                                int row = global_row_offset + row_offset + 8 * j + 32 * k;
@@ -109,7 +112,7 @@ struct Mask {
 //                                if (warp_id == 0 && lane_id == 0) {
 //                                    printf("warp_id = %d, lane_id = %d, i = %d, j = %d, k = %d, l = %d, row = %d, col = %d, causal_offset_local = %d\n", warp_id, lane_id, i, j, k, l, row, col, causal_offset_local);
 //                                }
-                                if (col - row > causal_offset_local) {
+                                if (global_col - global_row > seqlen_k - seqlen_q) {
                                     tensor_S(make_coord(i,j),k,l) = -1e20;
                                     tensor_dP(make_coord(i,j),k,l) = 0;
                                 }
@@ -124,7 +127,6 @@ struct Mask {
                     }
                 }
             }
-            causal_offset_local = (causal_offset_local == 0) ? kBlockN : causal_offset_local + kBlockN;
         }
     };
 
