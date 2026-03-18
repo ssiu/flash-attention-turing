@@ -11,7 +11,11 @@ import numpy as np
 
 from flash_attention_interface import (
     flash_attn_func,
+    flash_attn_kvpacked_func,
+    flash_attn_qkvpacked_func,
     flash_attn_varlen_func,
+    flash_attn_varlen_kvpacked_func,
+    flash_attn_varlen_qkvpacked_func,
 )
 
 torch.set_printoptions(threshold=torch.inf)
@@ -19,7 +23,7 @@ torch.set_printoptions(threshold=torch.inf)
 EXCEL_TOPK_ROWS = 10_000
 EXCEL_REL_EPS = 1e-6
 TEST_REL_EPS = 1e-6
-SAVE_FAIL_DEBUG_EXCEL = True
+SAVE_FAIL_DEBUG_EXCEL = False
 
 BWD_TOLS = dict(
     atol=5e-3,
@@ -268,13 +272,13 @@ def memory_efficient_attention_ref(query, key, value, d_output=None, causal=Fals
 @pytest.mark.parametrize(
     "seqlen_q, seqlen_k",
     [
-        # (64, 64),
-        # (64, 128),
-        # (64, 256),
-        # (128, 64),
-        # (256, 64),
-        # (128, 128),
-        # (1024, 1024),
+        (64, 64),
+        (64, 128),
+        (64, 256),
+        (128, 64),
+        (256, 64),
+        (128, 128),
+        (1024, 1024),
         # (128, 256),
         # (128, 1024),
         # (256, 1024),
@@ -307,7 +311,7 @@ def memory_efficient_attention_ref(query, key, value, d_output=None, causal=Fals
         # (768, 128),
         # (1024, 128),
         # (1024, 256),
-        (64, 2),
+        # (64, 2),
         # (127, 63),
         # (129, 65),
         # (128, 127),
@@ -349,7 +353,7 @@ def memory_efficient_attention_ref(query, key, value, d_output=None, causal=Fals
         # (1024, 1025),
     ],
 )
-def test_flash_attn_bwd(        
+def test_flash_attn(        
     batch_size, nheads, nheads_k, seqlen_q, seqlen_k,  d, causal, dtype
 ):
     
@@ -573,14 +577,14 @@ def _pack_padded_tensor(x, seqlens):
 @pytest.mark.parametrize(
     "max_seqlen_q, max_seqlen_k", 
     [
-        # (4, 4),
-        # (64, 64),
-        # (64, 128),
-        # (64, 256),
-        # (128, 64),
-        # (256, 64),
-        # (128, 128),
-        # (1024, 1024),
+        (4, 4),
+        (64, 64),
+        (64, 128),
+        (64, 256),
+        (128, 64),
+        (256, 64),
+        (128, 128),
+        (1024, 1024),
         # (128, 256),
         # (128, 1024),
         # (256, 1024),
@@ -588,7 +592,7 @@ def _pack_padded_tensor(x, seqlens):
         # (256, 128),
         # (512, 128),
         # (768, 128),
-        (1024, 128),
+        # (1024, 128),
         # (1024, 256),
         # (63, 63),
         # (65, 65),
@@ -655,7 +659,7 @@ def _pack_padded_tensor(x, seqlens):
         # (1024, 1025),
     ]
 )
-def test_flash_attn_bwd_varlen(
+def test_flash_attn_varlen(
     batch_size,
     nheads,
     nheads_k,
@@ -1005,6 +1009,532 @@ def test_flash_attn_bwd_varlen(
             df_kv_rel.to_excel(writer, sheet_name="dk_dv_kv_rel", index=False)
         print(f"Saved Excel debug file (failure case): {excel_path}")
 
+    _assert_metrics(output_metrics, name="output", **bwd_tols)
+    _assert_metrics(dq_metrics, name="dQ", **bwd_tols)
+    _assert_metrics(dk_metrics, name="dK", **bwd_tols)
+    _assert_metrics(dv_metrics, name="dV", **bwd_tols)
+
+
+def _print_metric_block(title, metrics, params=None):
+    print("\n")
+    print("========================================")
+    if title:
+        print(title)
+    if params is not None:
+        print(f"params: {params}")
+    print(
+        f"output max_abs={metrics['output']['max_abs']} mean_abs={metrics['output']['mean_abs']} "
+        f"max_rel={metrics['output']['max_rel']} mean_rel={metrics['output']['mean_rel']} "
+        f"l2_rel={metrics['output']['l2_rel']} rms_rel={metrics['output']['rms_rel']}"
+    )
+    print(
+        f"dQ     max_abs={metrics['dq']['max_abs']} mean_abs={metrics['dq']['mean_abs']} "
+        f"max_rel={metrics['dq']['max_rel']} mean_rel={metrics['dq']['mean_rel']} "
+        f"l2_rel={metrics['dq']['l2_rel']} rms_rel={metrics['dq']['rms_rel']}"
+    )
+    print(
+        f"dK     max_abs={metrics['dk']['max_abs']} mean_abs={metrics['dk']['mean_abs']} "
+        f"max_rel={metrics['dk']['max_rel']} mean_rel={metrics['dk']['mean_rel']} "
+        f"l2_rel={metrics['dk']['l2_rel']} rms_rel={metrics['dk']['rms_rel']}"
+    )
+    print(
+        f"dV     max_abs={metrics['dv']['max_abs']} mean_abs={metrics['dv']['mean_abs']} "
+        f"max_rel={metrics['dv']['max_rel']} mean_rel={metrics['dv']['mean_rel']} "
+        f"l2_rel={metrics['dv']['l2_rel']} rms_rel={metrics['dv']['rms_rel']}"
+    )
+    print("========================================")
+
+
+REGULAR_SEQLEN_CASES = [
+    (64, 64),
+    (64, 128),
+    (64, 256),
+    (128, 64),
+    (256, 64),
+    (128, 128),
+    (1024, 1024),
+    (128, 256),
+    (128, 1024),
+    (256, 1024),
+    (512, 1024),
+    (256, 128),
+    (512, 128),
+    (768, 128),
+    (1024, 128),
+    (1024, 256),
+    (63, 63),
+    (65, 65),
+    (127, 127),
+    (129, 129),
+    (1, 1),
+    (1, 2),
+    (2, 1),
+    (2, 2),
+    (64, 2),
+    (127, 63),
+    (129, 65),
+    (128, 127),
+    (128, 129),
+    (128, 1025),
+    (256, 1025),
+    (897, 1024),
+    (959, 1024),
+    (960, 1024),
+    (961, 1024),
+    (1023, 1024),
+    (1024, 1023),
+    (1024, 897),
+    (1, 64),
+    (1, 128),
+    (65, 64),
+    (65, 128),
+    (129, 64),
+    (129, 128),
+    (257, 64),
+    (257, 128),
+    (1, 1024),
+    (1025, 1024),
+    (64, 1),
+    (128, 1),
+    (64, 65),
+    (128, 65),
+    (64, 129),
+    (128, 129),
+    (64, 257),
+    (128, 257),
+    (1024, 1),
+    (1024, 1025),
+]
+
+
+VARLEN_SEQLEN_CASES = [
+    (4, 4),
+    (64, 64),
+    (64, 128),
+    (64, 256),
+    (128, 64),
+    (256, 64),
+    (128, 128),
+    (1024, 1024),
+    (128, 256),
+    (128, 1024),
+    (256, 1024),
+    (512, 1024),
+    (256, 128),
+    (512, 128),
+    (768, 128),
+    (1024, 128),
+    (1024, 256),
+    (63, 63),
+    (65, 65),
+    (127, 127),
+    (129, 129),
+    (1, 1),
+    (1, 2),
+    (2, 1),
+    (2, 2),
+    (64, 2),
+    (127, 63),
+    (129, 65),
+    (128, 127),
+    (128, 129),
+    (128, 1025),
+    (256, 1025),
+    (897, 1024),
+    (959, 1024),
+    (960, 1024),
+    (961, 1024),
+    (1023, 1024),
+    (1024, 1023),
+    (1024, 897),
+    (1, 64),
+    (1, 128),
+    (65, 64),
+    (65, 128),
+    (129, 64),
+    (129, 128),
+    (257, 64),
+    (257, 128),
+    (1, 1024),
+    (1025, 1024),
+    (64, 1),
+    (128, 1),
+    (64, 65),
+    (128, 65),
+    (64, 129),
+    (128, 129),
+    (64, 257),
+    (128, 257),
+    (1024, 1),
+    (1024, 1025),
+]
+
+
+@pytest.mark.parametrize("dtype", [torch.float16])
+@pytest.mark.parametrize("d", [64, 128])
+@pytest.mark.parametrize("batch_size", [1, 3])
+@pytest.mark.parametrize("nheads", [2, 4, 6])
+@pytest.mark.parametrize("causal", [False, True])
+@pytest.mark.parametrize("seqlen_q, seqlen_k", REGULAR_SEQLEN_CASES)
+def test_flash_attn_qkvpacked(batch_size, nheads, seqlen_q, seqlen_k, d, causal, dtype):
+    if seqlen_q != seqlen_k:
+        pytest.skip("flash_attn_qkvpacked_func requires q, k, v to share the same sequence length")
+
+    torch.cuda.init()
+    torch.cuda.current_device()
+    device = "cuda"
+
+    query = torch.randn(batch_size, seqlen_q, nheads, d, device=device, dtype=dtype)
+    key = torch.randn(batch_size, seqlen_q, nheads, d, device=device, dtype=dtype)
+    value = torch.randn(batch_size, seqlen_q, nheads, d, device=device, dtype=dtype)
+    d_output = torch.randn(batch_size, seqlen_q, nheads, d, device=device, dtype=dtype)
+
+    qkv_flash = torch.stack((query, key, value), dim=2).clone().detach().requires_grad_(True)
+
+    output_ref, dq_ref, dk_ref, dv_ref = memory_efficient_attention_ref(
+        query, key, value, d_output, causal
+    )
+    torch.cuda.synchronize()
+
+    output_flash = flash_attn_qkvpacked_func(qkv_flash, causal=causal)
+    torch.cuda.synchronize()
+
+    (dqkv,) = torch.autograd.grad(
+        outputs=output_flash,
+        inputs=(qkv_flash,),
+        grad_outputs=d_output.contiguous(),
+        retain_graph=False,
+        allow_unused=False,
+    )
+    torch.cuda.synchronize()
+
+    output_metrics = _error_metrics(output_flash.detach(), output_ref.detach())
+    dq_metrics = _error_metrics(dqkv[:, :, 0].detach(), dq_ref.detach())
+    dk_metrics = _error_metrics(dqkv[:, :, 1].detach(), dk_ref.detach())
+    dv_metrics = _error_metrics(dqkv[:, :, 2].detach(), dv_ref.detach())
+
+    _print_metric_block(
+        "flash_attn_qkvpacked_func",
+        {
+            "output": output_metrics,
+            "dq": dq_metrics,
+            "dk": dk_metrics,
+            "dv": dv_metrics,
+        },
+        (
+            f"batch_size={batch_size}, nheads={nheads}, seqlen={seqlen_q}, "
+            f"d={d}, causal={causal}, dtype={dtype}"
+        ),
+    )
+
+    bwd_tols = BWD_TOLS
+    _assert_metrics(output_metrics, name="output", **bwd_tols)
+    _assert_metrics(dq_metrics, name="dQ", **bwd_tols)
+    _assert_metrics(dk_metrics, name="dK", **bwd_tols)
+    _assert_metrics(dv_metrics, name="dV", **bwd_tols)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16])
+@pytest.mark.parametrize("d", [64, 128])
+@pytest.mark.parametrize("batch_size", [1, 3])
+@pytest.mark.parametrize("nheads, nheads_k", [(2, 1), (4, 2), (6, 3), (6, 1)])
+@pytest.mark.parametrize("causal", [False, True])
+@pytest.mark.parametrize("seqlen_q, seqlen_k", REGULAR_SEQLEN_CASES)
+def test_flash_attn_kvpacked(
+    batch_size, nheads, nheads_k, seqlen_q, seqlen_k, d, causal, dtype
+):
+    torch.cuda.init()
+    torch.cuda.current_device()
+    device = "cuda"
+
+    query = torch.randn(batch_size, seqlen_q, nheads, d, device=device, dtype=dtype)
+    key = torch.randn(batch_size, seqlen_k, nheads_k, d, device=device, dtype=dtype)
+    value = torch.randn(batch_size, seqlen_k, nheads_k, d, device=device, dtype=dtype)
+    d_output = torch.randn(batch_size, seqlen_q, nheads, d, device=device, dtype=dtype)
+
+    query_flash = query.clone().detach().requires_grad_(True)
+    kv_flash = torch.stack((key, value), dim=2).clone().detach().requires_grad_(True)
+
+    output_ref, dq_ref, dk_ref, dv_ref = memory_efficient_attention_ref(
+        query, key, value, d_output, causal
+    )
+    torch.cuda.synchronize()
+
+    output_flash = flash_attn_kvpacked_func(query_flash, kv_flash, causal=causal)
+    torch.cuda.synchronize()
+
+    dq_flash, dkv_flash = torch.autograd.grad(
+        outputs=output_flash,
+        inputs=(query_flash, kv_flash),
+        grad_outputs=d_output.contiguous(),
+        retain_graph=False,
+        allow_unused=False,
+    )
+    torch.cuda.synchronize()
+
+    output_metrics = _error_metrics(output_flash.detach(), output_ref.detach())
+    dq_metrics = _error_metrics(dq_flash.detach(), dq_ref.detach())
+    dk_metrics = _error_metrics(dkv_flash[:, :, 0].detach(), dk_ref.detach())
+    dv_metrics = _error_metrics(dkv_flash[:, :, 1].detach(), dv_ref.detach())
+
+    _print_metric_block(
+        "flash_attn_kvpacked_func",
+        {
+            "output": output_metrics,
+            "dq": dq_metrics,
+            "dk": dk_metrics,
+            "dv": dv_metrics,
+        },
+        (
+            f"batch_size={batch_size}, nheads={nheads}, nheads_k={nheads_k}, "
+            f"seqlen_q={seqlen_q}, seqlen_k={seqlen_k}, d={d}, causal={causal}, dtype={dtype}"
+        ),
+    )
+
+    bwd_tols = BWD_TOLS
+    _assert_metrics(output_metrics, name="output", **bwd_tols)
+    _assert_metrics(dq_metrics, name="dQ", **bwd_tols)
+    _assert_metrics(dk_metrics, name="dK", **bwd_tols)
+    _assert_metrics(dv_metrics, name="dV", **bwd_tols)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16])
+@pytest.mark.parametrize("d", [64, 128])
+@pytest.mark.parametrize("batch_size", [1, 3])
+@pytest.mark.parametrize("nheads", [2, 4, 6])
+@pytest.mark.parametrize("causal", [False, True])
+@pytest.mark.parametrize("max_seqlen", [case[0] for case in VARLEN_SEQLEN_CASES if case[0] == case[1]])
+def test_flash_attn_varlen_qkvpacked(batch_size, nheads, max_seqlen, d, causal, dtype):
+    torch.cuda.init()
+    torch.cuda.current_device()
+    device = "cuda"
+
+    seqlens = torch.randint(1, max_seqlen + 1, (batch_size,), dtype=torch.int32)
+    if batch_size > 0:
+        idx = torch.randint(0, batch_size, (1,), dtype=torch.int64).item()
+        seqlens[idx] = max_seqlen
+
+    cu_seqlens = torch.cat(
+        [torch.tensor([0], dtype=torch.int32), torch.cumsum(seqlens, dim=0, dtype=torch.int32)]
+    ).to(device=device, dtype=torch.int32)
+
+    total = int(cu_seqlens[-1].item())
+    q_packed = torch.randn(total, nheads, d, device=device, dtype=dtype)
+    k_packed = torch.randn(total, nheads, d, device=device, dtype=dtype)
+    v_packed = torch.randn(total, nheads, d, device=device, dtype=dtype)
+    d_output_packed = torch.randn(total, nheads, d, device=device, dtype=dtype)
+
+    qkv_packed_flash = (
+        torch.stack((q_packed, k_packed, v_packed), dim=1).clone().detach().requires_grad_(True)
+    )
+
+    q_padded = torch.zeros(batch_size, max_seqlen, nheads, d, device=device, dtype=dtype)
+    k_padded = torch.zeros(batch_size, max_seqlen, nheads, d, device=device, dtype=dtype)
+    v_padded = torch.zeros(batch_size, max_seqlen, nheads, d, device=device, dtype=dtype)
+    d_output_padded = torch.zeros(batch_size, max_seqlen, nheads, d, device=device, dtype=dtype)
+
+    offset = 0
+    for i, seqlen in enumerate(seqlens.tolist()):
+        next_offset = offset + seqlen
+        q_padded[i, :seqlen] = q_packed[offset:next_offset]
+        k_padded[i, :seqlen] = k_packed[offset:next_offset]
+        v_padded[i, :seqlen] = v_packed[offset:next_offset]
+        d_output_padded[i, :seqlen] = d_output_packed[offset:next_offset]
+        offset = next_offset
+
+    out_flash = flash_attn_varlen_qkvpacked_func(
+        qkv_packed_flash,
+        cu_seqlens,
+        max_seqlen,
+        causal=causal,
+    )
+    torch.cuda.synchronize()
+
+    (dqkv_flash,) = torch.autograd.grad(
+        outputs=out_flash,
+        inputs=(qkv_packed_flash,),
+        grad_outputs=d_output_packed.contiguous(),
+        retain_graph=False,
+        allow_unused=False,
+    )
+    torch.cuda.synchronize()
+
+    output_ref = []
+    dq_ref = []
+    dk_ref = []
+    dv_ref = []
+
+    for i, seqlen_i in enumerate(seqlens.tolist()):
+        q_i = q_padded[i:i + 1, :seqlen_i].contiguous()
+        k_i = k_padded[i:i + 1, :seqlen_i].contiguous()
+        v_i = v_padded[i:i + 1, :seqlen_i].contiguous()
+        d_out_i = d_output_padded[i:i + 1, :seqlen_i].contiguous()
+        out_i, dq_i, dk_i, dv_i = vanilla_attention_ref(q_i, k_i, v_i, d_out_i, causal)
+        output_ref.append(out_i.squeeze(0))
+        dq_ref.append(dq_i.squeeze(0))
+        dk_ref.append(dk_i.squeeze(0))
+        dv_ref.append(dv_i.squeeze(0))
+
+    output_ref_packed = torch.cat(output_ref, dim=0)
+    dq_ref_packed = torch.cat(dq_ref, dim=0)
+    dk_ref_packed = torch.cat(dk_ref, dim=0)
+    dv_ref_packed = torch.cat(dv_ref, dim=0)
+
+    output_metrics = _error_metrics(out_flash.detach(), output_ref_packed.detach())
+    dq_metrics = _error_metrics(dqkv_flash[:, 0].detach(), dq_ref_packed.detach())
+    dk_metrics = _error_metrics(dqkv_flash[:, 1].detach(), dk_ref_packed.detach())
+    dv_metrics = _error_metrics(dqkv_flash[:, 2].detach(), dv_ref_packed.detach())
+
+    _print_metric_block(
+        "flash_attn_varlen_qkvpacked_func",
+        {
+            "output": output_metrics,
+            "dq": dq_metrics,
+            "dk": dk_metrics,
+            "dv": dv_metrics,
+        },
+        (
+            f"batch_size={batch_size}, nheads={nheads}, max_seqlen={max_seqlen}, "
+            f"d={d}, causal={causal}, dtype={dtype}, seqlens={seqlens.tolist()}"
+        ),
+    )
+
+    bwd_tols = BWD_TOLS
+    _assert_metrics(output_metrics, name="output", **bwd_tols)
+    _assert_metrics(dq_metrics, name="dQ", **bwd_tols)
+    _assert_metrics(dk_metrics, name="dK", **bwd_tols)
+    _assert_metrics(dv_metrics, name="dV", **bwd_tols)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16])
+@pytest.mark.parametrize("d", [64, 128])
+@pytest.mark.parametrize("batch_size", [1, 3])
+@pytest.mark.parametrize("nheads, nheads_k", [(2, 1), (4, 2), (6, 3), (6, 1)])
+@pytest.mark.parametrize("causal", [False, True])
+@pytest.mark.parametrize("max_seqlen_q, max_seqlen_k", VARLEN_SEQLEN_CASES)
+def test_flash_attn_varlen_kvpacked(
+    batch_size, nheads, nheads_k, max_seqlen_q, max_seqlen_k, d, causal, dtype
+):
+    torch.cuda.init()
+    torch.cuda.current_device()
+    device = "cuda"
+
+    seqlens_q = torch.randint(1, max_seqlen_q + 1, (batch_size,), dtype=torch.int32)
+    seqlens_k = torch.randint(1, max_seqlen_k + 1, (batch_size,), dtype=torch.int32)
+
+    if batch_size > 0:
+        idx_q = torch.randint(0, batch_size, (1,), dtype=torch.int64).item()
+        if batch_size > 1:
+            idx_k = torch.randint(0, batch_size - 1, (1,), dtype=torch.int64).item()
+            if idx_k >= idx_q:
+                idx_k += 1
+        else:
+            idx_k = idx_q
+        seqlens_q[idx_q] = max_seqlen_q
+        seqlens_k[idx_k] = max_seqlen_k
+
+    cu_seqlens_q = torch.cat(
+        [torch.tensor([0], dtype=torch.int32), torch.cumsum(seqlens_q, dim=0, dtype=torch.int32)]
+    ).to(device=device, dtype=torch.int32)
+    cu_seqlens_k = torch.cat(
+        [torch.tensor([0], dtype=torch.int32), torch.cumsum(seqlens_k, dim=0, dtype=torch.int32)]
+    ).to(device=device, dtype=torch.int32)
+
+    total_q = int(cu_seqlens_q[-1].item())
+    total_k = int(cu_seqlens_k[-1].item())
+
+    q_packed = torch.randn(total_q, nheads, d, device=device, dtype=dtype)
+    k_packed = torch.randn(total_k, nheads_k, d, device=device, dtype=dtype)
+    v_packed = torch.randn(total_k, nheads_k, d, device=device, dtype=dtype)
+    d_output_packed = torch.randn(total_q, nheads, d, device=device, dtype=dtype)
+
+    q_packed_flash = q_packed.clone().detach().requires_grad_(True)
+    kv_packed_flash = (
+        torch.stack((k_packed, v_packed), dim=1).clone().detach().requires_grad_(True)
+    )
+
+    q_padded = torch.zeros(batch_size, max_seqlen_q, nheads, d, device=device, dtype=dtype)
+    k_padded = torch.zeros(batch_size, max_seqlen_k, nheads_k, d, device=device, dtype=dtype)
+    v_padded = torch.zeros(batch_size, max_seqlen_k, nheads_k, d, device=device, dtype=dtype)
+    d_output_padded = torch.zeros(batch_size, max_seqlen_q, nheads, d, device=device, dtype=dtype)
+
+    offset_q = 0
+    for i, seqlen in enumerate(seqlens_q.tolist()):
+        next_offset = offset_q + seqlen
+        q_padded[i, :seqlen] = q_packed[offset_q:next_offset]
+        d_output_padded[i, :seqlen] = d_output_packed[offset_q:next_offset]
+        offset_q = next_offset
+
+    offset_k = 0
+    for i, seqlen in enumerate(seqlens_k.tolist()):
+        next_offset = offset_k + seqlen
+        k_padded[i, :seqlen] = k_packed[offset_k:next_offset]
+        v_padded[i, :seqlen] = v_packed[offset_k:next_offset]
+        offset_k = next_offset
+
+    out_flash = flash_attn_varlen_kvpacked_func(
+        q_packed_flash,
+        kv_packed_flash,
+        cu_seqlens_q,
+        cu_seqlens_k,
+        max_seqlen_q,
+        max_seqlen_k,
+        causal=causal,
+    )
+    torch.cuda.synchronize()
+
+    dq_flash, dkv_flash = torch.autograd.grad(
+        outputs=out_flash,
+        inputs=(q_packed_flash, kv_packed_flash),
+        grad_outputs=d_output_packed.contiguous(),
+        retain_graph=False,
+        allow_unused=False,
+    )
+    torch.cuda.synchronize()
+
+    output_ref = []
+    dq_ref = []
+    dk_ref = []
+    dv_ref = []
+
+    for i, (seqlen_q_i, seqlen_k_i) in enumerate(zip(seqlens_q.tolist(), seqlens_k.tolist())):
+        q_i = q_padded[i:i + 1, :seqlen_q_i].contiguous()
+        k_i = k_padded[i:i + 1, :seqlen_k_i].contiguous()
+        v_i = v_padded[i:i + 1, :seqlen_k_i].contiguous()
+        d_out_i = d_output_padded[i:i + 1, :seqlen_q_i].contiguous()
+        out_i, dq_i, dk_i, dv_i = vanilla_attention_ref(q_i, k_i, v_i, d_out_i, causal)
+        output_ref.append(out_i.squeeze(0))
+        dq_ref.append(dq_i.squeeze(0))
+        dk_ref.append(dk_i.squeeze(0))
+        dv_ref.append(dv_i.squeeze(0))
+
+    output_ref_packed = torch.cat(output_ref, dim=0)
+    dq_ref_packed = torch.cat(dq_ref, dim=0)
+    dk_ref_packed = torch.cat(dk_ref, dim=0)
+    dv_ref_packed = torch.cat(dv_ref, dim=0)
+
+    output_metrics = _error_metrics(out_flash.detach(), output_ref_packed.detach())
+    dq_metrics = _error_metrics(dq_flash.detach(), dq_ref_packed.detach())
+    dk_metrics = _error_metrics(dkv_flash[:, 0].detach(), dk_ref_packed.detach())
+    dv_metrics = _error_metrics(dkv_flash[:, 1].detach(), dv_ref_packed.detach())
+
+    _print_metric_block(
+        "flash_attn_varlen_kvpacked_func",
+        {
+            "output": output_metrics,
+            "dq": dq_metrics,
+            "dk": dk_metrics,
+            "dv": dv_metrics,
+        },
+        (
+            f"batch_size={batch_size}, nheads={nheads}, nheads_k={nheads_k}, "
+            f"max_seqlen_q={max_seqlen_q}, max_seqlen_k={max_seqlen_k}, "
+            f"d={d}, causal={causal}, dtype={dtype}, "
+            f"seqlens_q={seqlens_q.tolist()}, seqlens_k={seqlens_k.tolist()}"
+        ),
+    )
+
+    bwd_tols = BWD_TOLS
     _assert_metrics(output_metrics, name="output", **bwd_tols)
     _assert_metrics(dq_metrics, name="dQ", **bwd_tols)
     _assert_metrics(dk_metrics, name="dK", **bwd_tols)
