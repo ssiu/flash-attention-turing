@@ -18,8 +18,8 @@ batch_size=4
 num_heads=16
 num_heads_k=16
 hdims=(64 128)
-seqlens=(512 1024 2048 4096 8192 16384 500 1000 2000 4000 8000 16000)
-# seqlens=(8192 16384 8000 16000)
+# seqlens=(512 1024 2048 4096 8192 16384 500 1000 2000 4000 8000 16000)
+seqlens=(8192 16384 8000 16000)
 is_causals=(False True)
 # sizes=(500 1000 2000 4000 8000 16000)
 
@@ -33,7 +33,7 @@ for seqlen in "${seqlens[@]}"; do
             ncu --metrics gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed \
                 --kernel-name-base demangled \
                 --kernel-name ::regex:"${KERNEL_REGEX}" \
-                --csv python -c "import torch; from test_flash_attn import test_flash_attn_bwd; test_flash_attn_bwd(${batch_size}, ${num_heads}, ${num_heads_k}, ${seqlen}, ${seqlen}, ${hdim}, ${is_causal}, torch.float16)" \
+                --csv python -c "import torch; from test_flash_attn import test_flash_attn; test_flash_attn(${batch_size}, ${num_heads}, ${num_heads_k}, ${seqlen}, ${seqlen}, ${hdim}, ${is_causal}, torch.float16)" \
                 > "${seqlen}_${hdim}_${is_causal}.csv"
 
             echo "Finished ${seqlen}_${hdim}_${is_causal}.csv"
