@@ -21,12 +21,13 @@ struct Mask {
     __forceinline__ __device__ void apply_mask_fwd(Tensor<Engine, Layout> &tensor,
                                                     const int warp_id,
                                                     const int lane_id,
+                                                    int m_block,
                                                     int n_block,
-                                                    const int kBlockM,
-                                                    const int kBlockN,
+                                                    const int seqlen_q,
                                                     const int seqlen_k,
-                                                    const int head_dim,
-                                                    int &causal_offset_local) {
+                                                    int kBlockM,
+                                                    int kBlockN,
+                                                    const int head_dim) {
         static constexpr bool Need_masking = Causal_mask || !Is_even_MN;
         if constexpr (Need_masking) {            
             // We assume kBlockM = 128 and kBlockN = {64, 128} depending on head_dim (either 64 or 128).
@@ -36,21 +37,23 @@ struct Mask {
 
             // row and col offset for tSrS_float((0, 0)), 0, 0)
 //            int global_row_offset = shifted_m_block * kBlockM;
+            const int row_offset = (warp_id * 16) + (lane_id / 4);
+            const int col_offset = (lane_id % 4) * 2;
+            int global_row_offset = m_block * kBlockM;
             int global_col_offset = n_block * kBlockN;
-            const int mma_row_offset = (warp_id * 16) + (lane_id / 4);
-            const int mma_col_offset = (lane_id % 4) * 2;
             CUTE_UNROLL
             for (int i=0; i<2; i++) {
                 for (int j=0;j<2;j++) {
                     for (int k=0; k < size<1>(tensor); k++) {
                         for (int l = 0; l < size<2>(tensor); l++) {
-//                            int row = global_row_offset + mma_row_offset + 8 * j;
-//                            int col = global_col_offset + mma_col_offset + i + 8 * l;
-                            int row = mma_row_offset + 8 * j;
-                            int col = mma_col_offset + i + 8 * l;
-                            int global_col = global_col_offset + mma_col_offset + i + 8 * l;
+//                            int row = global_row_offset + row_offset + 8 * j;
+//                            int col = global_col_offset + col_offset + i + 8 * l;
+                            int row = row_offset + 8 * j;
+                            int col = col_offset + i + 8 * l;
+                            int global_row = global_row_offset + row;
+                            int global_col = global_col_offset + col;
                             if constexpr (Causal_mask) {
-                                if (col - row > causal_offset_local) {
+                                if (global_col - global_row > seqlen_k - seqlen_q) {
                                     tensor(make_coord(i,j),k,l) = -1e20;
                                 }
                             }
@@ -67,7 +70,6 @@ struct Mask {
                     }
                 }
             }
-            causal_offset_local = (causal_offset_local == 0) ? kBlockN : causal_offset_local + kBlockN;
         }
     };
 
