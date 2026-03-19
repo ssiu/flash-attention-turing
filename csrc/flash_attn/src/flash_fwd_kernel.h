@@ -271,7 +271,7 @@ inline __device__ void compute_attn_1rowblock(
 //             causal_offset_local = causal_offset_local + kBlockN * causal_offset_global - kBlockM;
 
 //         }
-        n_block_max = fminf(n_block_max, ceil_div((m_block + 1) * kBlockM + seqlen_k - seqlen_q, kBlockN));
+        n_block_max = fmaxf(0, ceil_div((m_block + 1) * kBlockM + seqlen_k - seqlen_q, kBlockN));
         n_masking_steps = fminf(n_masking_steps, n_block_max);
     }        
 
