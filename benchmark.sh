@@ -33,7 +33,7 @@ for seqlen in "${seqlens[@]}"; do
             ncu --metrics gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed \
                 --kernel-name-base demangled \
                 --kernel-name ::regex:"${KERNEL_REGEX}" \
-                --csv python -c "import torch; from test_flash_attn import test_flash_attn_bwd; test_flash_attn_bwd(${batch_size}, ${num_heads}, ${num_heads_k}, ${seqlen}, ${seqlen}, ${hdim}, ${is_causal}, torch.float16)" \
+                --csv python -c "import torch; from test_flash_attn import test_flash_attn; test_flash_attn(${batch_size}, ${num_heads}, ${num_heads_k}, ${seqlen}, ${seqlen}, ${hdim}, ${is_causal}, torch.float16)" \
                 > "${seqlen}_${hdim}_${is_causal}.csv"
 
             echo "Finished ${seqlen}_${hdim}_${is_causal}.csv"
