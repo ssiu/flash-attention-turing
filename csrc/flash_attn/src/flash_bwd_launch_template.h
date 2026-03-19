@@ -35,10 +35,10 @@ void flash_bwd_dq_kernel(
     half_t * __restrict__ dq_ptr,
     int * __restrict__ cu_seqlens_q,
     int * __restrict__ cu_seqlens_k,
-    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, int is_causal) {
+    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, float softmax_scale, int is_causal) {
 
         compute_dq<Kernel_traits, Is_causal, Is_even_MN>(q_ptr, k_ptr, v_ptr, l_ptr, d_ptr, do_ptr, dq_ptr, cu_seqlens_q, cu_seqlens_k,
-        batch_size, seqlen_q, seqlen_k, num_heads, num_heads_k, h_h_k_ratio, head_dim, is_causal);
+        batch_size, seqlen_q, seqlen_k, num_heads, num_heads_k, h_h_k_ratio, head_dim, softmax_scale, is_causal);
 
 }
 
@@ -57,9 +57,9 @@ void flash_bwd_dk_dv_kernel(
     half_t* __restrict__ dv_ptr,
     int * __restrict__ cu_seqlens_q,
     int * __restrict__ cu_seqlens_k,
-    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, int is_causal){
+    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, float softmax_scale, int is_causal){
         compute_dk_dv<Kernel_traits, Is_causal, Is_even_MN>(q_ptr, k_ptr, v_ptr, l_ptr, d_ptr, do_ptr, dk_ptr, dv_ptr, cu_seqlens_q, cu_seqlens_k,
-        batch_size, seqlen_q, seqlen_k, num_heads, num_heads_k, h_h_k_ratio, head_dim, is_causal);
+        batch_size, seqlen_q, seqlen_k, num_heads, num_heads_k, h_h_k_ratio, head_dim, softmax_scale, is_causal);
 
 }
 
@@ -111,7 +111,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
                                             params.dq_ptr,
                                             params.cu_seqlens_q,
                                             params.cu_seqlens_k,
-                                            params.b, params.seqlen_q, params.seqlen_k, params.h, params.h_k, params.h_h_k_ratio, params.d, params.is_causal);
+                                            params.b, params.seqlen_q, params.seqlen_k, params.h, params.h_k, params.h_h_k_ratio, params.d, params.softmax_scale, params.is_causal);
     });
 
 
@@ -134,7 +134,7 @@ void run_flash_bwd(Flash_bwd_params &params) {
                                                  params.dv_ptr,
                                                  params.cu_seqlens_q,
                                                  params.cu_seqlens_k,
-                                                 params.b, params.seqlen_q, params.seqlen_k, params.h, params.h_k, params.h_h_k_ratio, params.d, params.is_causal);
+                                                 params.b, params.seqlen_q, params.seqlen_k, params.h, params.h_k, params.h_h_k_ratio, params.d, params.softmax_scale, params.is_causal);
      });
 
      

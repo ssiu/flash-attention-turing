@@ -43,6 +43,7 @@ inline __device__ void compute_dq_1rowblock(
     int num_heads_k,
     int h_h_k_ratio,
     int head_dim, 
+    float softmax_scale,
     int is_causal,
     int bidb,
     int bidh,
@@ -446,7 +447,7 @@ inline __device__ void compute_dq_1rowblock(
 
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
-            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+            tSrS_float[i] *= softmax_scale;
         }
 
 //       if (thread(0)) {
@@ -619,7 +620,7 @@ inline __device__ void compute_dq_1rowblock(
 
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
-            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+            tSrS_float[i] *= softmax_scale;
         }
 
 //             if (blockIdx.z ==0 && warp_id == 2 && lane_id == 0 && kv_tile == 0) {
@@ -780,7 +781,7 @@ inline __device__ void compute_dq_1rowblock(
 //    }
     // rescale by head dim
     for (int i=0;i< tdQrdQ_float.size();i ++ ) {
-        tdQrdQ_float[i] *= 1.0f / sqrtf(kHeadDim);
+        tdQrdQ_float[i] *= softmax_scale;
     }
 
 //    if (thread(4)) {
@@ -871,7 +872,7 @@ inline __device__ void compute_dk_dv_1colblock(
     half_t* __restrict__ dv_ptr,
     int * __restrict__ cu_seqlens_q,
     int * __restrict__ cu_seqlens_k,
-    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, int is_causal,
+    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, float softmax_scale, int is_causal,
     int bidb, int bidh, int n_block
 )
 {   
@@ -1339,7 +1340,7 @@ inline __device__ void compute_dk_dv_1colblock(
 
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
-            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+            tSrS_float[i] *= softmax_scale;
         }
 
 
@@ -1591,7 +1592,7 @@ inline __device__ void compute_dk_dv_1colblock(
 
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
-            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+            tSrS_float[i] *= softmax_scale;
         }
 
 
@@ -1701,7 +1702,7 @@ inline __device__ void compute_dk_dv_1colblock(
 
     // rescale by head dim
     for (int i=0;i< tdKrdK_float.size();i ++ ) {
-        tdKrdK_float[i] *= 1.0f / sqrtf(kHeadDim);
+        tdKrdK_float[i] *= softmax_scale;
     }
 
 
@@ -1744,7 +1745,7 @@ inline __device__ void compute_dq(
     half_t* __restrict__ dq_ptr,
     int * __restrict__ cu_seqlens_q,
     int * __restrict__ cu_seqlens_k,
-    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, int is_causal
+    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, float softmax_scale, int is_causal
 ) {
 
     const int m_block = blockIdx.x;
@@ -1770,6 +1771,7 @@ inline __device__ void compute_dq(
                                                     num_heads_k,
                                                     h_h_k_ratio,
                                                     head_dim,
+                                                    softmax_scale,
                                                     is_causal,
                                                     bidb,
                                                     bidh,
@@ -1789,7 +1791,7 @@ inline __device__ void compute_dk_dv(
     half_t* __restrict__ dv_ptr,
     int * __restrict__ cu_seqlens_q,
     int * __restrict__ cu_seqlens_k,
-    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, int is_causal
+    int batch_size, int seqlen_q, int seqlen_k, int num_heads, int num_heads_k, int h_h_k_ratio, int head_dim, float softmax_scale, int is_causal
 ) {
     const int n_block = blockIdx.x;
     // The block index for the batch.
@@ -1814,6 +1816,7 @@ inline __device__ void compute_dk_dv(
                                                     num_heads_k,
                                                     h_h_k_ratio,
                                                     head_dim,
+                                                    softmax_scale,
                                                     is_causal,
                                                     bidb,
                                                     bidh,

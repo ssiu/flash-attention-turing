@@ -36,6 +36,7 @@ inline __device__ void compute_attn_1rowblock(
                           const int num_heads_k,
                           const int h_h_k_ratio,
                           const int head_dim,
+                          const float softmax_scale,
                           const int is_casual,
                           const int bidb,
                           const int bidh,
@@ -375,7 +376,7 @@ inline __device__ void compute_attn_1rowblock(
 
         // for now we rescale before we apply causal mask
         for (int i=0;i< tSrS_float.size();i ++ ) {
-            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+            tSrS_float[i] *= softmax_scale;
         }
 
         // if (thread0()) {
@@ -591,7 +592,7 @@ inline __device__ void compute_attn_1rowblock(
 //         }
 
         for (int i=0;i< tSrS_float.size();i ++ ) {
-            tSrS_float[i] *= 1.0f / sqrtf(kHeadDim);
+            tSrS_float[i] *= softmax_scale;
         }
 
 
@@ -837,6 +838,7 @@ inline __device__ void compute_attn(half_t* __restrict__ q,
                                       int num_heads_k,
                                       int h_h_k_ratio,
                                       int head_dim,
+                                      float softmax_scale,
                                       int is_casual) {
     const int m_block = blockIdx.x;
     // The block index for the batch.
@@ -858,6 +860,7 @@ inline __device__ void compute_attn(half_t* __restrict__ q,
                                                     num_heads_k,
                                                     h_h_k_ratio,
                                                     head_dim,
+                                                    softmax_scale,
                                                     is_casual,
                                                     bidb,
                                                     bidh,

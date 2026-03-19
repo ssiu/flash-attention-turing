@@ -25,6 +25,7 @@ hdims=(128)
 seqlens=(8192)
 # seqlens=(8192 16384 8000 16000)
 is_causals=(False True)
+softmax_scale=None
 # sizes=(500 1000 2000 4000 8000 16000)
 KERNEL_REGEX='flash_fwd_.*'
 
@@ -38,7 +39,7 @@ for seqlen in "${seqlens[@]}"; do
                 --kernel-name-base demangled \
                 --kernel-name ::regex:"${KERNEL_REGEX}" \
                 -o "${seqlen}_${hdim}_${is_causal}" \
-                python -c "import torch; from test_flash_attn import test_flash_attn; test_flash_attn(${batch_size}, ${num_heads}, ${num_heads_k}, ${seqlen}, ${seqlen}, ${hdim}, ${is_causal}, torch.float16)"
+                python -c "import torch; from test_flash_attn import test_flash_attn; test_flash_attn(${batch_size}, ${num_heads}, ${num_heads_k}, ${seqlen}, ${seqlen}, ${hdim}, ${softmax_scale}, ${is_causal}, torch.float16)"
 
             echo "Finished ${seqlen}_${hdim}_${is_causal}"
         done

@@ -19,6 +19,7 @@ void set_params_fprop(Flash_fwd_params &params,
                       //void *softmax_lse_d,
                       void *cu_seqlens_q_d,
                       void *cu_seqlens_k_d,
+                      float softmax_scale,
                       bool is_causal) {
 
     // Reset the parameters
@@ -63,6 +64,7 @@ void set_params_fprop(Flash_fwd_params &params,
     params.h_k = h_k;
     params.h_h_k_ratio = h / h_k;
     params.d = d;
+    params.softmax_scale = softmax_scale;
     params.is_causal = is_causal;
     params.cu_seqlens_q = static_cast<int *>(cu_seqlens_q_d);
     params.cu_seqlens_k = static_cast<int *>(cu_seqlens_k_d);
@@ -91,6 +93,7 @@ void set_params_dgrad(Flash_bwd_params &params,
                       void *cu_seqlens_q_d,
                       void *cu_seqlens_k_d,
                       //void *softmax_lse_d,
+                      float softmax_scale,
                       bool is_causal) {
 
 
@@ -104,6 +107,7 @@ void set_params_dgrad(Flash_bwd_params &params,
                      q, k, v, out, l,
                      cu_seqlens_q_d,
                      cu_seqlens_k_d,
+                     softmax_scale,
                      is_causal
                      );
 
@@ -161,6 +165,7 @@ mha_fwd(at::Tensor q,
 //             int seq_len,
 //             int num_heads,
 //             int head_dim,
+        const float softmax_scale,
         bool is_causal)
 {
     auto device = q.device();
@@ -207,6 +212,7 @@ mha_fwd(at::Tensor q,
                      q, k, v, o, l,
                      nullptr,
                      nullptr,
+                     softmax_scale,
                      is_causal
                      );
 
@@ -236,6 +242,7 @@ mha_bwd(at::Tensor q,
 //        int seq_len,
 //        int num_heads,
 //        int head_dim,
+        const float softmax_scale,
         bool is_causal)
 {
 
@@ -294,6 +301,7 @@ mha_bwd(at::Tensor q,
                     do_o,
                     nullptr,
                     nullptr,
+                    softmax_scale,
                     is_causal);
 
     run_mha_bwd(params);
@@ -324,6 +332,7 @@ mha_varlen_fwd(at::Tensor q,
                at::Tensor &cu_seqlens_k,
                const int max_seqlen_q,
                const int max_seqlen_k,
+               const float softmax_scale,
                bool is_causal)
 {
     TORCH_CHECK(q.dim() == 3 && k.dim() == 3 && v.dim() == 3, "q, k, v must be rank-3 packed tensors");
@@ -372,6 +381,7 @@ mha_varlen_fwd(at::Tensor q,
         q, k, v, out, l,
         cu_seqlens_q.data_ptr(),
         cu_seqlens_k.data_ptr(),
+        softmax_scale,
         is_causal
     );
 
@@ -391,6 +401,7 @@ mha_varlen_bwd(at::Tensor q,
                at::Tensor cu_seqlens_k,
                const int max_seqlen_q,
                const int max_seqlen_k,
+               const float softmax_scale,
                bool is_causal)
 {
     TORCH_CHECK(q.dim() == 3 && k.dim() == 3 && v.dim() == 3, "q, k, v must be rank-3 packed tensors");
@@ -446,6 +457,7 @@ mha_varlen_bwd(at::Tensor q,
         dq, dk_expanded, dv_expanded, do_o,
         cu_seqlens_q.data_ptr(),
         cu_seqlens_k.data_ptr(),
+        softmax_scale,
         is_causal
     );
 

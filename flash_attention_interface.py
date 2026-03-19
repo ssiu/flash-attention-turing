@@ -14,6 +14,7 @@ def _flash_attn_forward(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
+    softmax_scale: float,
     causal: bool,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     q, k, v = [maybe_contiguous(x) for x in (q, k, v)]
@@ -21,6 +22,7 @@ def _flash_attn_forward(
         q,
         k,
         v,
+        softmax_scale,
         causal,
     )
     return out, lse
@@ -33,6 +35,7 @@ def _flash_attn_backward(
     v: torch.Tensor,
     out: torch.Tensor,
     lse: torch.Tensor,
+    softmax_scale: float,
     causal: bool,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     dout, q, k, v, out, lse = [maybe_contiguous(x) for x in (dout, q, k, v, out, lse)]
@@ -43,6 +46,7 @@ def _flash_attn_backward(
         out,
         lse,
         dout,
+        softmax_scale,
         causal,
     )
     return dq, dk, dv
@@ -56,6 +60,7 @@ def _flash_attn_varlen_forward(
     cu_seqlens_k: torch.Tensor,
     max_seqlen_q: int,
     max_seqlen_k: int,
+    softmax_scale: float,
     causal: bool,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     q, k, v = [maybe_contiguous(x) for x in (q, k, v)]
@@ -67,6 +72,7 @@ def _flash_attn_varlen_forward(
         cu_seqlens_k,
         max_seqlen_q,
         max_seqlen_k,
+        softmax_scale,
         causal,
     )
     return out, lse
@@ -83,6 +89,7 @@ def _flash_attn_varlen_backward(
     cu_seqlens_k: torch.Tensor,
     max_seqlen_q: int,
     max_seqlen_k: int,
+    softmax_scale: float,
     causal: bool,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     dout, q, k, v, out, lse = [maybe_contiguous(x) for x in (dout, q, k, v, out, lse)]
@@ -97,6 +104,7 @@ def _flash_attn_varlen_backward(
         cu_seqlens_k,
         max_seqlen_q,
         max_seqlen_k,
+        softmax_scale,
         causal,
     )
     return dq, dk, dv
@@ -109,21 +117,24 @@ class FlashAttnFunc(torch.autograd.Function):
         q: torch.Tensor,
         k: torch.Tensor,
         v: torch.Tensor,
+        softmax_scale: Optional[float],
         causal: bool,
         is_grad_enabled: bool,
     ):
-        out, lse = _flash_attn_forward(q, k, v, causal)
+        softmax_scale = q.shape[-1] ** (-0.5) if softmax_scale is None else softmax_scale
+        out, lse = _flash_attn_forward(q, k, v, softmax_scale, causal)
         is_grad = is_grad_enabled and any(x.requires_grad for x in (q, k, v))
         if is_grad:
             ctx.save_for_backward(q, k, v, out, lse)
+            ctx.softmax_scale = softmax_scale
             ctx.causal = causal
         return out
 
     @staticmethod
     def backward(ctx, dout: torch.Tensor):
         q, k, v, out, lse = ctx.saved_tensors
-        dq, dk, dv = _flash_attn_backward(dout, q, k, v, out, lse, ctx.causal)
-        return dq, dk, dv, None, None
+        dq, dk, dv = _flash_attn_backward(dout, q, k, v, out, lse, ctx.softmax_scale, ctx.causal)
+        return dq, dk, dv, None, None, None
 
 
 class FlashAttnQKVPackedFunc(torch.autograd.Function):
@@ -131,6 +142,7 @@ class FlashAttnQKVPackedFunc(torch.autograd.Function):
     def forward(
         ctx,
         qkv: torch.Tensor,
+        softmax_scale: Optional[float],
         causal: bool,
         is_grad_enabled: bool,
     ):
@@ -139,23 +151,25 @@ class FlashAttnQKVPackedFunc(torch.autograd.Function):
             qkv.select(dim=2, index=1).contiguous(),
             qkv.select(dim=2, index=2).contiguous(),
         )
-        out, lse = _flash_attn_forward(q, k, v, causal)
+        softmax_scale = q.shape[-1] ** (-0.5) if softmax_scale is None else softmax_scale
+        out, lse = _flash_attn_forward(q, k, v, softmax_scale, causal)
         is_grad = is_grad_enabled and qkv.requires_grad
         if is_grad:
             ctx.save_for_backward(q, k, v, out, lse)
+            ctx.softmax_scale = softmax_scale
             ctx.causal = causal
         return out
 
     @staticmethod
     def backward(ctx, dout: torch.Tensor):
         q, k, v, out, lse = ctx.saved_tensors
-        dq, dk, dv = _flash_attn_backward(dout, q, k, v, out, lse, ctx.causal)
+        dq, dk, dv = _flash_attn_backward(dout, q, k, v, out, lse, ctx.softmax_scale, ctx.causal)
         qkv_shape = q.shape[:-2] + (3, *q.shape[-2:])
         dqkv = torch.empty(qkv_shape, dtype=q.dtype, device=q.device)
         dqkv[:, :, 0] = dq
         dqkv[:, :, 1] = dk
         dqkv[:, :, 2] = dv
-        return dqkv, None, None
+        return dqkv, None, None, None
 
 
 class FlashAttnKVPackedFunc(torch.autograd.Function):
@@ -164,6 +178,7 @@ class FlashAttnKVPackedFunc(torch.autograd.Function):
         ctx,
         q: torch.Tensor,
         kv: torch.Tensor,
+        softmax_scale: Optional[float],
         causal: bool,
         is_grad_enabled: bool,
     ):
@@ -171,22 +186,24 @@ class FlashAttnKVPackedFunc(torch.autograd.Function):
             kv.select(dim=2, index=0).contiguous(),
             kv.select(dim=2, index=1).contiguous(),
         )
-        out, lse = _flash_attn_forward(q, k, v, causal)
+        softmax_scale = q.shape[-1] ** (-0.5) if softmax_scale is None else softmax_scale
+        out, lse = _flash_attn_forward(q, k, v, softmax_scale, causal)
         is_grad = is_grad_enabled and any(x.requires_grad for x in (q, kv))
         if is_grad:
             ctx.save_for_backward(q, k, v, out, lse)
+            ctx.softmax_scale = softmax_scale
             ctx.causal = causal
         return out
 
     @staticmethod
     def backward(ctx, dout: torch.Tensor):
         q, k, v, out, lse = ctx.saved_tensors
-        dq, dk, dv = _flash_attn_backward(dout, q, k, v, out, lse, ctx.causal)
+        dq, dk, dv = _flash_attn_backward(dout, q, k, v, out, lse, ctx.softmax_scale, ctx.causal)
         kv_shape = k.shape[:-2] + (2, *k.shape[-2:])
         dkv = torch.empty(kv_shape, dtype=k.dtype, device=k.device)
         dkv[:, :, 0] = dk
         dkv[:, :, 1] = dv
-        return dq, dkv, None, None
+        return dq, dkv, None, None, None
 
 
 class FlashAttnVarlenFunc(torch.autograd.Function):
@@ -200,9 +217,11 @@ class FlashAttnVarlenFunc(torch.autograd.Function):
         cu_seqlens_k: torch.Tensor,
         max_seqlen_q: int,
         max_seqlen_k: int,
+        softmax_scale: Optional[float],
         causal: bool,
         is_grad_enabled: bool,
     ):
+        softmax_scale = q.shape[-1] ** (-0.5) if softmax_scale is None else softmax_scale
         out, lse = _flash_attn_varlen_forward(
             q,
             k,
@@ -211,6 +230,7 @@ class FlashAttnVarlenFunc(torch.autograd.Function):
             cu_seqlens_k,
             max_seqlen_q,
             max_seqlen_k,
+            softmax_scale,
             causal,
         )
         is_grad = is_grad_enabled and any(x.requires_grad for x in (q, k, v))
@@ -218,6 +238,7 @@ class FlashAttnVarlenFunc(torch.autograd.Function):
             ctx.save_for_backward(q, k, v, out, lse, cu_seqlens_q, cu_seqlens_k)
             ctx.max_seqlen_q = max_seqlen_q
             ctx.max_seqlen_k = max_seqlen_k
+            ctx.softmax_scale = softmax_scale
             ctx.causal = causal
         return out
 
@@ -235,9 +256,10 @@ class FlashAttnVarlenFunc(torch.autograd.Function):
             cu_seqlens_k,
             ctx.max_seqlen_q,
             ctx.max_seqlen_k,
+            ctx.softmax_scale,
             ctx.causal,
         )
-        return dq, dk, dv, None, None, None, None, None, None
+        return dq, dk, dv, None, None, None, None, None, None, None
 
 
 class FlashAttnVarlenQKVPackedFunc(torch.autograd.Function):
@@ -247,6 +269,7 @@ class FlashAttnVarlenQKVPackedFunc(torch.autograd.Function):
         qkv: torch.Tensor,
         cu_seqlens: torch.Tensor,
         max_seqlen: int,
+        softmax_scale: Optional[float],
         causal: bool,
         is_grad_enabled: bool,
     ):
@@ -255,6 +278,7 @@ class FlashAttnVarlenQKVPackedFunc(torch.autograd.Function):
             qkv.select(dim=1, index=1).contiguous(),
             qkv.select(dim=1, index=2).contiguous(),
         )
+        softmax_scale = q.shape[-1] ** (-0.5) if softmax_scale is None else softmax_scale
         out, lse = _flash_attn_varlen_forward(
             q,
             k,
@@ -263,12 +287,14 @@ class FlashAttnVarlenQKVPackedFunc(torch.autograd.Function):
             cu_seqlens,
             max_seqlen,
             max_seqlen,
+            softmax_scale,
             causal,
         )
         is_grad = is_grad_enabled and qkv.requires_grad
         if is_grad:
             ctx.save_for_backward(q, k, v, out, lse, cu_seqlens)
             ctx.max_seqlen = max_seqlen
+            ctx.softmax_scale = softmax_scale
             ctx.causal = causal
         return out
 
@@ -286,6 +312,7 @@ class FlashAttnVarlenQKVPackedFunc(torch.autograd.Function):
             cu_seqlens,
             ctx.max_seqlen,
             ctx.max_seqlen,
+            ctx.softmax_scale,
             ctx.causal,
         )
         qkv_shape = q.shape[:-2] + (3, *q.shape[-2:])
@@ -293,7 +320,7 @@ class FlashAttnVarlenQKVPackedFunc(torch.autograd.Function):
         dqkv[:, 0] = dq
         dqkv[:, 1] = dk
         dqkv[:, 2] = dv
-        return dqkv, None, None, None, None
+        return dqkv, None, None, None, None, None
 
 
 class FlashAttnVarlenKVPackedFunc(torch.autograd.Function):
@@ -306,6 +333,7 @@ class FlashAttnVarlenKVPackedFunc(torch.autograd.Function):
         cu_seqlens_k: torch.Tensor,
         max_seqlen_q: int,
         max_seqlen_k: int,
+        softmax_scale: Optional[float],
         causal: bool,
         is_grad_enabled: bool,
     ):
@@ -313,6 +341,7 @@ class FlashAttnVarlenKVPackedFunc(torch.autograd.Function):
             kv.select(dim=1, index=0).contiguous(),
             kv.select(dim=1, index=1).contiguous(),
         )
+        softmax_scale = q.shape[-1] ** (-0.5) if softmax_scale is None else softmax_scale
         out, lse = _flash_attn_varlen_forward(
             q,
             k,
@@ -321,6 +350,7 @@ class FlashAttnVarlenKVPackedFunc(torch.autograd.Function):
             cu_seqlens_k,
             max_seqlen_q,
             max_seqlen_k,
+            softmax_scale,
             causal,
         )
         is_grad = is_grad_enabled and any(x.requires_grad for x in (q, kv))
@@ -328,6 +358,7 @@ class FlashAttnVarlenKVPackedFunc(torch.autograd.Function):
             ctx.save_for_backward(q, k, v, out, lse, cu_seqlens_q, cu_seqlens_k)
             ctx.max_seqlen_q = max_seqlen_q
             ctx.max_seqlen_k = max_seqlen_k
+            ctx.softmax_scale = softmax_scale
             ctx.causal = causal
         return out
 
@@ -345,19 +376,21 @@ class FlashAttnVarlenKVPackedFunc(torch.autograd.Function):
             cu_seqlens_k,
             ctx.max_seqlen_q,
             ctx.max_seqlen_k,
+            ctx.softmax_scale,
             ctx.causal,
         )
         kv_shape = k.shape[:-2] + (2, *k.shape[-2:])
         dkv = torch.empty(kv_shape, dtype=k.dtype, device=k.device)
         dkv[:, 0] = dk
         dkv[:, 1] = dv
-        return dq, dkv, None, None, None, None, None, None
+        return dq, dkv, None, None, None, None, None, None, None
 
 
 def flash_attn_func(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
+    softmax_scale: Optional[float] = None,
     causal: bool = False,
 ) -> torch.Tensor:
     """
@@ -373,6 +406,7 @@ def flash_attn_func(
         q,
         k,
         v,
+        softmax_scale,
         causal,
         torch.is_grad_enabled(),
     )
@@ -380,6 +414,7 @@ def flash_attn_func(
 
 def flash_attn_qkvpacked_func(
     qkv: torch.Tensor,
+    softmax_scale: Optional[float] = None,
     causal: bool = False,
 ) -> torch.Tensor:
     """
@@ -391,6 +426,7 @@ def flash_attn_qkvpacked_func(
     """
     return FlashAttnQKVPackedFunc.apply(
         qkv,
+        softmax_scale,
         causal,
         torch.is_grad_enabled(),
     )
@@ -399,6 +435,7 @@ def flash_attn_qkvpacked_func(
 def flash_attn_kvpacked_func(
     q: torch.Tensor,
     kv: torch.Tensor,
+    softmax_scale: Optional[float] = None,
     causal: bool = False,
 ) -> torch.Tensor:
     """
@@ -412,6 +449,7 @@ def flash_attn_kvpacked_func(
     return FlashAttnKVPackedFunc.apply(
         q,
         kv,
+        softmax_scale,
         causal,
         torch.is_grad_enabled(),
     )
@@ -425,6 +463,7 @@ def flash_attn_varlen_func(
     cu_seqlens_k: torch.Tensor,
     max_seqlen_q: int,
     max_seqlen_k: int,
+    softmax_scale: Optional[float] = None,
     causal: bool = False,
 ) -> torch.Tensor:
     """
@@ -448,6 +487,7 @@ def flash_attn_varlen_func(
         cu_seqlens_k,
         max_seqlen_q,
         max_seqlen_k,
+        softmax_scale,
         causal,
         torch.is_grad_enabled(),
     )
@@ -457,6 +497,7 @@ def flash_attn_varlen_qkvpacked_func(
     qkv: torch.Tensor,
     cu_seqlens: torch.Tensor,
     max_seqlen: int,
+    softmax_scale: Optional[float] = None,
     causal: bool = False,
 ) -> torch.Tensor:
     """
@@ -473,6 +514,7 @@ def flash_attn_varlen_qkvpacked_func(
         qkv,
         cu_seqlens,
         max_seqlen,
+        softmax_scale,
         causal,
         torch.is_grad_enabled(),
     )
@@ -485,6 +527,7 @@ def flash_attn_varlen_kvpacked_func(
     cu_seqlens_k: torch.Tensor,
     max_seqlen_q: int,
     max_seqlen_k: int,
+    softmax_scale: Optional[float] = None,
     causal: bool = False,
 ) -> torch.Tensor:
     """
@@ -506,6 +549,7 @@ def flash_attn_varlen_kvpacked_func(
         cu_seqlens_k,
         max_seqlen_q,
         max_seqlen_k,
+        softmax_scale,
         causal,
         torch.is_grad_enabled(),
     )

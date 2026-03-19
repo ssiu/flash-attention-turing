@@ -23,6 +23,7 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                           int num_heads_k,
                           int h_h_k_ratio,
                           int head_dim,
+                          float softmax_scale,
                           int is_casual)
 {
     compute_attn<Kernel_traits, Is_causal, Is_even_MN>(q,
@@ -39,6 +40,7 @@ void flash_fwd_kernel(half_t* __restrict__ q,
                                            num_heads_k,
                                            h_h_k_ratio,
                                            head_dim,
+                                           softmax_scale,
                                            is_casual);
 }
 
@@ -79,6 +81,7 @@ void run_flash_fwd(Flash_fwd_params &params) {
                                                                                     params.h_k,
                                                                                     params.h_h_k_ratio,
                                                                                     params.d,
+                                                                                    params.softmax_scale,
                                                                                     params.is_causal);
 
     });
