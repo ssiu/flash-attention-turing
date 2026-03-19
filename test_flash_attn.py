@@ -23,7 +23,7 @@ torch.set_printoptions(threshold=torch.inf)
 EXCEL_TOPK_ROWS = 10_000
 EXCEL_REL_EPS = 1e-6
 TEST_REL_EPS = 1e-6
-SAVE_FAIL_DEBUG_EXCEL = False
+SAVE_FAIL_DEBUG_EXCEL = True
 
 BWD_TOLS = dict(
     atol=5e-3,
