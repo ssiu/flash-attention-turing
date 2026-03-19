@@ -146,8 +146,7 @@ struct Mask {
                                                         const int seqlen_k,
                                                         int kBlockM,
                                                         int kBlockN,
-                                                        const int head_dim,
-                                                        int &causal_offset_local) {
+                                                        const int head_dim) {
 
         static constexpr bool Need_masking = Causal_mask || !Is_even_MN;
         // if (cute::thread0()) { printf("Has_alibi = %d, Causal_mask=%d, Is_local=%d, Is_even_MN = %d, Need_masking = %d\n", Has_alibi, Causal_mask, Is_local, Is_even_MN, Need_masking); }
@@ -196,7 +195,6 @@ struct Mask {
                 }
             }
         }
-        // causal_offset_local = (causal_offset_local == 0) ? 64 : (causal_offset_local - kBlockN);
     }
 };
 
