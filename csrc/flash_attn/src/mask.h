@@ -41,28 +41,39 @@ struct Mask {
             const int col_offset = (lane_id % 4) * 2;
             int global_row_offset = m_block * kBlockM;
             int global_col_offset = n_block * kBlockN;
+            int causal_offset = seqlen_k - seqlen_q - global_col_offset + global_row_offset;
+            int is_even_MN_offset = seqlen_k - global_col_offset;
             CUTE_UNROLL
             for (int i=0; i<2; i++) {
                 for (int j=0;j<2;j++) {
                     for (int k=0; k < size<1>(tensor); k++) {
                         for (int l = 0; l < size<2>(tensor); l++) {
-//                            int row = global_row_offset + row_offset + 8 * j;
-//                            int col = global_col_offset + col_offset + i + 8 * l;
                             int row = row_offset + 8 * j;
                             int col = col_offset + i + 8 * l;
-                            int global_row = global_row_offset + row;
-                            int global_col = global_col_offset + col;
+                            // int global_row = global_row_offset + row;
+                            // int global_col = global_col_offset + col;
                             if constexpr (Causal_mask) {
-                                if (global_col - global_row > seqlen_k - seqlen_q) {
+                                if (col - row > causal_offset) {
                                     tensor(make_coord(i,j),k,l) = -1e20;
                                 }
                             }
                             if constexpr (!Is_even_MN) {
-                                if (global_col >= seqlen_k) {
+                                if (col >= is_even_MN_offset) {
                                     tensor(make_coord(i,j),k,l) = -1e20;
                                 }
 
                             }
+                            // if constexpr (Causal_mask) {
+                            //     if (global_col - global_row > seqlen_k - seqlen_q) {
+                            //         tensor(make_coord(i,j),k,l) = -1e20;
+                            //     }
+                            // }
+                            // if constexpr (!Is_even_MN) {
+                            //     if (global_col >= seqlen_k) {
+                            //         tensor(make_coord(i,j),k,l) = -1e20;
+                            //     }
+
+                            // }
                             
                             // tensor(make_coord(i,j),k,l) = -1e20;
                             
