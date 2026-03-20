@@ -447,14 +447,12 @@ inline __device__ void compute_attn_1rowblock(
 
         // compute P = softmax(S)
         for (int i =0; i<2; i++) {
-            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                if (rM[i] <= -1e20) {
-                    tSrS_float(make_coord(_,i),_,_)[j] = 0.0f;
-                } else {
-                    tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
-                }
-
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
+                tSrS_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
             }
+            // rescale l and also reset rD to 0
+            rL[i] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * rL_old[i];
+            rD[i] = 0.0f;
         }
 
 //        if (thread0()) {
@@ -466,11 +464,8 @@ inline __device__ void compute_attn_1rowblock(
         //     //print_tensor(tSrS_float);
         // }
 
-        // rescale l and also reset rD to 0
-        for (int i =0; i<2; i++) {
-            rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
-            rD[i] = 0.0f;
-        }
+
+
         // compute sum(sP)
 
         // thread reduction
@@ -522,7 +517,7 @@ inline __device__ void compute_attn_1rowblock(
 
         for (int i =0; i<2; i++) {
             for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
-                tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
+                tOrO_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
             }
         }
 
@@ -632,13 +627,13 @@ inline __device__ void compute_attn_1rowblock(
         for (int i =0; i<2; i++) {
             //float max_scaled = rM[i] * float(M_LOG2E);
             CUTE_UNROLL
-            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) { 
+                tSrS_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
                 // using FMA instructions inside exp is slower
                 //tSrS_float(make_coord(_,i),_,_)[j] = exp2f(tSrS_float(make_coord(_,i),_,_)[j] * float(M_LOG2E) - max_scaled);
             }
             
-            rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
+            rL[i] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * rL_old[i];
             // rL[i] = exp2f(rM_old[i] * float(M_LOG2E) - max_scaled) * rL_old[i];
             rD[i] = 0.0f;
         }
@@ -707,7 +702,7 @@ inline __device__ void compute_attn_1rowblock(
 
         for (int i =0; i<2; i++) {
             for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
-                tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
+                tOrO_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
             }
         }
 
