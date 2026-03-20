@@ -345,56 +345,51 @@ inline __device__ void compute_attn_1rowblock(
             rM[i] = __shfl_sync(mask, rM[i], lane_id_to_read_from);
         }
 
+        for (int i =0; i<2; i++) {
+            if (rM[i] != -FLT_MAX) {
+        
+                //
+                // compute P = softmax(S)
+                //
 
-        if (rM[i] != -FLT_MAX) {
-    
-            //
-            // compute P = softmax(S)
-            //
-            for (int i =0; i<2; i++) {
                 for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
                     tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
                 }
                 // rescale l and also reset rD to 0
                 rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
                 rD[i] = 0.0f;
-            }
+                
 
-            // compute sum(sP)
+                // compute sum(sP)
 
-            // thread reduction
+                // thread reduction
 
-            for (int i =0; i<2; i++) {
                 for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
                     rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
                 }
-            }
+                
 
-            // warp reduction
-            for (int i =0; i<2; i++) {
+                // warp reduction
                 for (int offset = 2; offset > 0; offset /= 2) {
                     rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
                 }
-            }
+                
 
-            // update rL
-            for (int i =0; i<2; i++) {
+                // update rL
                 rL[i] += rD[i];
-            }
+                
 
-            // sync rL
-            for (int i =0; i<2; i++) {
+                // sync rL
                 rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
-            }
+                
 
 
-            // rescale O
-            for (int i =0; i<2; i++) {
+                // rescale O
                 for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
                     tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
-                }
-            }
+                }              
 
+            }
         }
         ////
 
