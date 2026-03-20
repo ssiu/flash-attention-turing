@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -31,6 +32,7 @@ EXCEL_TOPK_ROWS = 10_000
 TEST_REL_EPS = 1e-6
 
 SAVE_DEBUG_EXCEL = True  # flip to True to dump Excel snapshots of top errors
+OUTPUT_DIR = "/outputs"
 
 BWD_TOLS = dict(
     atol=9e-3,
@@ -282,8 +284,9 @@ def _maybe_emit_excel(tag: str, pairs: Dict[str, DebugPair]) -> None:
     if not SAVE_DEBUG_EXCEL:
         return
 
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = f"{timestamp}_{tag}.xlsx"
+    path = os.path.join(OUTPUT_DIR, f"{timestamp}_{tag}.xlsx")
     tables = _build_debug_tables(pairs)
 
     with pd.ExcelWriter(path) as writer:
