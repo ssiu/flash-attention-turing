@@ -354,16 +354,20 @@ inline __device__ void compute_attn_1rowblock(
                 for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
                     tSrS_float(make_coord(_,i),_,_)[j] = 0;                
                 }
-                rL[i] = 0.0f;                
+                rL[i] = 0.0f;     
+                rD[i] = 0.0f;           
             } else {
                 for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
                     tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
                 }
                 // rescale l and also reset rD to 0
                 rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];     
-
+                rD[i] = 0.0f;
+                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                    rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
+                }
             }
-            rD[i] = 0.0f;
+            
         }
 
 
@@ -371,11 +375,6 @@ inline __device__ void compute_attn_1rowblock(
 
         // thread reduction
 
-        for (int i =0; i<2; i++) {
-            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
-            }
-        }
 
 
 
