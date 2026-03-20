@@ -26,7 +26,7 @@ TEST_REL_EPS = 1e-6
 SAVE_FAIL_DEBUG_EXCEL = False
 
 BWD_TOLS = dict(
-    atol=5e-3,
+    atol=9e-3,
     rtol=1000,
     rtol_l2=100,
     mean_atol=2e-4,

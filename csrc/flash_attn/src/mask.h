@@ -50,12 +50,12 @@ struct Mask {
                             // int global_col = global_col_offset + col;
                             if constexpr (Causal_mask) {
                                 if (col - row > causal_offset) {
-                                    tensor(make_coord(i,j),k,l) = -1e20;
+                                    tensor(make_coord(i,j),k,l) = -FLT_MAX;
                                 }
                             }
                             if constexpr (!Is_even_MN) {
                                 if (col >= is_even_mn_offset) {
-                                    tensor(make_coord(i,j),k,l) = -1e20;
+                                    tensor(make_coord(i,j),k,l) = -FLT_MAX;
                                 }
 
                             }                            
@@ -110,13 +110,13 @@ struct Mask {
 //                                    printf("warp_id = %d, lane_id = %d, i = %d, j = %d, k = %d, l = %d, row = %d, col = %d, causal_offset_local = %d\n", warp_id, lane_id, i, j, k, l, row, col, causal_offset_local);
 //                                }
                                 if (global_col - global_row > seqlen_k - seqlen_q) {
-                                    tensor_S(make_coord(i,j),k,l) = -1e20;
+                                    tensor_S(make_coord(i,j),k,l) = -FLT_MAX;
                                     tensor_dP(make_coord(i,j),k,l) = 0;
                                 }
                             }
                             if constexpr (!Is_even_MN) {
                                 if (global_col >= seqlen_k) {
-                                    tensor_S(make_coord(i,j),k,l) = -1e20;
+                                    tensor_S(make_coord(i,j),k,l) = -FLT_MAX;
                                     tensor_dP(make_coord(i,j),k,l) = 0;
                                 }
                             }
@@ -176,11 +176,11 @@ struct Mask {
 
                             if constexpr (!Is_even_MN) {
                                 if (global_row >= seqlen_q) {
-                                    tensor_S(make_coord(i,j),k,l) = -1e20;
+                                    tensor_S(make_coord(i,j),k,l) = -FLT_MAX;
                                     tensor_dP(make_coord(i,j),k,l) = 0;
                                 }
                                 if (global_col >= seqlen_k) {
-                                    tensor_S(make_coord(i,j),k,l) = -1e20;
+                                    tensor_S(make_coord(i,j),k,l) = -FLT_MAX;
                                     tensor_dP(make_coord(i,j),k,l) = 0;
                                 }
                                 
