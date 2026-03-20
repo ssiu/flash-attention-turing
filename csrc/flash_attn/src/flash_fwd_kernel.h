@@ -345,52 +345,81 @@ inline __device__ void compute_attn_1rowblock(
             rM[i] = __shfl_sync(mask, rM[i], lane_id_to_read_from);
         }
 
+        // compute P = softmax(S)
         for (int i =0; i<2; i++) {
-            if (rM[i] == -FLT_MAX) {
-                clear(tSrS_float);
-                clear(tOrO_float);
-            } else {        
-                //
-                // compute P = softmax(S)
-                //
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
-                    tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
-                }
-                // rescale l and also reset rD to 0
-                rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
-                rD[i] = 0.0f;               
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
+                tSrS_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
+            }
+            // rescale l and also reset rD to 0
+            rL[i] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * rL_old[i];
+            rD[i] = 0.0f;
+        }
 
-                // compute sum(sP)
+//        if (thread0()) {
+//            printf("tSrS_float((0,0),0,0) = %f\n", tSrS_float(make_coord(0,0),0,0));
+//        }
 
-                // thread reduction
-
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                    rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
-                }
-                
-
-                // warp reduction
-                for (int offset = 2; offset > 0; offset /= 2) {
-                    rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
-                }
-                
-
-                // update rL
-                rL[i] += rD[i];
-                
-
-                // sync rL
-                rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
-                
+        // if (seqlen_q == 128 && seqlen_k == 128 && blockIdx.x == 0 && blockIdx.y == 0 && blockIdx.z == 0 && threadIdx.x == 0) {
+        //     printf("n_block = %d, masking_steps = %d, is_causal is %d, m is %f, tSrS_float after exp is %f\n", n_block, masking_steps, is_casual, rM[0], tSrS_float(make_coord(0,0),0,0));
+        //     //print_tensor(tSrS_float);
+        // }
 
 
-                // rescale O
-                for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
-                    tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
-                }              
 
+        // compute sum(sP)
+
+        // thread reduction
+
+        for (int i =0; i<2; i++) {
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
             }
         }
+
+
+
+        // warp reduction
+        for (int i =0; i<2; i++) {
+            for (int offset = 2; offset > 0; offset /= 2) {
+                rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
+            }
+        }
+
+
+
+        // can just keep the correct rL to lane 0
+        for (int i =0; i<2; i++) {
+            rL[i] += rD[i];
+        }
+
+        // if (thread0()){
+        //     printf("kv_tile = %d, rL after adding rD: %f\n", kv_tile, rL[0]);
+        // }
+
+
+        // sync rL
+        for (int i =0; i<2; i++) {
+            rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
+        }
+
+
+
+//             constexpr int num_element = decltype(size(tSrS_float))::value;
+//
+//             cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
+//             auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
+//
+//             Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+
+
+        // rescale O
+
+        for (int i =0; i<2; i++) {
+            for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
+                tOrO_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
+            }
+        }
+
         ////
 
         Tensor tOrP = convert_type<half_t>(tSrS_float);
