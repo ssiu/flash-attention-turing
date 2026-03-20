@@ -31,7 +31,7 @@ EXCEL_REL_EPS = 1e-6
 EXCEL_TOPK_ROWS = 10_000
 TEST_REL_EPS = 1e-6
 
-SAVE_DEBUG_EXCEL = True  # flip to True to dump Excel snapshots of top errors
+SAVE_DEBUG_EXCEL = False  # flip to True to dump Excel snapshots of top errors
 OUTPUT_DIR = "/outputs"
 
 BWD_TOLS = dict(
