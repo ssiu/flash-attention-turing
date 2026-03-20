@@ -346,58 +346,58 @@ inline __device__ void compute_attn_1rowblock(
         }
 
 
-
-        //
-        // compute P = softmax(S)
-        //
-        for (int i =0; i<2; i++) {
-            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
-                tSrS_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
+        if (rM[i] != -FLT_MAX) {
+    
+            //
+            // compute P = softmax(S)
+            //
+            for (int i =0; i<2; i++) {
+                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
+                    tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
+                }
+                // rescale l and also reset rD to 0
+                rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
+                rD[i] = 0.0f;
             }
-            // rescale l and also reset rD to 0
-            rL[i] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * rL_old[i];
-            rD[i] = 0.0f;
-        }
 
-        // compute sum(sP)
+            // compute sum(sP)
 
-        // thread reduction
+            // thread reduction
 
-        for (int i =0; i<2; i++) {
-            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
+            for (int i =0; i<2; i++) {
+                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                    rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
+                }
             }
-        }
 
-
-
-        // warp reduction
-        for (int i =0; i<2; i++) {
-            for (int offset = 2; offset > 0; offset /= 2) {
-                rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
+            // warp reduction
+            for (int i =0; i<2; i++) {
+                for (int offset = 2; offset > 0; offset /= 2) {
+                    rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
+                }
             }
-        }
 
-        // update rL
-        for (int i =0; i<2; i++) {
-            rL[i] += rD[i];
-        }
-
-        // sync rL
-        for (int i =0; i<2; i++) {
-            rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
-        }
-
-
-        // rescale O
-        for (int i =0; i<2; i++) {
-            for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
-                tOrO_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
+            // update rL
+            for (int i =0; i<2; i++) {
+                rL[i] += rD[i];
             }
-        }
 
+            // sync rL
+            for (int i =0; i<2; i++) {
+                rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
+            }
+
+
+            // rescale O
+            for (int i =0; i<2; i++) {
+                for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
+                    tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
+                }
+            }
+
+        }
         ////
-        
+
         Tensor tOrP = convert_type<half_t>(tSrS_float);
 
 
