@@ -320,65 +320,81 @@ inline __device__ void compute_attn_1rowblock(
             is_even_mn_offset
         );
 
- 
-        for (int i=0; i<2; i++) {
 
-            // compute m = rowmax(S)
+        // compute m = rowmax(S)
+        for (int i=0; i< 2; i++) {
             rM[i] = rM_old[i];
+        }
 
-            // intra-thread reduction
+        // intra-thread reduction
+        for (int i=0; i< 2; i++) {
             for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
                 rM[i] = fmaxf(rM[i], tSrS_float(make_coord(_,i),_,_)[j]);
             }
+        }
 
-            // intra-warp reduction
+        // intra-warp reduction
+        for (int i=0; i<2; i++) {
             for (int offset = 2; offset > 0; offset /= 2) {
                 rM[i] = fmaxf(rM[i], __shfl_down_sync(mask, rM[i], offset));
             }
+        }
 
-            // sync rM
+        // sync rM
+        for (int i =0; i<2; i++) {
             rM[i] = __shfl_sync(mask, rM[i], lane_id_to_read_from);
+        }
 
-
-            // compute P = softmax(S)
-            
-                // for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
-                //     tSrS_float(make_coord(_,i),_,_)[j] = 0;                
-                // }            
-
-            if (rM[i] != -FLT_MAX) {
-                
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
-                    tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);     
-
-                }
-                // rescale l and also reset rD to 0
-                rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
-                rD[i] = 0.0f;
-                // compute sum(sP)
-
-                // thread reduction
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                    rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
-                }
-                // warp reduction
-                for (int offset = 2; offset > 0; offset /= 2) {
-                    rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
-                }
-
-                rL[i] += rD[i];
-                // sync rL
-                rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
-                    
-            // rescale O
-                for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
-                    tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
+        // compute P = softmax(S)
+        for (int i =0; i<2; i++) {
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
+                tSrS_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
             }
+            // rescale l and also reset rD to 0
+            rL[i] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * rL_old[i];
+            rD[i] = 0.0f;
+        }
 
+        // compute sum(sP)
+
+        // thread reduction
+
+        for (int i =0; i<2; i++) {
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
+            }
         }
 
 
+
+        // warp reduction
+        for (int i =0; i<2; i++) {
+            for (int offset = 2; offset > 0; offset /= 2) {
+                rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
+            }
+        }
+
+        // update rL
+        for (int i =0; i<2; i++) {
+            rL[i] += rD[i];
+        }
+
+        // sync rL
+        for (int i =0; i<2; i++) {
+            rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
+        }
+
         Tensor tOrP = convert_type<half_t>(tSrS_float);
+
+
+        // rescale O
+
+        for (int i =0; i<2; i++) {
+            for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
+                tOrO_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
+            }
+        }
+
 
 
     
