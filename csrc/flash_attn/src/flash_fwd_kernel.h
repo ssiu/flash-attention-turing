@@ -347,95 +347,61 @@ inline __device__ void compute_attn_1rowblock(
 
 
 
-
         // compute P = softmax(S)
         for (int i =0; i<2; i++) {
-            if (rM[i] == -FLT_MAX) {
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
-                    tSrS_float(make_coord(_,i),_,_)[j] = 0;                
-                }
-                rL[i] = 0.0f;     
-                rD[i] = 0.0f;     
-                            
-                for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
-                    tOrO_float(make_coord(_,i),_,_)[j] = 0;
-                }
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {                
+                tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);         
 
-            } else {
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
-                    tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
-                }
-                // rescale l and also reset rD to 0
-                rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];     
-                rD[i] = 0.0f;
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                    rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
-                }
-
-                for (int offset = 2; offset > 0; offset /= 2) {
-                    rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
-                }
-                rL[i] += rD[i];
-                rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
-
-                            
-                for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
-                    tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
-                }
-        
             }
-            
         }
 
-
+        // rescale l and also reset rD to 0
+        for (int i =0; i<2; i++) {
+            rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
+            rD[i] = 0.0f;
+        }
         // compute sum(sP)
 
         // thread reduction
 
-
-
+        for (int i =0; i<2; i++) {
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
+            }
+        }
 
         // warp reduction
-  
+        for (int i =0; i<2; i++) {
+            for (int offset = 2; offset > 0; offset /= 2) {
+                rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
+            }
+        }
 
-
-
-        // can just keep the correct rL to lane 0
- 
-
-        // if (thread0()){
-        //     printf("kv_tile = %d, rL after adding rD: %f\n", kv_tile, rL[0]);
-        // }
+        for (int i =0; i<2; i++) {
+            rL[i] += rD[i];
+        }
 
 
         // sync rL
+        for (int i =0; i<2; i++) {
+            rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
+        }
 
-
-
-
-//             constexpr int num_element = decltype(size(tSrS_float))::value;
-//
-//             cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-//             auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
-//
-//             Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+        Tensor tOrP = convert_type<half_t>(tSrS_float);
 
 
         // rescale O
-
-
-
-        ////
-
-        Tensor tOrP = convert_type<half_t>(tSrS_float);
+        for (int i =0; i<2; i++) {
+            for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
+                tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
+            }
+        }
 
 
         CUTE_UNROLL
         for (int pv_block = 0; pv_block < PV_BLOCK_MAX; pv_block++) {
             copy(s2r_tiled_copy_V, tOsV_copy_view(_,_,pv_block), tOrV_copy_view(_,_,pv_block));
-
             gemm(tiled_mma, tOrP(_,_,pv_block), tOrV(_,_,pv_block), tOrO_float);
-
         }
 
         // update m and l
