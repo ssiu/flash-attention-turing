@@ -345,6 +345,9 @@ inline __device__ void compute_attn_1rowblock(
             rM[i] = __shfl_sync(mask, rM[i], lane_id_to_read_from);
         }
 
+
+
+        
         // compute P = softmax(S)
         for (int i =0; i<2; i++) {
             for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
