@@ -346,7 +346,10 @@ inline __device__ void compute_attn_1rowblock(
         }
 
         for (int i =0; i<2; i++) {
-            if (rM[i] != -FLT_MAX) {        
+            if (rM[i] != -FLT_MAX) {
+                clear(tSrS_float);
+                clear(tOrO_float);
+            } else {        
                 //
                 // compute P = softmax(S)
                 //
