@@ -50,12 +50,12 @@ struct Mask {
                             // int global_col = global_col_offset + col;
                             if constexpr (Causal_mask) {
                                 if (col - row > causal_offset) {
-                                    tensor(make_coord(i,j),k,l) = -FLT_MAX;
+                                    tensor(make_coord(i,j),k,l) = -1e20;
                                 }
                             }
                             if constexpr (!Is_even_MN) {
                                 if (col >= is_even_mn_offset) {
-                                    tensor(make_coord(i,j),k,l) = -FLT_MAX;
+                                    tensor(make_coord(i,j),k,l) = -1e20;
                                 }
 
                             }                            

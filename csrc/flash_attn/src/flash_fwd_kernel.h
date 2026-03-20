@@ -348,17 +348,25 @@ inline __device__ void compute_attn_1rowblock(
 
 
 
-        // compute P = softmax(S)
+          // compute P = softmax(S)
         for (int i =0; i<2; i++) {
-            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
-                tSrS_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                if (rM[i] <= -1e20) {
+                    tSrS_float(make_coord(_,i),_,_)[j] = 0.0f;
+                } else {
+                    tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
+                }
+
             }
-            // rescale l and also reset rD to 0
-            rL[i] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * rL_old[i];
-            rD[i] = 0.0f;
         }
 
 
+
+        // rescale l and also reset rD to 0
+        for (int i =0; i<2; i++) {
+            rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
+            rD[i] = 0.0f;
+        }
         // compute sum(sP)
 
         // thread reduction
@@ -397,19 +405,14 @@ inline __device__ void compute_attn_1rowblock(
 
 
 
-//             constexpr int num_element = decltype(size(tSrS_float))::value;
-//
-//             cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-//             auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
-//
-//             Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
+        Tensor tOrP = convert_type<half_t>(tSrS_float);
 
 
         // rescale O
 
         for (int i =0; i<2; i++) {
             for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
-                tOrO_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
+                tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
             }
         }
 
