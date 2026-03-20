@@ -48,9 +48,88 @@ SOFTMAX_SCALES = [None, 0.3]
 CAUSAL_FLAGS = [False, True]
 NHEAD_PAIRS = [(2, 1), (4, 2), (6, 3), (6, 1)]
 
-REGULAR_SEQLEN_CASES: Sequence[Tuple[int, int]] = [(128, 128)]
-
-VARLEN_CASES: Sequence[Tuple[int, int]] = [(128, 128)]
+SEQLEN_CASES: Sequence[Tuple[int, int]] = [
+            (64, 64),
+        (64, 128),
+        (64, 256),
+        (128, 64),
+        (256, 64),
+        (128, 128),
+        (1024, 1024),
+        (128, 256),
+        (128, 1024),
+        (256, 1024),
+        (512, 1024),
+        (256, 128),
+        (512, 128),
+        (768, 128),
+        (1024, 128),
+        (1024, 256),
+        (63, 63),
+        (65, 65),
+        (127, 127),
+        (129, 129),
+        (1, 1),
+        (1, 2),
+        (2, 1),
+        (2, 2),       
+        (64, 128),
+        (64, 256),
+        (128, 64),
+        (256, 64),
+        (128, 128),
+        (1024, 1024),
+        (128, 256),
+        (128, 1024),
+        (256, 1024),
+        (512, 1024),
+        (256, 128),
+        (512, 128),
+        (768, 128),
+        (1024, 128),
+        (1024, 256),
+        (64, 2),
+        (127, 63),
+        (129, 65),
+        (128, 127),
+        (128, 129),
+        (128, 1025),
+        (256, 1025),
+        (128, 128),
+        (1024, 1024),
+        (128, 256),
+        (256, 64),
+        (897, 1024),
+        (959, 1024),
+        (960, 1024),
+        (961, 1024),
+        (1023, 1024),
+        (1024, 1023),
+        (1024, 897),
+        (1,64),
+        (1,128),
+        (65,64),
+        (65,128),
+        (129,64),
+        (129,128),
+        (257,64),
+        (257,128),
+        (1, 1024),
+        (1023, 1024),
+        (1025, 1024),
+        (64, 1),
+        (128,1),
+        (64, 65),
+        (128,65),
+        (64, 129),
+        (128,129),
+        (64, 257),
+        (128,257),
+        (1024, 1),
+        (1024, 2),
+        (1024, 1023),
+        (1024, 1025),
+    ]
 
 
 # --------------------------------------------------------------------------------------
@@ -450,7 +529,7 @@ def _bundle_from_tensors(
 @pytest.mark.parametrize("nheads, nheads_k", NHEAD_PAIRS)
 @pytest.mark.parametrize("causal", CAUSAL_FLAGS)
 @pytest.mark.parametrize("softmax_scale", SOFTMAX_SCALES)
-@pytest.mark.parametrize("seqlen_q, seqlen_k", REGULAR_SEQLEN_CASES)
+@pytest.mark.parametrize("seqlen_q, seqlen_k", SEQLEN_CASES)
 def test_flash_attn(
     batch_size: int,
     nheads: int,
@@ -525,7 +604,7 @@ def test_flash_attn(
 @pytest.mark.parametrize("nheads, nheads_k", NHEAD_PAIRS)
 @pytest.mark.parametrize("causal", CAUSAL_FLAGS)
 @pytest.mark.parametrize("softmax_scale", SOFTMAX_SCALES)
-@pytest.mark.parametrize("seqlen_q, seqlen_k", REGULAR_SEQLEN_CASES)
+@pytest.mark.parametrize("seqlen_q, seqlen_k", SEQLEN_CASES)
 def test_flash_attn_kv(
     batch_size: int,
     nheads: int,
@@ -595,7 +674,7 @@ def test_flash_attn_kv(
     _assert_metrics(bundle)
 
 
-EQUAL_SEQLEN_CASES = [case for case in REGULAR_SEQLEN_CASES if case[0] == case[1]]
+EQUAL_SEQLEN_CASES = [case for case in SEQLEN_CASES if case[0] == case[1]]
 
 
 @pytest.mark.parametrize("dtype", DTYPES)
@@ -682,7 +761,7 @@ def test_flash_attn_qkv(
 @pytest.mark.parametrize("nheads, nheads_k", NHEAD_PAIRS)
 @pytest.mark.parametrize("causal", CAUSAL_FLAGS)
 @pytest.mark.parametrize("softmax_scale", SOFTMAX_SCALES)
-@pytest.mark.parametrize("max_seqlen_q, max_seqlen_k", VARLEN_CASES)
+@pytest.mark.parametrize("max_seqlen_q, max_seqlen_k", SEQLEN_CASES)
 def test_flash_attn_varlen(
     batch_size: int,
     nheads: int,
@@ -766,7 +845,7 @@ def test_flash_attn_varlen(
 @pytest.mark.parametrize("nheads, nheads_k", NHEAD_PAIRS)
 @pytest.mark.parametrize("causal", CAUSAL_FLAGS)
 @pytest.mark.parametrize("softmax_scale", SOFTMAX_SCALES)
-@pytest.mark.parametrize("max_seqlen_q, max_seqlen_k", VARLEN_CASES)
+@pytest.mark.parametrize("max_seqlen_q, max_seqlen_k", SEQLEN_CASES)
 def test_flash_attn_varlen_kv(
     batch_size: int,
     nheads: int,
@@ -851,7 +930,7 @@ def test_flash_attn_varlen_kv(
 @pytest.mark.parametrize("nheads, nheads_k", NHEAD_PAIRS)
 @pytest.mark.parametrize("causal", CAUSAL_FLAGS)
 @pytest.mark.parametrize("softmax_scale", SOFTMAX_SCALES)
-@pytest.mark.parametrize("max_seqlen", {case[0] for case in VARLEN_CASES if case[0] == case[1]})
+@pytest.mark.parametrize("max_seqlen", sorted({case[0] for case in SEQLEN_CASES if case[0] == case[1]}))
 def test_flash_attn_varlen_qkv(
     batch_size: int,
     nheads: int,
