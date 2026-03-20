@@ -345,7 +345,11 @@ inline __device__ void compute_attn_1rowblock(
             rM[i] = __shfl_sync(mask, rM[i], lane_id_to_read_from);
         }
 
+
+
+        //
         // compute P = softmax(S)
+        //
         for (int i =0; i<2; i++) {
             for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
                 tSrS_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
@@ -384,11 +388,8 @@ inline __device__ void compute_attn_1rowblock(
             rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
         }
 
-        Tensor tOrP = convert_type<half_t>(tSrS_float);
-
 
         // rescale O
-
         for (int i =0; i<2; i++) {
             for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
                 tOrO_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
@@ -396,8 +397,9 @@ inline __device__ void compute_attn_1rowblock(
         }
 
 
+        Tensor tOrP = convert_type<half_t>(tSrS_float);
 
-    
+
         CUTE_UNROLL
         for (int pv_block = 0; pv_block < PV_BLOCK_MAX; pv_block++) {
             copy(s2r_tiled_copy_V, tOsV_copy_view(_,_,pv_block), tOrV_copy_view(_,_,pv_block));
