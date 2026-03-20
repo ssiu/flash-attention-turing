@@ -355,7 +355,12 @@ inline __device__ void compute_attn_1rowblock(
                     tSrS_float(make_coord(_,i),_,_)[j] = 0;                
                 }
                 rL[i] = 0.0f;     
-                rD[i] = 0.0f;           
+                rD[i] = 0.0f;     
+                            
+                for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
+                    tOrO_float(make_coord(_,i),_,_)[j] = 0;
+                }
+
             } else {
                 for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
                     tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);                
@@ -372,6 +377,12 @@ inline __device__ void compute_attn_1rowblock(
                 }
                 rL[i] += rD[i];
                 rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
+
+                            
+                for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
+                    tOrO_float(make_coord(_,i),_,_)[j] = expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
+                }
+        
             }
             
         }
@@ -412,11 +423,7 @@ inline __device__ void compute_attn_1rowblock(
 
         // rescale O
 
-        for (int i =0; i<2; i++) {
-            for (int j=0; j < tOrO_float(make_coord(_,i),_,_).size(); j++) {
-                tOrO_float(make_coord(_,i),_,_)[j] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * tOrO_float(make_coord(_,i),_,_)[j];
-            }
-        }
+
 
         ////
 
