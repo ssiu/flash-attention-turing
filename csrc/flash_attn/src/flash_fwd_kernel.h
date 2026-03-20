@@ -347,7 +347,7 @@ inline __device__ void compute_attn_1rowblock(
 
 
 
-        
+
         // compute P = softmax(S)
         for (int i =0; i<2; i++) {
             for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {     
@@ -357,16 +357,6 @@ inline __device__ void compute_attn_1rowblock(
             rL[i] = (rM[i] == -FLT_MAX) ? 0 : expf(rM_old[i] - rM[i]) * rL_old[i];
             rD[i] = 0.0f;
         }
-
-//        if (thread0()) {
-//            printf("tSrS_float((0,0),0,0) = %f\n", tSrS_float(make_coord(0,0),0,0));
-//        }
-
-        // if (seqlen_q == 128 && seqlen_k == 128 && blockIdx.x == 0 && blockIdx.y == 0 && blockIdx.z == 0 && threadIdx.x == 0) {
-        //     printf("n_block = %d, masking_steps = %d, is_causal is %d, m is %f, tSrS_float after exp is %f\n", n_block, masking_steps, is_casual, rM[0], tSrS_float(make_coord(0,0),0,0));
-        //     //print_tensor(tSrS_float);
-        // }
-
 
 
         // compute sum(sP)
