@@ -366,6 +366,12 @@ inline __device__ void compute_attn_1rowblock(
                 for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
                     rD[i] += tSrS_float(make_coord(_,i),_,_)[j];
                 }
+
+                for (int offset = 2; offset > 0; offset /= 2) {
+                    rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
+                }
+                rL[i] += rD[i];
+                rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
             }
             
         }
@@ -379,18 +385,12 @@ inline __device__ void compute_attn_1rowblock(
 
 
         // warp reduction
-        for (int i =0; i<2; i++) {
-            for (int offset = 2; offset > 0; offset /= 2) {
-                rD[i] +=  __shfl_down_sync(mask, rD[i], offset);
-            }
-        }
+  
 
 
 
         // can just keep the correct rL to lane 0
-        for (int i =0; i<2; i++) {
-            rL[i] += rD[i];
-        }
+ 
 
         // if (thread0()){
         //     printf("kv_tile = %d, rL after adding rD: %f\n", kv_tile, rL[0]);
@@ -398,9 +398,7 @@ inline __device__ void compute_attn_1rowblock(
 
 
         // sync rL
-        for (int i =0; i<2; i++) {
-            rL[i] = __shfl_sync(mask, rL[i], lane_id_to_read_from);
-        }
+
 
 
 
