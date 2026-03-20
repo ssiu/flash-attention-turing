@@ -46,8 +46,8 @@ BWD_TOLS = dict(
 DTYPES = [torch.float16]
 HEAD_DIMS = [64, 128]
 BATCH_SIZES = [1, 3]
-# SOFTMAX_SCALES = [None, 0.3]
-SOFTMAX_SCALES = [0.3]
+SOFTMAX_SCALES = [None, 0.3]
+# SOFTMAX_SCALES = [0.3]
 CAUSAL_FLAGS = [False, True]
 NHEAD_PAIRS = [(2, 1), (4, 2), (6, 3), (6, 1)]
 
