@@ -348,16 +348,15 @@ inline __device__ void compute_attn_1rowblock(
 
 
         // compute P = softmax(S)
-         for (int i =0; i<2; i++) {            
-            if (rM[i] == -FLT_MAX) {
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+        for (int i =0; i<2; i++) {
+            for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                if (rM[i] == -FLT_MAX) {
                     tSrS_float(make_coord(_,i),_,_)[j] = 0.0f;
-                }
-            } else {
-                for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
+                } else {
                     tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
                 }
-            }            
+
+            }
         }
         // rescale l and also reset rD to 0
         for (int i =0; i<2; i++) {
