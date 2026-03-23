@@ -18,10 +18,7 @@
 
 using namespace cute;
 
-// kBlockN = 64 works
-// kBlockM = 64 doesnt work
-// #define K_BLOCK_M 64
-// #define K_BLOCK_N 64
+
 
 
 
@@ -53,8 +50,7 @@ inline __device__ void compute_dq_1rowblock(
     constexpr int kBlockM = Kernel_traits::kBlockM;
     constexpr int kBlockN = Kernel_traits::kBlockN;
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
-    //constexpr int kNWarps = 8;
-    //constexpr int kNThreads = kNWarps * 32;
+
 
     const int max_seqlen_q = seqlen_q;
     const int max_seqlen_k = seqlen_k;
@@ -84,7 +80,7 @@ inline __device__ void compute_dq_1rowblock(
     // for (int i=0;i<2;i++) {
     //     for (int j=0;j<2;j++) {
     //         print_tensor(tc(make_coord(_,j),i,_));
-    //     }Why (128,63) works but (128,65) fails
+    //     }
 
     // }
 
@@ -191,12 +187,10 @@ inline __device__ void compute_dq_1rowblock(
 
     const int global_row_offset = m_block * kBlockM;
 
-//    volatile float rL[2][2] = {0};
-//    volatile float rD[2][2] = {0};
+
     float rL[2][2] = {0};
     float rD[2][2] = {0};
-    // Copy operation
-    //GmemTiledCopyQKV gmem_tiled_copy_QKV;
+
 
     typename Kernel_traits::GmemTiledCopy gmem_tiled_copy_QKV;
 
@@ -300,36 +294,12 @@ inline __device__ void compute_dq_1rowblock(
     const int m_block_max = ceil_div(seqlen_q, kBlockM);
     int n_block_max = ceil_div(seqlen_k, kBlockN);
 
-    // int n_masking_steps = 1;
-
-    // int causal_offset_local = 0;
-    // const int m_block_diff = (m_block_max - 1) - m_block;
-//    int shifted_m_block = m_block;
     int n_masking_steps = (!Is_causal)
         ? 1
         : ((Is_even_MN && Is_causal) ? ceil_div(kBlockM, kBlockN) : ceil_div(kBlockM, kBlockN) + 1);
 
     if constexpr(Is_causal) {
-        // causal_offset_local = ((seqlen_k - 1) % kBlockN) - ((seqlen_q - 1) % kBlockM);
 
-
-        // int causal_offset_local_div = 0;
-        // if (causal_offset_local >= 0) {
-        //     causal_offset_local_div = ceil_div(causal_offset_local, kBlockN);
-        // } else {
-        //     causal_offset_local_div = causal_offset_local / kBlockN;
-        // }
-        // const int causal_offset_global = 1 - causal_offset_local_div;
-
-        // if (m_block == m_block_max - 1) {
-        //     n_masking_steps = fminf(1 + causal_offset_global, n_block_max);
-        // } else {
-        //     n_block_max = fmaxf(n_block_max - causal_offset_global - (m_block_diff - 1) * (kBlockM / kBlockN), 0);
-        //     n_masking_steps = fminf(3, n_block_max);
-        //     // add
-        //     // take away kBlockM to get the index at the bottom for the above block
-        //     causal_offset_local = causal_offset_local + kBlockN * causal_offset_global - kBlockM;
-        // }
         n_block_max = fmaxf(0, ceil_div((m_block + 1) * kBlockM + seqlen_k - seqlen_q, kBlockN));
         n_masking_steps = fminf(n_masking_steps, n_block_max);
     }
@@ -338,8 +308,6 @@ inline __device__ void compute_dq_1rowblock(
     // if seqlen_q > seqlen_k we exit early for the blocks with rows that are fully masked
     if (n_block_max == 0) {return;}
 
-    // // if seqlen_q > seqlen_k we exit early for the blocks with rows that are fully masked
-    // if (KV_TILE_SHIFT < 0) {return;}
 
 
     //auto KV_TILE_MAX = size<3>(tSgK);
@@ -427,63 +395,23 @@ inline __device__ void compute_dq_1rowblock(
 
 
         __syncthreads();
-//
-//        if (thread(0)) {
-//            print_tensor(sQ);
-//            print_tensor(sK);
-//            printf("\n");
-//            printf("masked loop after QK^T, n_block = %d, tSrS_float[0] = %.8e, tSrS_float[1] = %.8e, tSrS_float[2] = %.8e, tSrS_float[3] = %.8e\n", n_block, tSrS_float[0], tSrS_float[1], tSrS_float[2], tSrS_float[3]);
-//            printf("masked loop after QK^T, n_block = %d, tdPrdP_float[0] = %.8e, tdPrdP_float[1] = %.8e, tdPrdP_float[2] = %.8e, tdPrdP_float[3] = %.8e\n", n_block, tdPrdP_float[0], tdPrdP_float[1], tdPrdP_float[2], tdPrdP_float[3]);
-//        //    print_tensor(tSrS_float);
-//        }
 
-
-
-
-
-
-
-        //printf("kv_tile = %d, thread = %d, rD[0] = %f\n", kv_tile, threadIdx.x, rD[0][0]);
 
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
             tSrS_float[i] *= softmax_scale;
         }
 
-//       if (thread(0)) {
-//           printf("\n");
-//           printf("masked loop after scaling, n_block = %d, tSrS_float[0] = %.8e, tSrS_float[1] = %.8e, tSrS_float[2] = %.8e, tSrS_float[3] = %.8e\n", n_block, tSrS_float[0], tSrS_float[1], tSrS_float[2], tSrS_float[3]);
-//           printf("masked loop after scaling, n_block = %d, tdPrdP_float[0] = %.8e, tdPrdP_float[1] = %.8e, tdPrdP_float[2] = %.8e, tdPrdP_float[3] = %.8e\n", n_block, tdPrdP_float[0], tdPrdP_float[1], tdPrdP_float[2], tdPrdP_float[3]);
-//        //    print_tensor(tSrS_float);
-//           // print_tensor(tdQrdQ_float);
-//       }
 
         accum_SdP_mask.template apply_mask_bwd_dq<Is_causal, Is_even_MN>(
             tSrS_float, tdPrdP_float, warp_id, lane_id, m_block, n_block, seqlen_q, seqlen_k, kBlockM, kBlockN, head_dim
         );
 
-//        if (thread(0)) {
-//            printf("\n");
-//            printf("masked loop after masking, n_block = %d, tSrS_float[0] = %.8e, tSrS_float[1] = %.8e, tSrS_float[2] = %.8e, tSrS_float[3] = %.8e\n", n_block, tSrS_float[0], tSrS_float[1], tSrS_float[2], tSrS_float[3]);
-//            printf("masked loop after masking, n_block = %d, tdPrdP_float[0] = %.8e, tdPrdP_float[1] = %.8e, tdPrdP_float[2] = %.8e, tdPrdP_float[3] = %.8e\n", n_block, tdPrdP_float[0], tdPrdP_float[1], tdPrdP_float[2], tdPrdP_float[3]);
-//            // print_tensor(tdQrdQ_float);
-//        }
+
 
         Tensor tSrP_float = tSrS_float;
         Tensor tdPrdS_float = tdPrdP_float;
 
-
-        //printf("kv_tile = %d, thread = %d, dP[0] = %f\n", kv_tile, threadIdx.x, tdPrdP_float[0]);
-
-
-        // if (thread(0)) {
-        //     printf("\n");
-        //     for (int i=0;i<2;i++) {
-        //         for (int j=0;j<2;j++) {
-        //             printf("masked loop, n_block = %d, i = %d, j = %d, rL[i][j] = %.8e, rD[i][j] = %.8e\n", n_block, i, j, rL[i][j], rD[i][j]);
-        //         }
-        //     }
-        // }
 
 
         // compute P = exp(S-l)
@@ -495,11 +423,7 @@ inline __device__ void compute_dq_1rowblock(
             }
         }
 
-//        if (thread(4)) {
-//            printf("\n");
-//            printf("masked loop, n_block = %d, tSrP_float[0] = %.8e, tSrP_float[1] = %.8e\n", n_block, tSrP_float[0], tSrP_float[1]);
-//            // print_tensor(tdQrdQ_float);
-//        }
+
 
         // compute dS = P \circ (dP - D)
         // tS has the same mma layout as tdP
@@ -511,19 +435,6 @@ inline __device__ void compute_dq_1rowblock(
             }
         }
 
-//        if (thread(4)) {
-//            printf("\n");
-//            printf("masked loop, n_block = %d, tdPrdS_float[0] = %.8e, tdPrdS_float[1] = %.8e\n", n_block, tdPrdS_float[0], tdPrdS_float[1]);
-//            // print_tensor(tdQrdQ_float);
-//        }
-
-        // convert dS from fp32 to fp16
-//         constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
-//
-//         cutlass::NumericArrayConverter<half_t, float, num_element_dS> convert_op_dS;
-//         auto frag_dS = convert_op_dS(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
-//
-//         Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
 
         Tensor tdPrdS = convert_type<half_t>(tdPrdS_float);
 
@@ -532,10 +443,6 @@ inline __device__ void compute_dq_1rowblock(
 
 
         __syncthreads();
-//         if (thread(0) && kv_tile == 0) {
-//
-//             print_tensor(tdPsdS(_,0));
-//         }
 
         // dQ += dSK
 
@@ -551,11 +458,7 @@ inline __device__ void compute_dq_1rowblock(
 
         }
 
-//        if (thread(4)) {
-//            printf("\n");
-//            printf("masked loop, n_block = %d, tdQrdQ_float[0] = %.8e, tdQrdQ_float[1] = %.8e\n", n_block, tdQrdQ_float[0], tdQrdQ_float[1]);
-//            // print_tensor(tdQrdQ_float);
-//        }
+
         __syncthreads();
 
     }
@@ -566,9 +469,7 @@ inline __device__ void compute_dq_1rowblock(
     for (; n_block >= n_block_min; --n_block) {
         
         const int global_row_offset = m_block * kBlockM;
-        // if (thread(0)) {
-        //     print_tensor(tdQrdQ_float); 
-        // }
+
 
         clear(tSrS_float);
         clear(tdPrdP_float);
@@ -601,38 +502,17 @@ inline __device__ void compute_dq_1rowblock(
         }
 
 
-//             if (blockIdx.z ==0 && warp_id % 2 ==0 && lane_id < 4 && kv_tile == 0) {
-//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
-//                 print_tensor(tSrS_float(make_coord(_,_), 0, _ ));
-//
-//             }
 
 
         __syncthreads();
 
-        // load rL, rD from gmem to rmem
-//        for (int i=0;i<2;i++) {
-//            for (int j=0;j<2;j++) {
-//                rL[i][j] = gL((warp_offset + thread_offset + 8 * j + 32 * i));
-//                rD[i][j] = gD((warp_offset + thread_offset + 8 * j + 32 * i));
-//            }
-//        }
+
 
         // rescale S
         for (int i=0;i< tSrS_float.size();i ++ ) {
             tSrS_float[i] *= softmax_scale;
         }
 
-//             if (blockIdx.z ==0 && warp_id == 2 && lane_id == 0 && kv_tile == 0) {
-//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
-//                 printf("tSrS_float\n");
-//                 print_tensor(tSrS_float(make_coord(_, 0), 0, 0));
-//                 printf("====================\n");
-//                 //print_tensor(sdS(1, _));
-//             }
-
-//        float rL[2][2] = {0};
-//        float rD[2][2] = {0};
         for (int i=0;i<2;i++) {
             for (int j=0;j<2;j++) {
                 const int global_row = global_row_offset + warp_offset + thread_offset + 8 * j + 32 * i;
@@ -644,24 +524,11 @@ inline __device__ void compute_dq_1rowblock(
         }
 
 
-//        if (thread(4)) {
-//            printf("\n");
-//            printf("non-masked loop, n_block = %d, tSrS_float[0] = %.8e, tSrS_float[1] = %.8e\n", n_block, tSrS_float[0], tSrS_float[1]);
-//            printf("non-masked loop, n_block = %d, tdPrdP_float[0] = %.8e, tdPrdP_float[1] = %.8e\n", n_block, tdPrdP_float[0], tdPrdP_float[1]);
-//            // print_tensor(tdQrdQ_float);
-//        }
 
         Tensor tSrP_float = tSrS_float;
         Tensor tdPrdS_float = tdPrdP_float;
 
-//        if (thread(4)) {
-//            printf("\n");
-//            for (int i=0;i<2;i++) {
-//                for (int j=0;j<2;j++) {
-//                    printf("non-masked, n_block = %d, i = %d, j = %d, rL[i][j] = %.8e, rD[i][j] = %.8e\n", n_block, i, j, rL[i][j], rD[i][j]);
-//                }
-//            }
-//        }
+
         // compute P = exp(S-l)
         for (int i=0; i<2; i++) {
             for (int j=0;j<2;j++) {
@@ -671,18 +538,7 @@ inline __device__ void compute_dq_1rowblock(
             }
         }
 
-//        if (thread(4)) {
-//            printf("non-masked loop, n_block = %d, tSrP_float[0] = %.8e, tSrP_float[1] = %.8e\n", n_block, tSrP_float[0], tSrP_float[1]);
-//            // print_tensor(tdQrdQ_float);
-//        }
 
-//             if (blockIdx.z ==0 && warp_id == 2 && lane_id == 0 && kv_tile == 0) {
-//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
-//                 printf("tSrP_float\n");
-//                 print_tensor(tSrP_float(make_coord(_, 0), 0, 0));
-//                 printf("====================\n");
-//                 //print_tensor(sdS(1, _));
-//             }
 
 
         // compute dS = P \circ (dP - D)
@@ -695,27 +551,7 @@ inline __device__ void compute_dq_1rowblock(
             }
         }
 
-//        if (thread(4)) {
-//            printf("non-masked loop, n_block = %d, tdPrdS_float[0] = %.8e, tdPrdS_float[1] = %.8e\n", n_block, tdPrdS_float[0], tdPrdS_float[1]);
-//            // print_tensor(tdQrdQ_float);
-//        }
 
-
-//             if (blockIdx.z ==0 && warp_id == 2 && lane_id == 0 && kv_tile == 0) {
-//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
-//                 printf("tdPrdS_float\n");
-//                 print_tensor(tdPrdS_float(make_coord(_, 0), 0, 0));
-//                 printf("====================\n");
-//                 //print_tensor(sdS(1, _));
-//             }
-
-        // convert dS from fp32 to fp16
-//             constexpr int num_element_dS = decltype(size(tdPrdS_float))::value;
-//
-//             cutlass::NumericArrayConverter<half_t, float, num_element_dS> convert_op_dS;
-//             auto frag_dS = convert_op_dS(*reinterpret_cast<const cutlass::Array<float, num_element_dS> *>(tdPrdS_float.data()));
-//
-//             Tensor tdPrdS = make_tensor(make_rmem_ptr<half_t>(&frag_dS), tdPrdS_float.layout());
 
         Tensor tdPrdS = convert_type<half_t>(tdPrdS_float);
 
@@ -724,24 +560,10 @@ inline __device__ void compute_dq_1rowblock(
 
         __syncthreads();
 
-//             if (blockIdx.z ==0 && warp_id == 0 && lane_id == 0 && kv_tile == 0) {
-//                 printf("kv_tile = %d, warp_id = %d, lane_id = %d\n", kv_tile, warp_id, lane_id);
-//                 print_tensor(sdS(make_coord(0,_)));
-//                 //print_tensor(sdS(1, _));
-//             }
 
 
         // dQ += dSK
-        
-        // if (thread0()) {
-        //     printf("dq kernel, n_block = %d\n", n_block);
-        //     printf("sdS\n");
-        //     print_tensor(sdS);
-        //     printf("sQ\n");
-        //     print_tensor(sQ);
-        //     printf("sK\n");
-        //     print_tensor(sV);
-        // }
+ 
 
 
 
@@ -752,75 +574,24 @@ inline __device__ void compute_dq_1rowblock(
 
 
             gemm(tiled_mma_dQ, tdQrdS(_,_,dskt_block), tdQrKt(_,_,dskt_block), tdQrdQ_float);
-//                 if (blockIdx.z == 0 && warp_id==4 && lane_id==0) {
-//                     print_tensor(tdQrdQ_float);
-//                 }
-            // if (thread(0)) {
-            //     printf("tdQrdQ_float[0] = %f\n", tdQrdQ_float[0]);
-            //     // print_tensor(tdQrdQ_float); 
-            // }
 
         }
-        
-//        if (thread(4)) {
-//            printf("non-masked loop, n_block = %d, tdQrdQ_float[0] = %.8e, tdQrdQ_float[1] = %.8e\n", n_block, tdQrdQ_float[0], tdQrdQ_float[1]);
-//            // print_tensor(tdQrdQ_float);
-//        }
+ 
         __syncthreads();
 
     }
     
-    // if (thread(0)) {
-    //     printf("tdQrdQ_float[0] = %f\n", tdQrdQ_float[0]);
-    //     // print_tensor(tdQrdQ_float); 
-    // }
 
-//    if (thread(4)) {
-//        printf("done, n_block = %d, tdQrdQ_float[0] = %.8e, tdQrdQ_float[1] = %.8e\n", n_block, tdQrdQ_float[0], tdQrdQ_float[1]);
-//        // print_tensor(tdQrdQ_float);
-//    }
     // rescale by head dim
     for (int i=0;i< tdQrdQ_float.size();i ++ ) {
         tdQrdQ_float[i] *= softmax_scale;
     }
 
-//    if (thread(4)) {
-//        printf("rescale head dim, n_block = %d, tdQrdQ_float[0] = %.8e, tdQrdQ_float[1] = %.8e\n", n_block, tdQrdQ_float[0], tdQrdQ_float[1]);
-//        // print_tensor(tdQrdQ_float);
-//    }
 
-    // if (thread(0)) {
-    //     printf("tdQrdQ_float[0] = %f\n", tdQrdQ_float[0]);
-    //     // print_tensor(tdQrdQ_float); 
-    // }
-
-//     if (blockIdx.z == 0 && warp_id==4 && lane_id==0) {
-//         print_tensor(tdQrdQ_float);
-//     }
-
-    // dQ
-//     constexpr int num_element = decltype(size(tdQrdQ_float))::value;
-//
-//     cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-//     auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tdQrdQ_float.data()));
-//
-//     Tensor tdQrdQ = make_tensor(make_rmem_ptr<half_t>(&frag), tdQrdQ_float.layout());
 
     Tensor tdQrdQ = convert_type<half_t>(tdQrdQ_float);
 
-//    if (thread(4)) {
-//        printf("convert to fp16, n_block = %d, tdQrdQ_float[0] = %.8e, tdQrdQ_float[1] = %.8e\n", n_block, tdQrdQ_float[0], tdQrdQ_float[1]);
-//        // print_tensor(tdQrdQ_float);
-////        copy(tdQrdQ, tdQgdQ);
-//    }
 
-
-
-
-//    if (thread(0)) {
-//        printf("\n");
-//        printf("gmem, n_block = %d, tdQrdQ_float[0] = %.8e, tdQrdQ_float[1] = %.8e\n", n_block, static_cast<float>(tdQrdQ[0]), static_cast<float>(tdQrdQ[1]));        // print_tensor(tdQrdQ_float);
-//    }
 
     copy(tdQrdQ, tdQsdQ);
 
@@ -829,32 +600,11 @@ inline __device__ void compute_dq_1rowblock(
 
 
 
-//    if (thread(4)) {
-//        printf("smem, n_block = %d, tdQrdQ_float[0] = %.8e, tdQrdQ_float[1] = %.8e\n", n_block, tdQsdQ[0], tdQsdQ[1]);
-//        // print_tensor(tdQrdQ_float);
-//    }
-
     masked_copy<Is_even_MN>(
         gmem_tiled_copy_QKV, tdQsdQ_copy, tdQgdQ_copy, warp_id, lane_id, 
         seqlen_q - m_block * kBlockM, 
         /*clear_D=*/false);
-//
-//
-//    if (thread(8)) {
-//        printf("smem, tdQsdQ_copy[0] = %.8e, tdQsdQ_copy[1] = %.8e\n", tdQsdQ_copy[0], tdQsdQ_copy[1]);
-//        printf("gmem, tdQgdQ_copy[0] = %.8e, tdQgdQ_copy[1] = %.8e\n", tdQgdQ_copy[0], tdQgdQ_copy[1]);
-//        // print_tensor(tdQrdQ_float);
-//    }
-////    copy(gmem_tiled_copy_QKV, tdQsdQ_copy, tdQgdQ_copy);
-//
-//    if (thread(0)) {
-//        for (int i = 0; i < 64; ++i) {
-//            for (int j = 0; j < 64; ++j) {
-//                printf("% .8e ", gdQ(i, j));
-//            }
-//            printf("\n");
-//        }
-//    }
+
 
 }
 
@@ -879,8 +629,7 @@ inline __device__ void compute_dk_dv_1colblock(
     constexpr int kBlockM = Kernel_traits::kBlockM;
     constexpr int kBlockN = Kernel_traits::kBlockN;
     constexpr int kHeadDim = Kernel_traits::kHeadDim;
-    //constexpr int kNWarps = 8;
-    //constexpr int kNThreads = kNWarps * 32;
+
     const int max_seqlen_q = seqlen_q;
     const int max_seqlen_k = seqlen_k;
     const BlockInfo binfo(max_seqlen_q, max_seqlen_k, bidb, cu_seqlens_q, cu_seqlens_k);
@@ -1161,60 +910,27 @@ inline __device__ void compute_dk_dv_1colblock(
     // auto Q_TILE_MAX = size<3>(tSgQ);
 
 
-    //int m_block_min = n_block * kBlockN / kBlockM;  
     int m_block_min = 0;  
     int m_block_max = ceil_div(seqlen_q, kBlockM); 
     const int n_block_max = ceil_div(seqlen_k, kBlockN); 
 
 
-    // we assume kBlockM > kBlockN
-
-    // constexpr int n_masking_steps = Is_even_MN ? 0 : 1;
 
     int n_masking_steps = (!Is_causal)
         ? 0
         : ((Is_even_MN && Is_causal) ? 1 : 2);
 
 
-//     // COMMENT OUT
-    // int n_masking_steps = 0;
-//     int causal_offset_local = 0;
-//     const int n_block_diff = (n_block_max - 1) - n_block;
-// //    int shifted_m_block = m_block;
-//     // COMMENT OUT
+
     if constexpr(Is_causal) {
         m_block_min = fmaxf(m_block_min, (n_block * kBlockN + seqlen_q - seqlen_k) / kBlockM);
         n_masking_steps = fminf(n_masking_steps, m_block_max);
-        // // COMMENT OUT 
-        // causal_offset_local = ((seqlen_k - 1) % kBlockN) - ((seqlen_q - 1) % kBlockM);
-        // // // we assume kBlockM = kBlockN, 
-        // // // so -64 < causal_offset_local < 64
 
-        // int causal_offset_local_div = ceil_div(causal_offset_local, kBlockN);
-        // // n_masking_steps = fminf(causal_offset_local_div + 1, m_block_max); 
-        
-        // m_block_min = fmaxf(m_block_max - causal_offset_local_div - n_block_diff - 1, 0);
-        // n_masking_steps = fminf(2, m_block_max); 
-
-        // // causal_offset_local = (causal_offset_local < 0) ? causal_offset_local + kBlockM : causal_offset_local; 
-        // // COMMENT OUT
     }
-    // int m_block_no_mask = m_block_min + masking_steps; 
-//    if (seqlen_q == 128 && seqlen_k == 256 && blockIdx.y ==0 && blockIdx.z ==0 && threadIdx.x == 0) {
-//        printf("\nblock_n = %d, kBlockM = %d, m_block_min = %d, m_block_max = %d, n_block_shift = %d, masking_steps = %d, m_block_no_mask = %d\n", blockIdx.x, kBlockM, m_block_min, m_block_max, n_block_shift, masking_steps, m_block_no_mask);
-//    }
 
-    // if (threadIdx.x == 0) {
-    //     print("\nthread_id = %d, block_x = %d, block_y = %d, block_z = %d, seqlen_q = %d, seqlen_k = %d, n_masking_steps = %d, m_block_min = %d, m_block_max = %d\n", threadIdx.x, blockIdx.x, blockIdx.y, blockIdx.z, seqlen_q, seqlen_k, n_masking_steps, m_block_min, m_block_max);
-
-    // }
     auto QK_BLOCK_MAX = size<2>(tSsK);
     auto PtdOt_BLOCK_MAX = size<2>(tdVsPt);
-    // load K, V, dK, dV tiles
 
-    // clear(tdVsdV);
-
-//    int m_block = m_block_max - 1;
     int m_block = m_block_min;
 
 
@@ -1229,19 +945,6 @@ inline __device__ void compute_dk_dv_1colblock(
         /*clear_D=*/true);
 
 
-
-
-//    copy(gmem_tiled_copy_QKV, tKgK, tKsK);
-//    //copy(tSgK, tSsK);
-//    copy(gmem_tiled_copy_QKV, tVgV, tVrV);
-
-
-//    if (threadIdx.x == 0) {
-//        printf("block x = %d, block y = %d, block z = %d, m_block_min = %d, m_block_max = %d\n", blockIdx.x, blockIdx.y, blockIdx.z, m_block_min, m_block_max);
-//    }
-    
-
-
 //    copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,m_block_min), tQrQ);
     //copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,0), tdOrdO);
     Mask<Is_causal> accum_SdP_mask(seqlen_q, seqlen_k);
@@ -1250,15 +953,12 @@ inline __device__ void compute_dk_dv_1colblock(
     clear(tdKrdK_float);
 
     CUTE_NO_UNROLL
-//    for (int m_block = m_block_min; m_block < m_block_no_mask; ++m_block) {
-//    for (int masking_step = 0; masking_step < n_masking_steps; ++masking_step, --m_block) {
+
     for (int masking_step = 0; masking_step < n_masking_steps && m_block < m_block_max; ++masking_step, ++m_block) {
         // copy(gmem_tiled_copy_QKV, tVrV, tVsV);
         copy(gmem_tiled_copy_QKV, tVrV, tVsV);
 
-//        if (thread(255)) {
-//          printf("mask, seqlen_q = %d, seqlen_k = %d\n", seqlen_q, seqlen_k);
-//        }
+
 
         clear(tSrS_float);
         clear(tdPrdP_float);
@@ -1331,7 +1031,6 @@ inline __device__ void compute_dk_dv_1colblock(
                 if (global_row < seqlen_q) {
                     rL[i][j] = gL(block_row, m_block);
                     rD[i][j] = gD(block_row, m_block);
-//                    print("bwd, thread_id = %d, thread_row = %d, rL = %.8e, rD = %.8e\n", threadIdx.x, warp_offset + thread_offset + 8 * j + 32 * i, rL[i][j], rD[i][j]);
                 }
             }
         }
@@ -1407,12 +1106,7 @@ inline __device__ void compute_dk_dv_1colblock(
 
 
         __syncthreads();
-        // if (thread(0)) {
-        //     print("\n");
-        //     print_tensor(sP);
-        //     print("=====\n");
-        //     print_tensor(sdS);
-        // }
+
 
 
         // dV += P^TdO
@@ -1453,26 +1147,8 @@ inline __device__ void compute_dk_dv_1colblock(
 
     }
 
-//     To compute the mask, imagine we are working in a 64 x 64 row-major matrix.
-//     We want to compute a map
-//     (warp_id, lane_id) -> offset in a 64 x 64 row major matrix -> 2d coordinates
-//     To derive the first map we can partition a 64 x 64 row-major matrix using the bwd mma
-//     and print out the layout of each thread partition.
-//     For hdim = 128, the layout is ((_2,_2),_2,_2):((_1,_512),_2048,_32)
-//     The starting offset of each thread is given by
-//     (warp_id / 4) * 64 * 16 + (warp_id % 4) * 8 + (lane_id / 4) * 64 + (lane_id % 4) * 2
-//     the offset is simply offset_start + dot product between layout and stride
-//     The second map is simply offset -> (offset / 64, offset % 64)
-
-    
-
-    
-//    copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,m_block_no_mask), tQrQ);
-    //copy(gmem_tiled_copy_QKV, tdOgdO(_,_,_,0), tdOrdO);
-
     CUTE_NO_UNROLL
-//    for (int m_block = m_block_no_mask; m_block < m_block_max; ++m_block) {
-    // for (; m_block >= m_block_min; --m_block) {
+
     for (; m_block < m_block_max; ++m_block) {
         copy(gmem_tiled_copy_QKV, tVrV, tVsV);
 
@@ -1499,31 +1175,6 @@ inline __device__ void compute_dk_dv_1colblock(
         __syncthreads();
 
 
-//        // debug
-//        masked_copy<Is_even_MN>(gmem_tiled_copy_QKV, tQgQ(_,_,_,m_block), tQrQ, warp_id, lane_id, seqlen_q - m_block * kBlockM);
-//        copy(gmem_tiled_copy_QKV, tQrQ, tQsQ);
-//
-//        __syncthreads();
-//        if (thread0()) {
-//            printf("masked copy register");
-//            print_tensor(sQ);
-//        }
-//
-//
-//        masked_copy<Is_even_MN>(gmem_tiled_copy_QKV, tQgQ(_,_,_,m_block), tQsQ, warp_id, lane_id, seqlen_q - m_block * kBlockM);
-//        __syncthreads();
-//        if (thread0()) {
-//            printf("masked copy");
-//            print_tensor(sQ);
-//        }
-//
-//        copy(gmem_tiled_copy_QKV, tQgQ(_,_,_,m_block), tQsQ);
-//        __syncthreads();
-//        if (thread0()) {
-//           printf("unmasked copy");
-//           print_tensor(sQ);
-//        }
-//        // debug
 
 
 
@@ -1550,43 +1201,17 @@ inline __device__ void compute_dk_dv_1colblock(
         __syncthreads();
 
 
-
-//        // debug
-//        Tensor tSrS = convert_type<half_t>(tSrS_float);
-//
-//
-//        Tensor tdPrdP = convert_type<half_t>(tdPrdP_float);
-//
-//        copy(tSrS, tSsP);
-//        copy(tdPrdP, tdPsdS);
-//
-//        __syncthreads();
-//
-//
-//
-//        // debug
-        
-        // load rL, rD from gmem to rmem
-
-        // if (thread0() && m_block == m_block_max - 1) {
-        //     print_tensor(gL);
-        //     print_tensor(gL(_, m_block));
-        // }
-
         int global_row_offset = m_block * kBlockM;
         for (int i=0;i<2;i++) {
             for (int j=0;j<2;j++) {
                 int block_row = warp_offset + thread_offset + 8 * j + 32 * i;
                 int global_row = global_row_offset + block_row;
-//                rL[i][j] = gL(block_row, m_block);
-//                rD[i][j] = gD(block_row, m_block);
+
                 if (global_row < seqlen_q) {
                     rL[i][j] = gL(block_row, m_block);
                     rD[i][j] = gD(block_row, m_block);
                 }
-//                if (m_block == m_block_max - 1) {
-//                    printf("thread id = %d, i = %d, j = %d, global_row = %d, block_row = %d\n", threadIdx.x, i, j, global_row, block_row);
-//                }
+
             }
         }
 
@@ -1658,25 +1283,13 @@ inline __device__ void compute_dk_dv_1colblock(
             copy(smem_tiled_copy_dSt, tdVsPt_copy_view(_,_,ptdot_block), tdVrPt_copy_view(_,_,ptdot_block));
             copy(smem_tiled_copy_Qt, tdVsdOt_copy_view(_,_,ptdot_block), tdVrdOt_copy_view(_,_,ptdot_block));
 
-            //copy(tdVsPt(_,_,ptdot_block), tdVrPt(_,_,ptdot_block));
-            //copy(tdVsdOt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block));
+ 
             gemm(tiled_mma_dV, tdVrPt(_,_,ptdot_block), tdVrdOt(_,_,ptdot_block), tdVrdV_float);
 
         }
 
 
 
-
-
-        // if (thread0()) {
-        //     printf("dk dv kernel, m_block = %d\n", m_block);
-        //     printf("sdS\n");
-        //     print_tensor(sdS);
-        //     printf("sQ\n");
-        //     print_tensor(sQ);
-        //     printf("sK\n");
-        //     print_tensor(sV);
-        // }
         // dK += dS^TQ
 
         CUTE_UNROLL
@@ -1727,8 +1340,6 @@ inline __device__ void compute_dk_dv_1colblock(
         seqlen_k - n_block * kBlockN, 
         /*clear_D=*/false);
 
-    // copy(gmem_tiled_copy_QKV, tdKsdK_copy, tdKgdK_copy);
-    // copy(gmem_tiled_copy_QKV, tdVsdV_copy, tdVgdV_copy);
 
 }
 

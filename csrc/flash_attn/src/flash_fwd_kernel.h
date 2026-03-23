@@ -77,14 +77,6 @@ inline __device__ void compute_attn_1rowblock(
 
 
 
-
-    // Tensor mV = make_tensor(make_gmem_ptr(reinterpret_cast<half_t*>(v) + binfo.k_offset(seqlen_k * num_heads * head_dim, bidb)),
-    //                         make_shape(head_dim, num_heads, seqlen_k),
-    //                         make_stride(Int<1>{}, head_dim, num_heads * head_dim));
-
-    // Tensor gV = local_tile(mV(_, bidh, _), Shape<Int<kHeadDim>, Int<kBlockN>>{},
-    //                        make_coord(0, _));
-
     Tensor mV = make_tensor(make_gmem_ptr(v + binfo.k_offset(num_heads_k * head_dim, bidb)),
                             make_shape(seqlen_k, num_heads_k, head_dim),
                             make_stride(num_heads_k * head_dim, head_dim, Int<1>{}));
@@ -109,11 +101,6 @@ inline __device__ void compute_attn_1rowblock(
                            make_coord(m_block));
 
 
-//     if (thread0()){
-//         print(gL);
-//         printf("\n");
-//     }
-
 
     extern __shared__ char smem_[];
 
@@ -124,12 +111,7 @@ inline __device__ void compute_attn_1rowblock(
     Tensor sVt = make_tensor(sK.data(), typename Kernel_traits::SmemLayoutVTransposed{});
     Tensor sO = make_tensor(make_smem_ptr(reinterpret_cast<half_t*>(&smem_[0])), typename Kernel_traits::SmemLayoutQ{});
 
-//     if (thread0()) {
-//         print(gQ);
-//         print("\n");
-//         print(sQ);
-//         print("\n");
-//     }
+
 
     const int lane_id = threadIdx.x % 32;
     const int warp_id = threadIdx.x / 32;
@@ -212,10 +194,6 @@ inline __device__ void compute_attn_1rowblock(
     Tensor tOsO = thr_mma_O.partition_C(sO);
 
 
-    // if (thread0()) {
-    //     print_tensor(tQgQ);
-    //     print_tensor(tSrS_float);
-    // }
 
 
     //  each warp only process 16 rows
@@ -239,11 +217,7 @@ inline __device__ void compute_attn_1rowblock(
     int m_block_max = ceil_div(seqlen_q, kBlockM);
     int n_block_max = ceil_div(seqlen_k, kBlockN);
 
-    // int n_masking_steps = 1;
 
-    // int causal_offset_local = 0;
-    // const int m_block_diff = (m_block_max - 1) - m_block;
-//    int shifted_m_block = m_block;
     int n_masking_steps = (!Is_causal)
         ? 1
         : ((Is_even_MN && Is_causal) ? ceil_div(kBlockM, kBlockN) : ceil_div(kBlockM, kBlockN) + 1);
@@ -252,29 +226,7 @@ inline __device__ void compute_attn_1rowblock(
     int is_even_mn_offset = 0;
 
     if constexpr(Is_causal) {
-//         causal_offset_local = ((seqlen_k - 1) % kBlockN) - ((seqlen_q - 1) % kBlockM);
 
-// //        shifted_m_block = (m_block + (seqlen_k - seqlen_q) / kBlockM);
-// //        n_block_max = (shifted_m_block + 1) * kBlockM / kBlockN;
-//         int causal_offset_local_div = 0;
-//         if (causal_offset_local >= 0) {
-//             causal_offset_local_div = ceil_div(causal_offset_local, kBlockN);
-//         } else {
-//             causal_offset_local_div = causal_offset_local / kBlockN;
-//         }
-//         const int causal_offset_global = 1 - causal_offset_local_div;
-
-//         if (m_block == m_block_max - 1) {
-//             n_masking_steps = fminf(1 + causal_offset_global, n_block_max);
-//         } else {
-//             n_block_max = fmaxf(n_block_max - causal_offset_global - (m_block_diff - 1) * (kBlockM / kBlockN), 0);
-//             n_masking_steps = fminf(3, n_block_max);
-
-//             // add
-//             // take away kBlockM to get the index at the bottom for the above block
-//             causal_offset_local = causal_offset_local + kBlockN * causal_offset_global - kBlockM;
-
-//         }
         n_block_max = fmaxf(0, ceil_div((m_block + 1) * kBlockM + seqlen_k - seqlen_q, kBlockN));
         n_masking_steps = fminf(n_masking_steps, n_block_max);
 
@@ -300,23 +252,6 @@ inline __device__ void compute_attn_1rowblock(
         gmem_tiled_copy_QK, tQgQ, tQsQ, warp_id, lane_id, 
         seqlen_q - m_block * kBlockM, 
         /*clear_D=*/true);
-
-//    __syncthreads();
-
-//    if (thread0()) {
-//        print("\n");
-//        print("printing sQ:");
-//        print_tensor(sQ);
-//    }
-//    if (thread0()) {
-//        printf("\n");
-//        print_tensor(tQgQ);
-//        printf("\n");
-//        print_tensor(tQsQ);
-//    }
-
-
-
 
 
 
@@ -379,9 +314,7 @@ inline __device__ void compute_attn_1rowblock(
             tSrS_float[i] *= softmax_scale;
         }
 
-        // if (thread0()) {
-        //     printf("\nwarp_id = %d, lane_id = %d, shifted_m_block = %d, n_block = %d, kBlockM = %d, kBlockN = %d, seqlen_k = %d\n", warp_id, lane_id, shifted_m_block, n_block, kBlockM, kBlockN, seqlen_k);
-        // }
+   
         accum_s_mask.template apply_mask_fwd<Is_causal, Is_even_MN>(
             tSrS_float, 
             warp_id, 
@@ -392,28 +325,7 @@ inline __device__ void compute_attn_1rowblock(
         );
 
 
-//        if (head_dim == 128) {
-//            causal_offset_local = (causal_offset_local == 0) ? 64 : causal_offset_local + 64;
-//        } else {
-//            causal_offset_local = (causal_offset_local == 0) ? 128 : causal_offset_local + 128;
-//        }
 
-
-//        if (thread0()) {
-//            printf("tSrS_float((0,0),0,0) = %f\n", tSrS_float(make_coord(0,0),0,0));
-//        }
-        
-        // if (thread0()) {
-        //     print("\n");
-        //     print_tensor(tKsK);
-        //     print("\n");
-        //     print_tensor(tSrS_float);
-        //     print("\n");
-        // }
-        // if (seqlen_q == 128 && seqlen_k == 128 && blockIdx.x == 0 && blockIdx.y == 0 && blockIdx.z == 0 && threadIdx.x == 0) {
-        //     printf("n_block = %d, masking_steps = %d, is_causal is %d, tSrS_float after masking step is %f\n", n_block, masking_steps, is_casual, tSrS_float(make_coord(0,0),0,0));
-        //     //cute::print_tensor(tSrS_float);
-        // }
         // compute m = rowmax(S)
         for (int i=0; i< 2; i++) {
             rM[i] = rM_old[i];
@@ -448,7 +360,7 @@ inline __device__ void compute_attn_1rowblock(
         // compute P = softmax(S)
         for (int i =0; i<2; i++) {
             for (int j=0; j < tSrS_float(make_coord(_,i),_,_).size(); j++) {
-                if (rM[i] <= -1e20) {
+                if (rM[i] == -FLT_MAX) {
                     tSrS_float(make_coord(_,i),_,_)[j] = 0.0f;
                 } else {
                     tSrS_float(make_coord(_,i),_,_)[j] = expf(tSrS_float(make_coord(_,i),_,_)[j] - rM[i]);
@@ -457,14 +369,7 @@ inline __device__ void compute_attn_1rowblock(
             }
         }
 
-//        if (thread0()) {
-//            printf("tSrS_float((0,0),0,0) = %f\n", tSrS_float(make_coord(0,0),0,0));
-//        }
 
-        // if (seqlen_q == 128 && seqlen_k == 128 && blockIdx.x == 0 && blockIdx.y == 0 && blockIdx.z == 0 && threadIdx.x == 0) {
-        //     printf("n_block = %d, masking_steps = %d, is_causal is %d, m is %f, tSrS_float after exp is %f\n", n_block, masking_steps, is_casual, rM[0], tSrS_float(make_coord(0,0),0,0));
-        //     //print_tensor(tSrS_float);
-        // }
 
         // rescale l and also reset rD to 0
         for (int i =0; i<2; i++) {
@@ -492,14 +397,11 @@ inline __device__ void compute_attn_1rowblock(
 
 
 
-        // can just keep the correct rL to lane 0
         for (int i =0; i<2; i++) {
             rL[i] += rD[i];
         }
 
-        // if (thread0()){
-        //     printf("kv_tile = %d, rL after adding rD: %f\n", kv_tile, rL[0]);
-        // }
+
 
 
         // sync rL
@@ -509,12 +411,6 @@ inline __device__ void compute_attn_1rowblock(
 
 
 
-//             constexpr int num_element = decltype(size(tSrS_float))::value;
-//
-//             cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-//             auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
-//
-//             Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
         Tensor tOrP = convert_type<half_t>(tSrS_float);
 
 
@@ -587,9 +483,7 @@ inline __device__ void compute_attn_1rowblock(
         copy(gmem_tiled_copy_V, tVgV(_,_,_,n_block), tVsV);
         __syncthreads();
 
-//         if (thread0) {
-//             print_tensor(tSrS_float);
-//         }
+
 
         for (int i=0;i< tSrS_float.size();i ++ ) {
             tSrS_float[i] *= softmax_scale;
@@ -645,16 +539,7 @@ inline __device__ void compute_attn_1rowblock(
 
 
 
-        // rescale l and also reset rD to 0
-//         for (int i =0; i<2; i++) {
-//             //rL[i] = expf(rM_old[i] - rM[i]) * rL_old[i];
-//             rL[i] = exp2f(rM_old[i] * float(M_LOG2E) - max_scaled) * rL_old[i];
-//             rD[i] = 0.0f;
-//         }
 
-        // if (thread0()){
-        //     printf("kv_tile = %d, rL for this loop: %f\n", kv_tile, rL[0]);
-        // }
 
         // compute sum(sP)
 
@@ -677,13 +562,9 @@ inline __device__ void compute_attn_1rowblock(
 
 
 
-        // can just keep the correct rL to lane 0
         for (int i =0; i<2; i++) {
             rL[i] += rD[i];
         }
-        // if (thread0()){
-        //     printf("kv_tile = %d, rL after adding rD: %f\n", kv_tile, rL[0]);
-        // }
 
 
         // sync rL
@@ -692,13 +573,6 @@ inline __device__ void compute_attn_1rowblock(
         }
 
 
-
-//         constexpr int num_element = decltype(size(tSrS_float))::value;
-//
-//         cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-//         auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tSrS_float.data()));
-//
-//         Tensor tOrP = make_tensor(make_rmem_ptr<half_t>(&frag), tSrS_float.layout());
 
         Tensor tOrP = convert_type<half_t>(tSrS_float);
 
@@ -735,15 +609,6 @@ inline __device__ void compute_attn_1rowblock(
     }
     // end of KV loop
 
-    // if (seqlen_q == 128 && seqlen_k == 128 && blockIdx.x == 0 && blockIdx.y == 0 && blockIdx.z == 0 && threadIdx.x == 0) {
-    //     printf("n_block_no_mask = %d, masking_steps = %d, is_causal is %d, m is %f, tSrS_float before masking step is %f\n", n_block_no_mask, masking_steps, is_casual, rM[0], tSrS_float(make_coord(0,0),0,0));
-    //     //print_tensor(tSrS_float);
-    // }
-
-
-    
-
-
 
 
 
@@ -763,49 +628,25 @@ inline __device__ void compute_attn_1rowblock(
     }
 
 
-
-//     constexpr int num_element = decltype(size(tOrO_float))::value;
-//
-//     cutlass::NumericArrayConverter<half_t, float, num_element> convert_op;
-//     auto frag = convert_op(*reinterpret_cast<const cutlass::Array<float, num_element> *>(tOrO_float.data()));
-//     Tensor tOrO = make_tensor(make_rmem_ptr<half_t>(&frag), tOrO_float.layout());
-
     Tensor tOrO = convert_type<half_t>(tOrO_float);
 
     copy(tOrO, tOsO);
 
     __syncthreads();
-//    if (thread0()) {
-//        print("\n");
-//        print("printing sO:");
-//        print_tensor(sO);
-//    }
+
     //copy(gmem_tiled_copy_O, tOsO_copy, tOgO_copy);
     masked_copy<Is_even_MN>(
         gmem_tiled_copy_O, tOsO_copy, tOgO_copy, warp_id, lane_id, 
         seqlen_q - m_block * kBlockM, 
         /*clear_D=*/false);
-//    if (thread0()) {
-//        printf("\n");
-//        print_tensor(tOsO_copy);
-//        printf("\n");
-//        print_tensor(tOgO_copy);
-//    }
-
-//    if (thread(0)) {
-//        printf("\n");
-//        print_tensor(gL);
-//    }
 
 
-//    l[0] = rM[0] + logf(rL[0]);
     if (global_row_offset + thread_row < seqlen_q) {
         if (rL[0] == 0.0f) {
             gL[thread_row] = 0.0f;
         } else {
             gL[thread_row] = rM[0] + logf(rL[0]);
         }
-//        printf("thread_id = %d, thread_row = %d, m = %f, l = %f, log l = %f, m + log l = %f\n", threadIdx.x, thread_row, rM[0], rL[0], logf(rL[0]), rM[0] + logf(rL[0]));
 
 
     }
@@ -816,7 +657,6 @@ inline __device__ void compute_attn_1rowblock(
         } else {
             gL[thread_row + 8] = rM[1] + logf(rL[1]);
         }
-//        printf("thread_id = %d, thread_row = %d, m = %f, l = %f, log l = %f, m + log l = %f\n", threadIdx.x, thread_row, rM[1], rL[1], logf(rL[1]), rM[1] + logf(rL[1]));
 
     }
 
