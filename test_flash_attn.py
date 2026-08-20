@@ -44,7 +44,7 @@ BWD_TOLS = dict(
 )
 
 DTYPES = [torch.float16]
-HEAD_DIMS = [64, 128]
+HEAD_DIMS = [64, 96, 128]
 BATCH_SIZES = [1, 3]
 SOFTMAX_SCALES = [None, 0.3]
 # SOFTMAX_SCALES = [0.3]

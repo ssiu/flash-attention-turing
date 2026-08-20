@@ -17,7 +17,7 @@ pip install -v .
 batch_size=4
 num_heads=16
 num_heads_k=16
-hdims=(64 128)
+hdims=(64 96 128)
 seqlens=(512 1024 2048 4096 8192 16384 500 1000 2000 4000 8000 16000)
 # seqlens=(8192 16384 8000 16000)
 is_causals=(False True)
