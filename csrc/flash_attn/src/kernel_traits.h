@@ -61,10 +61,11 @@ struct Flash_fwd_kernel_traits : public Base {
         // LDSM loads 32 rows for K and V
         Tile<_128, _32, _8>>;
 
-    using SmemLayoutAtomQK = decltype(
-        composition(Swizzle<3, 3, 3>{},
-                    Layout<Shape<_16, _64>,
-                    Stride<_64, _1>>{}));
+    using SmemLayoutAtomQK = std::conditional_t<
+        kHeadDim == 96,
+        decltype(composition(Swizzle<2, 3, 3>{}, Layout<Shape<_8, _32>, Stride<_32, _1>>{})),
+        decltype(composition(Swizzle<3, 3, 3>{}, Layout<Shape<_16, _64>, Stride<_64, _1>>{}))
+    >;
 
     using SmemLayoutQ = decltype(tile_to_shape(
         SmemLayoutAtomQK{},
@@ -85,10 +86,11 @@ struct Flash_fwd_kernel_traits : public Base {
     //     SmemLayoutAtomV{},
     //     Shape<Int<kHeadDim>, Int<kBlockN>>{}));
 
-    using SmemLayoutAtomV = decltype(
-        composition(Swizzle<3, 3, 3>{},
-                    Layout<Shape<_16, _64>,
-                    Stride<_64, _1>>{}));
+    using SmemLayoutAtomV = std::conditional_t<
+        kHeadDim == 96,
+        decltype(composition(Swizzle<2, 3, 3>{}, Layout<Shape<_8, _32>, Stride<_32, _1>>{})),
+        decltype(composition(Swizzle<3, 3, 3>{}, Layout<Shape<_16, _64>, Stride<_64, _1>>{}))
+    >;
 
     using SmemLayoutV = decltype(tile_to_shape(
         SmemLayoutAtomV{},
@@ -98,13 +100,22 @@ struct Flash_fwd_kernel_traits : public Base {
         composition(SmemLayoutV{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockN>>{}, GenRowMajor{})));
 
 
-    using GmemLayoutAtomQK = Layout<Shape <_32, _8>, Stride<_8, _1>>;
+    using GmemLayoutAtomQK = std::conditional_t<
+        kHeadDim == 96,
+        Layout<Shape<_64, _4>, Stride<_4, _1>>,
+        Layout<Shape<_32, _8>, Stride<_8, _1>>>;
 
     // using GmemLayoutAtomV = Layout<Shape <_8, _32>, Stride<_1, _8>>;
-    using GmemLayoutAtomV = Layout<Shape <_32, _8>, Stride<_8, _1>>;
+    using GmemLayoutAtomV = std::conditional_t<
+        kHeadDim == 96,
+        Layout<Shape<_64, _4>, Stride<_4, _1>>,
+        Layout<Shape<_32, _8>, Stride<_8, _1>>>;
 
 
-    using GmemLayoutAtomO = Layout<Shape <_32, _8>, Stride<_8, _1>>;
+    using GmemLayoutAtomO = std::conditional_t<
+        kHeadDim == 96,
+        Layout<Shape<_64, _4>, Stride<_4, _1>>,
+        Layout<Shape<_32, _8>, Stride<_8, _1>>>;
 
 
     using GmemTiledCopyQK = decltype(
@@ -154,12 +165,18 @@ struct Flash_bwd_kernel_traits : public Base {
     using TiledMma_dQ = TiledMMA<
         typename Base::MMA_Atom_Arch,
         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-        Tile<Int<kBlockM>, Int<kHeadDim>, _8>>;
+        std::conditional_t<kHeadDim == 96,
+            Tile<Int<kBlockM>, Int<32>, _8>,
+            Tile<Int<kBlockM>, Int<kHeadDim>, _8>
+        >>;
 
     using TiledMma_dKdV = TiledMMA<
         typename Base::MMA_Atom_Arch,
         Layout<Shape<_2, Int<kNWarps/2>, _1>>,
-        Tile<Int<kBlockN>, Int<kHeadDim>, _8>>;
+        std::conditional_t<kHeadDim == 96,
+            Tile<Int<kBlockN>, Int<32>, _8>,
+            Tile<Int<kBlockN>, Int<kHeadDim>, _8>
+        >>;
 
 
     using SmemLayoutAtomPdS = decltype(
@@ -177,9 +194,11 @@ struct Flash_bwd_kernel_traits : public Base {
 
     // QKV
     // swizzle atom
-    using SmemLayoutAtomQKV = decltype(composition(Swizzle<3, 3, 3>{},
-                                Layout<Shape<_16,_64>,
-                                Stride<_64, _1>>{}));
+    using SmemLayoutAtomQKV = std::conditional_t<
+        kHeadDim == 96,
+        decltype(composition(Swizzle<2, 3, 3>{}, Layout<Shape<_8, _32>, Stride<_32, _1>>{})),
+        decltype(composition(Swizzle<3, 3, 3>{}, Layout<Shape<_16, _64>, Stride<_64, _1>>{}))
+    >;
 
     // swizzle Q
     using SmemLayoutQ = decltype(tile_to_shape(
@@ -190,10 +209,11 @@ struct Flash_bwd_kernel_traits : public Base {
                       composition(SmemLayoutQ{}, make_layout(Shape<Int<kHeadDim>, Int<kBlockM>>{}, GenRowMajor{})));
 
     // swizzle K
-    using SmemLayoutAtomKV = decltype(
-        composition(Swizzle<3, 3, 3>{},
-                    Layout<Shape<Int<16>, Int<64>>,
-                           Stride<Int<64>, _1>>{}));
+    using SmemLayoutAtomKV = std::conditional_t<
+        kHeadDim == 96,
+        decltype(composition(Swizzle<2, 3, 3>{}, Layout<Shape<Int<8>, Int<32>>, Stride<Int<32>, _1>>{})),
+        decltype(composition(Swizzle<3, 3, 3>{}, Layout<Shape<Int<16>, Int<64>>, Stride<Int<64>, _1>>{}))
+    >;
 
     using SmemLayoutKV = decltype(tile_to_shape(
         // SmemLayoutAtomQdO{},
@@ -228,32 +248,48 @@ struct Flash_bwd_kernel_traits : public Base {
     using SmemCopyAtomKt = std::conditional_t<
         kHeadDim == 64,
         Copy_Atom<SM75_U16x4_LDSM_T, elem_type>,
-        Copy_Atom<SM75_U16x8_LDSM_T, elem_type>
+        std::conditional_t<kHeadDim == 96,
+            Copy_Atom<SM75_U16x2_LDSM_T, elem_type>,
+            Copy_Atom<SM75_U16x8_LDSM_T, elem_type>
+        >
     >;
 
     using SmemCopyAtomQt = std::conditional_t<
         kHeadDim == 64,
         Copy_Atom<SM75_U16x4_LDSM_T, elem_type>,
-        Copy_Atom<SM75_U16x8_LDSM_T, elem_type>
+        std::conditional_t<kHeadDim == 96,
+            Copy_Atom<SM75_U16x2_LDSM_T, elem_type>,
+            Copy_Atom<SM75_U16x8_LDSM_T, elem_type>
+        >
     >;
 
 
     using SmemCopyAtomdOt = std::conditional_t<
         kHeadDim == 64,
         Copy_Atom<SM75_U16x4_LDSM_T, elem_type>,
-        Copy_Atom<SM75_U16x8_LDSM_T, elem_type>
+        std::conditional_t<kHeadDim == 96,
+            Copy_Atom<SM75_U16x2_LDSM_T, elem_type>,
+            Copy_Atom<SM75_U16x8_LDSM_T, elem_type>
+        >
     >;
 
     // using SmemCopyAtomQtdOtPtdSt = Copy_Atom<SM75_U16x8_LDSM_T, elem_type>;
 
-    using SmemCopyAtomPtdSt = Copy_Atom<SM75_U16x8_LDSM_T, elem_type>;
+    using SmemCopyAtomPtdSt = std::conditional_t<
+        kHeadDim == 96,
+        Copy_Atom<SM75_U16x2_LDSM_T, elem_type>,
+        Copy_Atom<SM75_U16x8_LDSM_T, elem_type>
+    >;
 
 
 
 
 
     //gmem loads
-    using GmemLayoutAtom = Layout<Shape <_32, _8>, Stride<_8, _1>>;
+    using GmemLayoutAtom = std::conditional_t<
+        kHeadDim == 96,
+        Layout<Shape<_64, _4>, Stride<_4, _1>>,
+        Layout<Shape<_32, _8>, Stride<_8, _1>>>;
 
     using GmemTiledCopy = decltype(
             make_tiled_copy(Copy_Atom<typename Base::Gmem_copy_struct, Element>{},

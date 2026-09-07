@@ -47,18 +47,16 @@ __device__ __forceinline__ float operator()(float const &x, float const &y) { re
 
 
 template <bool Is_even_MN=true,
-            typename TiledCopy, typename Engine0, typename Layout0, typename Engine1, typename Layout1>
+            typename TiledCopy, typename Engine0, typename Layout0, typename Engine1, typename Layout1,
+            typename Engine2, typename Layout2>
 __forceinline__ __device__ void masked_copy_store(TiledCopy tiled_copy, Tensor<Engine0, Layout0> const &S,
-                            Tensor<Engine1, Layout1> &D, const int warp_id, const int lane_id, const int max_MN=0) {
+                            Tensor<Engine1, Layout1> &D, Tensor<Engine2, Layout2> const &identity_MN, const int max_MN=0) {
 
     // There's no case where !Clear_OOB_K && Clear_OOB_MN
-    const int row_offset = warp_id * 4 + lane_id / 8;
     #pragma unroll
     for (int m = 0; m < size<1>(S); ++m) {
-        int row = row_offset + m * 32;
-        if (Is_even_MN || row < max_MN) {
+        if (Is_even_MN || (int)get<0>(identity_MN(0, m, 0)) < max_MN) {
             cute::copy(tiled_copy, S(_, m, _), D(_, m, _));
-//            printf("loading row = %d, warp_id = %d, lane_id = %d\n", row, warp_id, lane_id);
         }
 //        } else {
 //            cute::clear(D(_, m, _));
@@ -68,18 +66,16 @@ __forceinline__ __device__ void masked_copy_store(TiledCopy tiled_copy, Tensor<E
 
 
 template <bool Is_even_MN=true,
-            typename TiledCopy, typename Engine0, typename Layout0, typename Engine1, typename Layout1>
+            typename TiledCopy, typename Engine0, typename Layout0, typename Engine1, typename Layout1,
+            typename Engine2, typename Layout2>
 __forceinline__ __device__ void masked_copy_read(TiledCopy tiled_copy, Tensor<Engine0, Layout0> const &S,
-                            Tensor<Engine1, Layout1> &D, const int warp_id, const int lane_id, const int max_MN=0) {
+                            Tensor<Engine1, Layout1> &D, Tensor<Engine2, Layout2> const &identity_MN, const int max_MN=0) {
 
     // There's no case where !Clear_OOB_K && Clear_OOB_MN
-    const int row_offset = warp_id * 4 + lane_id / 8;
     #pragma unroll
     for (int m = 0; m < size<1>(S); ++m) {
-        int row = row_offset + m * 32;
-        if (Is_even_MN || row < max_MN) {
+        if (Is_even_MN || (int)get<0>(identity_MN(0, m, 0)) < max_MN) {
             cute::copy(tiled_copy, S(_, m, _), D(_, m, _));
-//            printf("loading row = %d, warp_id = %d, lane_id = %d\n", row, warp_id, lane_id);
         } else {
             cute::clear(D(_, m, _));
         }
@@ -87,18 +83,17 @@ __forceinline__ __device__ void masked_copy_read(TiledCopy tiled_copy, Tensor<En
 }
 
 template <bool Is_even_MN=true,
-            typename TiledCopy, typename Engine0, typename Layout0, typename Engine1, typename Layout1>
+            typename TiledCopy, typename Engine0, typename Layout0, typename Engine1, typename Layout1,
+            typename Engine2, typename Layout2>
 __forceinline__ __device__ void masked_copy(TiledCopy tiled_copy, Tensor<Engine0, Layout0> const &S,
-                            Tensor<Engine1, Layout1> &D, const int warp_id, const int lane_id, const int max_MN=0, const bool clear_D=true) {
+                            Tensor<Engine1, Layout1> &D, Tensor<Engine2, Layout2> const &identity_MN,
+                            const int max_MN=0, const bool clear_D=true) {
 
     // There's no case where !Clear_OOB_K && Clear_OOB_MN
-    const int row_offset = warp_id * 4 + lane_id / 8;
     #pragma unroll
     for (int m = 0; m < size<1>(S); ++m) {
-        int row = row_offset + m * 32;
-        if (Is_even_MN || row < max_MN) {
+        if (Is_even_MN || (int)get<0>(identity_MN(0, m, 0)) < max_MN) {
             cute::copy(tiled_copy, S(_, m, _), D(_, m, _));
-//            printf("loading row = %d, warp_id = %d, lane_id = %d\n", row, warp_id, lane_id);
         } else if (clear_D){
             cute::clear(D(_, m, _));
         }

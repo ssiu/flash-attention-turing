@@ -7,7 +7,7 @@ This repository provides an implementation of [FlashAttention](https://github.co
 Supports:
 
  - fwd and bwd
- - head dim 64, 128
+ - head dim 64, 96, 128
  - causal mask
  - gqa
  - varlen

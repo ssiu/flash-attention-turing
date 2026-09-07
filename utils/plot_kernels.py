@@ -205,7 +205,7 @@ def compute_speed_up(df):
 
     return df
 
-HDIMS = [64, 128]
+HDIMS = [64, 96, 128]
 SEQLENS  = [500, 512, 1000, 1024, 2000, 2048, 4000, 4096, 8000, 8192, 16000, 16384]
 IS_CAUSALS = ["False", "True"]
 

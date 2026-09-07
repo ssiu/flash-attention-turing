@@ -1,10 +1,12 @@
 from setuptools import setup
 from torch.utils.cpp_extension import CUDAExtension, BuildExtension
 import os
+import sys
 from pathlib import Path
 import subprocess
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
+
 
 if os.path.isdir(".git"):
     subprocess.run(["git", "submodule", "update", "--init", "csrc/cutlass"], check=True)
@@ -17,6 +19,12 @@ nvcc_flags = ["-std=c++17",
               "--ptxas-options=-v",
               "-lineinfo"]
 
+if sys.platform == "win32":
+    from distutils import ccompiler
+    compiler = ccompiler.new_compiler()
+    if compiler.compiler_type == "msvc":
+        nvcc_flags[0] = "-std=c++20"
+        nvcc_flags.extend(["-Xcompiler", "/Zc:preprocessor"])
 setup(
     name="flash_attn_turing",
     ext_modules=[
@@ -25,10 +33,14 @@ setup(
             sources=["csrc/flash_attn/flash_api.cpp",
                      "csrc/flash_attn/src/flash_fwd_hdim64_fp16_sm75.cu",
                      "csrc/flash_attn/src/flash_fwd_hdim64_fp16_causal_sm75.cu",
+                     "csrc/flash_attn/src/flash_fwd_hdim96_fp16_sm75.cu",
+                     "csrc/flash_attn/src/flash_fwd_hdim96_fp16_causal_sm75.cu",
                      "csrc/flash_attn/src/flash_fwd_hdim128_fp16_sm75.cu",
                      "csrc/flash_attn/src/flash_fwd_hdim128_fp16_causal_sm75.cu",
                      "csrc/flash_attn/src/flash_bwd_hdim64_fp16_sm75.cu",
                      "csrc/flash_attn/src/flash_bwd_hdim64_fp16_causal_sm75.cu",
+                     "csrc/flash_attn/src/flash_bwd_hdim96_fp16_sm75.cu",
+                     "csrc/flash_attn/src/flash_bwd_hdim96_fp16_causal_sm75.cu",
                      "csrc/flash_attn/src/flash_bwd_hdim128_fp16_sm75.cu",
                      "csrc/flash_attn/src/flash_bwd_hdim128_fp16_causal_sm75.cu"
                      ],

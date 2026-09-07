@@ -173,6 +173,13 @@ inline __device__ void compute_attn_1rowblock(
     Tensor tOsO_copy = thr_copy_O.partition_S(sO);
     Tensor tOgO_copy = thr_copy_O.partition_D(gO);
 
+    // Identity tensors for bound-checking the masked copies
+    Tensor cQ_identity = make_identity_tensor(make_shape(Int<kBlockM>{}, Int<kHeadDim>{}));
+    Tensor cK_identity = make_identity_tensor(make_shape(Int<kBlockN>{}, Int<kHeadDim>{}));
+    auto tCqQ = thr_copy_QK.partition_S(cQ_identity);
+    auto tCqK = thr_copy_QK.partition_S(cK_identity);
+    auto tCqO = thr_copy_O.partition_S(cQ_identity);
+
 
     typename Kernel_traits::TiledMma tiled_mma;
 
@@ -249,7 +256,7 @@ inline __device__ void compute_attn_1rowblock(
 
     // copy(gmem_tiled_copy_QK, tQgQ, tQsQ);
     masked_copy<Is_even_MN>(
-        gmem_tiled_copy_QK, tQgQ, tQsQ, warp_id, lane_id, 
+        gmem_tiled_copy_QK, tQgQ, tQsQ, tCqQ, 
         seqlen_q - m_block * kBlockM, 
         /*clear_D=*/true);
 
@@ -264,7 +271,7 @@ inline __device__ void compute_attn_1rowblock(
     // constexpr bool Is_even_MN = true; 
 
     masked_copy<Is_even_MN>(
-        gmem_tiled_copy_QK, tKgK(_,_,_,n_block), tKrK, warp_id, lane_id, 
+        gmem_tiled_copy_QK, tKgK(_,_,_,n_block), tKrK, tCqK, 
         seqlen_k - n_block * kBlockN,
         /*clear_D=*/true);
     //copy(gmem_tiled_copy_QK, tKgK(_,_,_,n_block), tKrK);
@@ -284,7 +291,7 @@ inline __device__ void compute_attn_1rowblock(
         if (n_block > n_block_min) {
 
             masked_copy<Is_even_MN>(
-                gmem_tiled_copy_QK, tKgK(_,_,_,n_block-1), tKrK, warp_id, lane_id, 
+                gmem_tiled_copy_QK, tKgK(_,_,_,n_block-1), tKrK, tCqK, 
                 seqlen_k - (n_block-1) * kBlockN,
                 /*clear_D=*/true);
             // copy(gmem_tiled_copy_QK, tKgK(_,_,_,n_block - 1 ), tKrK);
@@ -301,7 +308,7 @@ inline __device__ void compute_attn_1rowblock(
 
         __syncthreads();
         masked_copy<Is_even_MN>(
-            gmem_tiled_copy_QK, tVgV(_,_,_,n_block), tVsV, warp_id, lane_id, 
+            gmem_tiled_copy_QK, tVgV(_,_,_,n_block), tVsV, tCqK, 
             seqlen_k - n_block * kBlockN,
             /*clear_D=*/true);
 
@@ -636,7 +643,7 @@ inline __device__ void compute_attn_1rowblock(
 
     //copy(gmem_tiled_copy_O, tOsO_copy, tOgO_copy);
     masked_copy<Is_even_MN>(
-        gmem_tiled_copy_O, tOsO_copy, tOgO_copy, warp_id, lane_id, 
+        gmem_tiled_copy_O, tOsO_copy, tOgO_copy, tCqO, 
         seqlen_q - m_block * kBlockM, 
         /*clear_D=*/false);
 
