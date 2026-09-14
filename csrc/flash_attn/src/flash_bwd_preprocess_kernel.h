@@ -63,6 +63,8 @@ inline __device__ void compute_dot_do_o(half_t* o_ptr,
     int elements_per_thread = 0;
     if constexpr (kHeadDim == 64) {
         elements_per_thread = 2;
+    } else if constexpr (kHeadDim == 96) {
+        elements_per_thread = 3;
     } else {
         elements_per_thread = 4;
     }
