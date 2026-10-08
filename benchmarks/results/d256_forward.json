@@ -1,0 +1,75 @@
+{
+  "schema": "d256-forward-benchmark.v1",
+  "gpu": "NVIDIA GeForce RTX 2080 Ti",
+  "B": 1,
+  "Hq": 12,
+  "Hkv": 2,
+  "D": 256,
+  "dtype": "FP16",
+  "scale": 0.0625,
+  "mask": "append-causal",
+  "outputs": "O and LSE",
+  "runtime": {
+    "python": "3.12",
+    "torch": "2.13.0+cu130",
+    "CUDA_runtime": "13.0",
+    "CUDA_toolkit": "13.2.86",
+    "compiler": "GCC/G++13.3 C++17"
+  },
+  "clock_policy": "Stock boost, no frequency normalization or overclock. Primary/repeat long-shape qualification sampled SM1860\u20131935MHz and memory6800MHz. Public comparison clocks vary (including a 4096-square timing-regime transition); that range does not apply to all CSV rows.",
+  "sampling": {
+    "warmups": 5,
+    "samples_per_batch": 30,
+    "comparison": "Alternating AB/BA paired samples for D256/FI, CUDA Events around graph replay. Primary/repeat rows are separate native D256 qualification batches; not same-window FI pairs."
+  },
+  "useful_flops": "4*B*Hq*D*(Q*(KV-Q)+Q*(Q+1)/2)",
+  "scopes": {
+    "native": "Each backend native O/LSE, possibly different log base/layout.",
+    "canonical": "FlashInfer GPU FP32 ln2 conversion and contiguous [B,H,Q] LSE included; D256 already returns natural LSE."
+  },
+  "measured_D256_binary_sha256": "2bd18c99dd0dd10498d3353c144518f1029de549fa6af45b5f94b1896c0d4c05",
+  "FlashInfer_source_commit": "37b4d30eac39b89f198b893dd11914bd76f5fcf8",
+  "FlashInfer_version": "0.7.0 source build, package metadata unknown; source and loaded binary independently verified",
+  "FlashInfer_binary_sha256": "27e2138fcafb69bdc5a2ab7460acb93469171c79e81b5300b19ba8b161323d5e",
+  "comparison_inputs": [
+    {
+      "q": 4096,
+      "kv": 4096,
+      "seed_argument": 2026100801,
+      "input_sha256": [
+        "be243316f1832031a80964e1877d2a168de2aa47cf1beb9db4a4c00684a6ecc1",
+        "569a117829283c362830d6e918e5cd11c3fa052bb80a27c11394c7eac3280df4",
+        "22f64e7ac805dab71487258386a1e9909582fe468960252d49337632c026d161"
+      ]
+    },
+    {
+      "q": 8192,
+      "kv": 8192,
+      "seed_argument": 2026100801,
+      "input_sha256": [
+        "92faf886d3b64e4d4461bcd43c6fd26fe040aa7c90ded4d16bd2766dfe6a52cd",
+        "bd03d385985f26554e3a88b36af45f9ae7ced504863f42c554b7263e6d65acef",
+        "3d8ecf28e65cec11c2d728a40ebe6dbdd56551f0caacb1864ab016e8069f8757"
+      ]
+    },
+    {
+      "q": 8192,
+      "kv": 65536,
+      "seed_argument": 2026092306,
+      "input_sha256": [
+        "cba489b1ee4719fc186652ebe9d99b72641329b2405595f950609925f8fc80d9",
+        "0766da0b9dddbd3d3b58dc673adffa65820e59a41fe7baf0522347bd20ea238c",
+        "6985dd291d922de6d72a491b7f82724a15e225a8b12baceccdb2a78d144525d0"
+      ]
+    }
+  ],
+  "primary_repeat_seed_argument": 2026092306,
+  "input_recipe": "CPU Generator seed = seed_argument + q*131 + kv*17; sequential FP32 randn Q/K/V, multiply0.7 then cast FP16.",
+  "reference": "Comparison benchmark: CPU FP64 QK/softmax/PV on rows0,Q//2,Q-1, all heads; not full long-output FP64.",
+  "limitations": [
+    "No application throughput claim.",
+    "4096-square native comparison exhibits a common timing-regime transition; all samples retained, not used as stable-throughput headline.",
+    "The public driver was shortened after the recorded GPU run without changing numerical/timing helpers; no new GPU measurements are claimed."
+  ],
+  "csv_sha256": "18b807d79d8905cd741dc5bc99d82514f33ff38b53c3af772ba122c23789d73c"
+}

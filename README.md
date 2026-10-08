@@ -12,6 +12,17 @@ Supports:
  - gqa
  - varlen
 
+Head dimension **256** additionally supports SM75 FP16 dense, append-causal
+forward inference through `flash_attn_func(q, k, v, causal=True)`, with
+`Lq <= Lk`, GQA/MQA and the current CUDA stream. D256 backward, noncausal,
+packed and varlen requests are rejected; the existing D64/D96/D128 paths
+are unchanged. Use `torch.no_grad()` if input tensors require gradients.
+
+See [D256 validation, performance and reproduction](docs/d256_forward.md).
+On one RTX 2080 Ti, representative Q8192/KV65536 and KV131072 measurements
+reach approximately 52.6 useful TFLOP/s for native O/LSE graph replay.
+Known numerical differences and measured scope are documented there.
+
 Does not support:
 
  - dropout
@@ -64,10 +75,15 @@ The arguments for these functions differ from the standard FlashAttention Python
 
 
 ## Requirements
-We tested this implementation with:
+The original D64/D96/D128 implementation was tested with:
 
 - CUDA 12.4
 - PyTorch 2.8.0 and 2.5.1
+
+D256 was built and tested with Python 3.12, PyTorch 2.13.0+cu130, CUDA
+toolkit 13.2.86 and GCC 13.3. D256 has not been tested on the older matrix
+or on T4. Its separate extension omits fast-math; lower dimensions retain
+their existing compiler flags.
 
 ## Build notes
 

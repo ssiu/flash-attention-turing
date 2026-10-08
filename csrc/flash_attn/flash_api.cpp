@@ -168,6 +168,8 @@ mha_fwd(at::Tensor q,
         const float softmax_scale,
         bool is_causal)
 {
+    TORCH_CHECK(q.dim() == 0 || q.size(-1) != 256, "D256 requires the dense inference flash_attn_func API");
+
     auto device = q.device();
 
     const auto sizes = q.sizes();
@@ -245,6 +247,8 @@ mha_bwd(at::Tensor q,
         const float softmax_scale,
         bool is_causal)
 {
+    TORCH_CHECK(q.dim() == 0 || q.size(-1) != 256, "D256 backward is unsupported");
+
 
     const auto sizes = q.sizes();
 
@@ -335,6 +339,8 @@ mha_varlen_fwd(at::Tensor q,
                const float softmax_scale,
                bool is_causal)
 {
+    TORCH_CHECK(q.dim() == 0 || q.size(-1) != 256, "D256 varlen attention is unsupported");
+
     TORCH_CHECK(q.dim() == 3 && k.dim() == 3 && v.dim() == 3, "q, k, v must be rank-3 packed tensors");
     TORCH_CHECK(cu_seqlens_q.is_cuda() && cu_seqlens_k.is_cuda(), "cu_seqlens_q/cu_seqlens_k must be CUDA tensors");
     TORCH_CHECK(cu_seqlens_q.scalar_type() == torch::kInt32 && cu_seqlens_k.scalar_type() == torch::kInt32,
@@ -404,6 +410,8 @@ mha_varlen_bwd(at::Tensor q,
                const float softmax_scale,
                bool is_causal)
 {
+    TORCH_CHECK(q.dim() == 0 || q.size(-1) != 256, "D256 varlen backward is unsupported");
+
     TORCH_CHECK(q.dim() == 3 && k.dim() == 3 && v.dim() == 3, "q, k, v must be rank-3 packed tensors");
     TORCH_CHECK(cu_seqlens_q.is_cuda() && cu_seqlens_k.is_cuda(), "cu_seqlens_q/cu_seqlens_k must be CUDA tensors");
     TORCH_CHECK(cu_seqlens_q.scalar_type() == torch::kInt32 && cu_seqlens_k.scalar_type() == torch::kInt32,

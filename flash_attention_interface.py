@@ -394,6 +394,10 @@ def flash_attn_func(
     causal: bool = False,
 ) -> torch.Tensor:
     """
+    Head dimension 256 supports SM75 FP16 dense causal inference only (Q <= KV).
+    It copies noncontiguous or misaligned inputs when needed and does not support backward or
+    the packed/varlen APIs. The default causal=False must be overridden for D256.
+
     Arguments:
         q: (batch_size, seqlen_q, nheads, headdim)
         k: (batch_size, seqlen_k, nheads_k, headdim)
@@ -402,6 +406,14 @@ def flash_attn_func(
     Return:
         out: (batch_size, seqlen_q, nheads, headdim).
     """
+    if q.ndim == 4 and q.shape[-1] == 256:
+        if torch.is_grad_enabled() and any(x.requires_grad for x in (q, k, v)):
+            raise RuntimeError("D256 is inference only; backward is unsupported")
+        # Separate native module preserves the qualified D256 compilation policy.
+        import flash_attn_turing_d256
+
+        scale = q.shape[-1] ** (-0.5) if softmax_scale is None else softmax_scale
+        return flash_attn_turing_d256.forward(q, k, v, scale, causal)[0]
     return FlashAttnFunc.apply(
         q,
         k,

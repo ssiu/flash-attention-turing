@@ -8,7 +8,7 @@ import subprocess
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
 
-if os.path.isdir(".git"):
+if os.path.exists(".git"):
     subprocess.run(["git", "submodule", "update", "--init", "csrc/cutlass"], check=True)
 
 nvcc_flags = ["-std=c++17",
@@ -25,8 +25,12 @@ if sys.platform == "win32":
     if compiler.compiler_type == "msvc":
         nvcc_flags[0] = "-std=c++20"
         nvcc_flags.extend(["-Xcompiler", "/Zc:preprocessor"])
+# D256 was qualified without --use_fast_math. Keep both established policies.
+d256_nvcc_flags = [flag for flag in nvcc_flags if flag != "--use_fast_math"]
+
 setup(
     name="flash_attn_turing",
+    py_modules=["flash_attention_interface"],
     ext_modules=[
         CUDAExtension(
             name="flash_attn_turing",
@@ -51,7 +55,18 @@ setup(
                 Path(this_dir) / "csrc" / "cutlass" / "tools/util/include"
                 ],
             extra_compile_args={'nvcc': nvcc_flags}
-        )
+        ),
+        CUDAExtension(
+            name="flash_attn_turing_d256",
+            sources=["csrc/flash_attn/flash_api_d256.cpp",
+                     "csrc/flash_attn/src/flash_fwd_hdim256_fp16_causal_sm75.cu"],
+            include_dirs=[
+                Path(this_dir) / "csrc" / "flash_attn" / "src",
+                Path(this_dir) / "csrc" / "cutlass" / "include",
+                Path(this_dir) / "csrc" / "cutlass" / "tools/util/include",
+            ],
+            extra_compile_args={'cxx': ['-O2'], 'nvcc': d256_nvcc_flags},
+        ),
     ],
     install_requires=["torch"],
     cmdclass={"build_ext": BuildExtension}
